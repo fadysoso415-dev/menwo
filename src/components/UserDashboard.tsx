@@ -1,5 +1,14 @@
-import React, { useState } from 'react';
-import { User, Bet, Notification, DepositRequest, WithdrawalRequest } from '../types';
+import React, { useState, useEffect } from 'react';
+import { User, Bet, Notification, DepositRequest, WithdrawalRequest, Match } from '../types';
+import { useLanguage } from '../context/LanguageContext';
+import { 
+  PieChart as RechartsPieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Tooltip as RechartsTooltip, 
+  Legend 
+} from 'recharts';
 import { 
   Coins, 
   Clock, 
@@ -20,18 +29,27 @@ import {
   Wallet,
   Upload,
   Phone,
-  ArrowUpRight
+  ArrowUpRight,
+  PieChart as PieChartIcon,
+  Users,
+  BarChart3,
+  Flame,
+  Sparkles,
+  Trophy,
+  Percent
 } from 'lucide-react';
 
 interface UserDashboardProps {
   currentUser: User;
   onUpdateProfile: (updatedUser: User) => void;
   bets: Bet[];
+  allBets?: Bet[];
+  matches?: Match[];
   notifications: Notification[];
   onMarkNotificationRead: (id: string) => void;
   onClearNotifications: () => void;
   onDeposit: (amount: number) => void;
-  onClaimDailyReward: () => void;
+  onClaimDailyReward?: () => void;
   onOpenCashDepositModal?: () => void;
   depositRequests?: DepositRequest[];
   onOpenWithdrawModal?: () => void;
@@ -42,6 +60,8 @@ export default function UserDashboard({
   currentUser,
   onUpdateProfile,
   bets,
+  allBets = [],
+  matches = [],
   notifications,
   onMarkNotificationRead,
   onClearNotifications,
@@ -52,7 +72,7 @@ export default function UserDashboard({
   onOpenWithdrawModal,
   withdrawalRequests = []
 }: UserDashboardProps) {
-
+  const { t, dir } = useLanguage();
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileEmail, setProfileEmail] = useState(currentUser.email);
   const [showEditSuccess, setShowEditSuccess] = useState(false);
@@ -60,6 +80,7 @@ export default function UserDashboard({
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highestAmount' | 'highestPayout' | 'highestOdds'>('newest');
   const [depositAmount, setDepositAmount] = useState<number>(500);
+  const [chartType, setChartType] = useState<'outcome' | 'status'>('outcome');
 
   // User Statistics calculations
   const userBets = bets.filter(b => b.userId === currentUser.id);
@@ -69,6 +90,78 @@ export default function UserDashboard({
   const totalPayout = userBets.reduce((acc, b) => acc + (b.status === 'won' ? b.payout : 0), 0);
   const totalInvested = userBets.reduce((acc, b) => acc + b.amount, 0);
   const netProfit = totalPayout - totalInvested;
+
+  // Recharts Pie Chart Datasets
+  // 1. Distribution by Selected Outcome (نوع التوقع الخياري: فوز المضيف / التعادل / فوز الضيف)
+  const homeCount = userBets.filter(b => b.selectedOutcome === 'home').length;
+  const drawCount = userBets.filter(b => b.selectedOutcome === 'draw').length;
+  const awayCount = userBets.filter(b => b.selectedOutcome === 'away').length;
+
+  const outcomePieData = [
+    { name: 'فوز الفريق المضيف', value: homeCount, color: '#10b981' }, // Emerald
+    { name: 'التعادل', value: drawCount, color: '#f59e0b' },            // Amber
+    { name: 'فوز الفريق الضيف', value: awayCount, color: '#3b82f6' },   // Blue
+  ].filter(d => d.value > 0);
+
+  // 2. Distribution by Bet Result / Status (نوع النتيجة: فوز / معلق / خسارة)
+  const wonCount = userBets.filter(b => b.status === 'won').length;
+  const pendingCount = userBets.filter(b => b.status === 'pending').length;
+  const lostCount = userBets.filter(b => b.status === 'lost').length;
+
+  const statusPieData = [
+    { name: 'رهانات فائزة (فوز)', value: wonCount, color: '#10b981' },      // Emerald
+    { name: 'قيد الانتظار (معلقة)', value: pendingCount, color: '#f59e0b' },// Amber
+    { name: 'رهانات خاسرة (خسارة)', value: lostCount, color: '#ef4444' },    // Red
+  ].filter(d => d.value > 0);
+
+  const activePieData = chartType === 'outcome' ? outcomePieData : statusPieData;
+
+  // Community Predictions Logic for Active Matches
+  const activeCommunityMatches = matches && matches.length > 0 ? matches : [];
+  const [selectedMatchId, setSelectedMatchId] = useState<string>(activeCommunityMatches[0]?.id || '');
+
+  useEffect(() => {
+    if (activeCommunityMatches.length > 0 && (!selectedMatchId || !activeCommunityMatches.some(m => m.id === selectedMatchId))) {
+      setSelectedMatchId(activeCommunityMatches[0].id);
+    }
+  }, [matches]);
+
+  const selectedCommunityMatch = activeCommunityMatches.find(m => m.id === selectedMatchId) || activeCommunityMatches[0];
+
+  // Helper to calculate community bet distribution percentages for a specific match
+  const getCommunityPredictionPercentages = (match?: Match) => {
+    if (!match) return { homePct: 45, drawPct: 25, awayPct: 30, totalBets: 0, homeBets: 0, drawBets: 0, awayBets: 0 };
+
+    const betsPool = allBets && allBets.length > 0 ? allBets : bets;
+    const matchBets = betsPool.filter(b => b.matchId === match.id || (b.teamHome === match.teamHome && b.teamAway === match.teamAway));
+    const totalBets = matchBets.length;
+
+    if (totalBets === 0) {
+      // Calculate realistic baseline ratio using odds
+      const invHome = 1 / (match.oddsHome || 2.0);
+      const invDraw = 1 / (match.oddsDraw || 3.2);
+      const invAway = 1 / (match.oddsAway || 2.4);
+      const sum = invHome + invDraw + invAway;
+
+      const homePct = Math.round((invHome / sum) * 100);
+      const drawPct = Math.round((invDraw / sum) * 100);
+      const awayPct = 100 - homePct - drawPct;
+
+      return { homePct, drawPct, awayPct, totalBets: 0, homeBets: 0, drawBets: 0, awayBets: 0 };
+    }
+
+    const homeBets = matchBets.filter(b => b.selectedOutcome === 'home').length;
+    const drawBets = matchBets.filter(b => b.selectedOutcome === 'draw').length;
+    const awayBets = matchBets.filter(b => b.selectedOutcome === 'away').length;
+
+    const homePct = Math.round((homeBets / totalBets) * 100);
+    const drawPct = Math.round((drawBets / totalBets) * 100);
+    const awayPct = Math.max(0, 100 - homePct - drawPct);
+
+    return { homePct, drawPct, awayPct, totalBets, homeBets, drawBets, awayBets };
+  };
+
+  const currentCommunityStats = getCommunityPredictionPercentages(selectedCommunityMatch);
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -135,7 +228,7 @@ export default function UserDashboard({
   const isFiltersActive = betFilter !== 'all' || searchQuery.trim() !== '' || sortBy !== 'newest';
 
   return (
-    <div className="space-y-8 py-6" dir="rtl">
+    <div className="space-y-8 py-6" dir={dir}>
       
       {/* 1. Header & Profile customization */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -229,69 +322,6 @@ export default function UserDashboard({
               <div className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-bold px-3 py-1 rounded-full">
                 سعر الشحن والسحب: 1 كوين = 1 جنيه مصري 🇪🇬
               </div>
-            </div>
-
-            {/* Daily claim (10 coins up to 7 days limit) */}
-            <div className="space-y-2.5 bg-zinc-900/40 p-3.5 rounded-xl border border-zinc-900">
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-zinc-400 font-medium flex items-center gap-1">
-                  <span>مكافأة الحضور اليومي:</span>
-                  <span className="text-emerald-400 font-bold">+10 🪙</span>
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${
-                  (currentUser.dailyClaimsCount || 0) >= 7 
-                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/30' 
-                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-                }`}>
-                  {currentUser.dailyClaimsCount || 0} / 7 أيام
-                </span>
-              </div>
-
-              {/* 7 Days Progress Tracker */}
-              <div className="flex justify-between items-center gap-1 py-1">
-                {[1, 2, 3, 4, 5, 6, 7].map((dayNumber) => {
-                  const claims = currentUser.dailyClaimsCount || 0;
-                  const isClaimed = dayNumber <= claims;
-                  const isCurrent = dayNumber === claims + 1 && claims < 7;
-
-                  return (
-                    <div 
-                      key={dayNumber}
-                      className={`flex-1 flex flex-col items-center justify-center py-1 rounded border text-[9px] font-mono font-bold transition-all ${
-                        isClaimed
-                          ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-400'
-                          : isCurrent
-                          ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 animate-pulse'
-                          : 'bg-zinc-950 border-zinc-800 text-zinc-600'
-                      }`}
-                      title={`اليوم ${dayNumber}: ${isClaimed ? 'تمت المطالبة' : isCurrent ? 'جاهز للمطالبة' : 'مغلق'}`}
-                    >
-                      <span>يوم {dayNumber}</span>
-                      <span className="text-[10px]">
-                        {isClaimed ? '✓' : '+10'}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              <button 
-                onClick={onClaimDailyReward}
-                disabled={(currentUser.dailyClaimsCount || 0) >= 7}
-                className={`w-full rounded-xl text-xs font-bold py-2.5 transition-all shadow-lg flex items-center justify-center gap-1.5 ${
-                  (currentUser.dailyClaimsCount || 0) >= 7
-                    ? 'bg-zinc-900 text-zinc-500 border border-zinc-800 cursor-not-allowed shadow-none'
-                    : 'bg-emerald-500 text-zinc-950 hover:bg-emerald-400 shadow-emerald-500/10 cursor-pointer'
-                }`}
-                id="claim-daily-btn"
-              >
-                <Award className="h-4 w-4" />
-                <span>
-                  {(currentUser.dailyClaimsCount || 0) >= 7
-                    ? 'اكتملت المكافأة الترحيبية (7 / 7 أيام)'
-                    : `المطالبة بمكافأة اليوم (${(currentUser.dailyClaimsCount || 0) + 1} من 7) +10 🪙`}
-                </span>
-              </button>
             </div>
           </div>
 
@@ -398,6 +428,373 @@ export default function UserDashboard({
         </div>
 
       </section>
+
+      {/* 1.5 Recharts Pie Chart & Community Predictions Grid Section */}
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" id="analytics-and-predictions-grid">
+        
+        {/* Card 1: Recharts Pie Chart Section (توزيع الرهانات الشخصية) */}
+        <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 shadow-xl flex flex-col justify-between" id="bets-pie-chart-section">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-900 pb-4 gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shadow-sm">
+                <PieChartIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>توزيع الرهانات الحالية (Pie Chart)</span>
+                  <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">Recharts</span>
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  تحليل بياني دائري تفاعلي لتوزيع الرهانات حسب نوع النتيجة (فوز، تعادل، خسارة)
+                </p>
+              </div>
+            </div>
+
+            {/* Toggle View Switcher */}
+            <div className="flex items-center gap-1 bg-zinc-900/90 p-1 rounded-xl border border-zinc-800 self-start sm:self-auto">
+              <button
+                onClick={() => setChartType('outcome')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  chartType === 'outcome'
+                    ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                id="chart-type-outcome-btn"
+              >
+                نوع التوقع (مضيف / تعادل / ضيف)
+              </button>
+              <button
+                onClick={() => setChartType('status')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  chartType === 'status'
+                    ? 'bg-amber-500 text-zinc-950 shadow-md shadow-amber-500/20 font-black'
+                    : 'text-zinc-400 hover:text-white'
+                }`}
+                id="chart-type-status-btn"
+              >
+                نتيجة الرهان (فوز / معلق / خسارة)
+              </button>
+            </div>
+          </div>
+
+          {totalBetsPlaced === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/20 rounded-xl border border-dashed border-zinc-800 text-center space-y-2 my-auto">
+              <PieChartIcon className="h-10 w-10 text-zinc-600 animate-pulse" />
+              <p className="text-xs font-bold text-zinc-400">لا توجد رهانات حالية لعرض الرسم البياني الدائري</p>
+              <p className="text-[11px] text-zinc-500 max-w-sm">
+                قم باختيار المبارة المفضلة لديك ووضع أول توقع لتبدأ التحليلات التفاعلية بالظهور هنا فوراً!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 items-center gap-4 pt-2 my-auto">
+              
+              {/* The Recharts Pie Chart */}
+              <div className="lg:col-span-7 h-56 relative flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <RechartsPieChart>
+                    <Pie
+                      data={activePieData.length > 0 ? activePieData : [{ name: 'لا توجد بيانات', value: 1, color: '#3f3f46' }]}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={48}
+                      outerRadius={75}
+                      paddingAngle={4}
+                      dataKey="value"
+                      nameKey="name"
+                      stroke="#09090b"
+                      strokeWidth={2}
+                    >
+                      {activePieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <RechartsTooltip
+                      content={({ active, payload }: any) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0];
+                          return (
+                            <div className="bg-zinc-950 border border-zinc-800 p-3 rounded-xl shadow-2xl text-right dir-rtl">
+                              <div className="flex items-center gap-2">
+                                <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: data.payload.color }} />
+                                <span className="text-xs font-black text-white">{data.name}</span>
+                              </div>
+                              <p className="text-xs font-bold text-amber-400 mt-1">
+                                {data.value} رهان ({((data.value / totalBetsPlaced) * 100).toFixed(0)}%)
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={32} 
+                      formatter={(value) => <span className="text-[11px] text-zinc-300 font-semibold px-1">{value}</span>}
+                    />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+                
+                {/* Center Stat Badge inside donut */}
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none pb-5">
+                  <span className="text-xl font-black text-white">{totalBetsPlaced}</span>
+                  <span className="text-[9px] text-zinc-500 font-bold">رهان</span>
+                </div>
+              </div>
+
+              {/* Side Metrics Breakdown Card */}
+              <div className="lg:col-span-5 space-y-2 bg-zinc-900/40 p-3 rounded-xl border border-zinc-900">
+                <h4 className="text-[11px] font-bold text-zinc-300 border-b border-zinc-800 pb-1.5">
+                  تفاصيل التوزيع ({chartType === 'outcome' ? 'أنواع التوقعات' : 'نتائج الرهانات'}):
+                </h4>
+
+                {chartType === 'outcome' ? (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        فوز المضيف:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{homeCount} ({totalBetsPlaced > 0 ? Math.round((homeCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                        التعادل:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{drawCount} ({totalBetsPlaced > 0 ? Math.round((drawCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-blue-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                        فوز الضيف:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{awayCount} ({totalBetsPlaced > 0 ? Math.round((awayCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-emerald-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        الرهانات الفائزة:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{wonCount} ({totalBetsPlaced > 0 ? Math.round((wonCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                        قيد الانتظار:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{pendingCount} ({totalBetsPlaced > 0 ? Math.round((pendingCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-zinc-900/60 border border-zinc-800/80">
+                      <span className="text-[11px] text-red-400 font-bold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                        الرهانات الخاسرة:
+                      </span>
+                      <span className="text-[11px] font-black text-white">{lostCount} ({totalBetsPlaced > 0 ? Math.round((lostCount / totalBetsPlaced) * 100) : 0}%)</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+            </div>
+          )}
+        </section>
+
+        {/* Card 2: Community Predictions Section (نسب توقعات المجتمع) */}
+        <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 shadow-xl flex flex-col justify-between" id="community-predictions-section">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-zinc-900 pb-4 gap-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white flex items-center gap-2">
+                  <span>نسب توقعات المجتمع</span>
+                  <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <Sparkles className="h-2.5 w-2.5" /> مؤشرات حية
+                  </span>
+                </h3>
+                <p className="text-xs text-zinc-500 mt-0.5">
+                  توزيع توقعات الجمهور والأعضاء للمباريات الحالية ببارات تقدم ملونة
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {activeCommunityMatches.length === 0 ? (
+            <div className="flex flex-col items-center justify-center p-8 bg-zinc-900/20 rounded-xl border border-dashed border-zinc-800 text-center space-y-2 my-auto">
+              <BarChart3 className="h-10 w-10 text-zinc-600 animate-pulse" />
+              <p className="text-xs font-bold text-zinc-400">لا توجد مباريات نشطة حالياً لحساب نسبة التوقعات</p>
+            </div>
+          ) : (
+            <div className="space-y-3 my-auto">
+              
+              {/* Match Selector Tabs */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                {activeCommunityMatches.slice(0, 5).map(m => {
+                  const isSelected = selectedCommunityMatch?.id === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => setSelectedMatchId(m.id)}
+                      className={`whitespace-nowrap px-2.5 py-1 rounded-xl text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                        isSelected
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 shadow-sm'
+                          : 'bg-zinc-900/80 text-zinc-400 border-zinc-800 hover:text-white hover:bg-zinc-800'
+                      }`}
+                    >
+                      <span>{m.teamHome} - {m.teamAway}</span>
+                      {m.status === 'live' && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {selectedCommunityMatch && (
+                <div className="bg-zinc-900/40 border border-zinc-800/80 p-3.5 rounded-xl space-y-3">
+                  {/* Selected Match Header */}
+                  <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] text-amber-400 font-extrabold bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                        {selectedCommunityMatch.league || 'دوري المحترفين'}
+                      </span>
+                      <span className="text-[11px] text-zinc-400 font-semibold">{selectedCommunityMatch.time}</span>
+                    </div>
+
+                    <div className="text-[10px] font-extrabold text-zinc-300 bg-zinc-950 px-2 py-0.5 rounded-lg border border-zinc-800 flex items-center gap-1">
+                      <BarChart3 className="h-3 w-3 text-emerald-400" />
+                      <span>{currentCommunityStats.totalBets > 0 ? `${currentCommunityStats.totalBets} رهان` : 'تقدير ذكي بناءً على الأودز'}</span>
+                    </div>
+                  </div>
+
+                  {/* Multi-segment Combined Progress Bar */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-bold text-zinc-400 px-0.5">
+                      <span className="text-emerald-400">{selectedCommunityMatch.teamHome}: {currentCommunityStats.homePct}%</span>
+                      <span className="text-amber-400">التعادل: {currentCommunityStats.drawPct}%</span>
+                      <span className="text-blue-400">{selectedCommunityMatch.teamAway}: {currentCommunityStats.awayPct}%</span>
+                    </div>
+
+                    <div className="w-full h-2.5 bg-zinc-950 rounded-full overflow-hidden p-0.5 border border-zinc-800/80 flex gap-0.5">
+                      <div 
+                        className="bg-emerald-500 h-full rounded-l-full transition-all duration-700 shadow-sm"
+                        style={{ width: `${currentCommunityStats.homePct}%` }}
+                        title={`فوز ${selectedCommunityMatch.teamHome}: ${currentCommunityStats.homePct}%`}
+                      />
+                      <div 
+                        className="bg-amber-500 h-full transition-all duration-700 shadow-sm"
+                        style={{ width: `${currentCommunityStats.drawPct}%` }}
+                        title={`التعادل: ${currentCommunityStats.drawPct}%`}
+                      />
+                      <div 
+                        className="bg-blue-500 h-full rounded-r-full transition-all duration-700 shadow-sm"
+                        style={{ width: `${currentCommunityStats.awayPct}%` }}
+                        title={`فوز ${selectedCommunityMatch.teamAway}: ${currentCommunityStats.awayPct}%`}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Detailed Individual Progress Bars with Logos and Odds */}
+                  <div className="space-y-2 pt-0.5">
+                    
+                    {/* 1. Home Win Progress Bar */}
+                    <div className="space-y-1 bg-zinc-950/80 p-2 rounded-xl border border-zinc-900">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-emerald-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <span>فوز {selectedCommunityMatch.teamHome}</span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-zinc-500 font-medium">(أودز x{selectedCommunityMatch.oddsHome})</span>
+                          <span className="text-emerald-400 font-black text-[10px] bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                            {currentCommunityStats.homePct}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800/50">
+                        <div 
+                          className="bg-gradient-to-r from-emerald-600 to-emerald-400 h-full rounded-full transition-all duration-700" 
+                          style={{ width: `${currentCommunityStats.homePct}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* 2. Draw Progress Bar */}
+                    <div className="space-y-1 bg-zinc-950/80 p-2 rounded-xl border border-zinc-900">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-amber-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+                          <span>التعادل</span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-zinc-500 font-medium">(أودز x{selectedCommunityMatch.oddsDraw})</span>
+                          <span className="text-amber-400 font-black text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/20">
+                            {currentCommunityStats.drawPct}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800/50">
+                        <div 
+                          className="bg-gradient-to-r from-amber-600 to-amber-400 h-full rounded-full transition-all duration-700" 
+                          style={{ width: `${currentCommunityStats.drawPct}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                    {/* 3. Away Win Progress Bar */}
+                    <div className="space-y-1 bg-zinc-950/80 p-2 rounded-xl border border-zinc-900">
+                      <div className="flex items-center justify-between text-[11px] font-bold">
+                        <span className="text-blue-400 flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                          <span>فوز {selectedCommunityMatch.teamAway}</span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[9px] text-zinc-500 font-medium">(أودز x{selectedCommunityMatch.oddsAway})</span>
+                          <span className="text-blue-400 font-black text-[10px] bg-blue-500/10 px-1.5 py-0.5 rounded border border-blue-500/20">
+                            {currentCommunityStats.awayPct}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden border border-zinc-800/50">
+                        <div 
+                          className="bg-gradient-to-r from-blue-600 to-blue-400 h-full rounded-full transition-all duration-700" 
+                          style={{ width: `${currentCommunityStats.awayPct}%` }} 
+                        />
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Insight note */}
+                  <div className="pt-1.5 border-t border-zinc-800/60 flex items-center gap-1.5 text-[10px] text-zinc-400 font-semibold">
+                    <Flame className="h-3 w-3 text-amber-400 shrink-0 animate-bounce" />
+                    <span>
+                      {currentCommunityStats.homePct >= currentCommunityStats.awayPct && currentCommunityStats.homePct >= currentCommunityStats.drawPct
+                        ? `أغلبية الجمهور ترجح كفة ${selectedCommunityMatch.teamHome} بنسبة ${currentCommunityStats.homePct}% 🔥`
+                        : currentCommunityStats.awayPct >= currentCommunityStats.homePct && currentCommunityStats.awayPct >= currentCommunityStats.drawPct
+                        ? `أغلبية الجمهور ترجح كفة ${selectedCommunityMatch.teamAway} بنسبة ${currentCommunityStats.awayPct}% 🔥`
+                        : `التوقعات ترجح التعادل بين الفريقين بنسبة ${currentCommunityStats.drawPct}% ⚖️`
+                      }
+                    </span>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+          )}
+        </section>
+
+      </div>
 
       {/* 2. Previous Bets Log (الرهانات السابقة) */}
       <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">

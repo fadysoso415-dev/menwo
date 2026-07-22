@@ -1,5 +1,7 @@
 import React from 'react';
 import { User, Notification } from '../types';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from './LanguageSelector';
 import { 
   Trophy, 
   User as UserIcon, 
@@ -35,11 +37,12 @@ export default function Navbar({
   onOpenDeposit,
   onOpenWithdraw
 }: NavbarProps) {
+  const { t, dir } = useLanguage();
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" dir="rtl">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" dir={dir}>
         
         {/* Logo / Brand */}
         <div className="flex items-center gap-3">
@@ -52,7 +55,7 @@ export default function Navbar({
               <Trophy className="h-5 w-5" />
             </div>
             <span className="text-xl font-bold tracking-tight text-white">
-              مينوو <span className="text-emerald-400">AI</span>
+              {t.appName.split(' ')[0]} <span className="text-emerald-400">{t.appName.split(' ')[1] || 'AI'}</span>
             </span>
           </button>
         </div>
@@ -68,7 +71,7 @@ export default function Navbar({
             }`}
             id="nav-tab-home"
           >
-            الرئيسية
+            {t.home}
           </button>
           <button
             onClick={() => setActiveTab('events')}
@@ -79,7 +82,7 @@ export default function Navbar({
             }`}
             id="nav-tab-events"
           >
-            الأحداث والمباريات
+            {t.eventsAndMatches}
           </button>
           
           {currentUser && (
@@ -92,7 +95,7 @@ export default function Navbar({
               }`}
               id="nav-tab-dashboard"
             >
-              لوحة المستخدم
+              {t.userDashboard}
             </button>
           )}
 
@@ -107,25 +110,28 @@ export default function Navbar({
               id="nav-tab-admin"
             >
               <ShieldAlert className="h-4 w-4" />
-              لوحة المسؤول
+              {t.adminPanel}
             </button>
           )}
         </nav>
 
-        {/* User profile, Balance, Notifications */}
-        <div className="flex items-center gap-3">
+        {/* User profile, Balance, Notifications, Language Selector */}
+        <div className="flex items-center gap-2 sm:gap-3">
           
+          {/* Language Selector Component */}
+          <LanguageSelector />
+
           {currentUser ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               {/* Virtual Balance Chip */}
-              <div className="flex items-center gap-2 rounded-full bg-zinc-900 px-3 py-1.5 border border-zinc-800">
+              <div className="flex items-center gap-1.5 sm:gap-2 rounded-full bg-zinc-900 px-2.5 sm:px-3 py-1.5 border border-zinc-800">
                 <Coins className="h-4 w-4 text-amber-400" />
-                <span className="text-xs font-semibold text-zinc-300">الرصيد:</span>
-                <span className="text-sm font-bold text-amber-400">{currentUser.balance.toLocaleString()} 🪙</span>
-                <div className="flex items-center gap-1 border-r border-zinc-800 pr-2 mr-1">
+                <span className="hidden lg:inline text-xs font-semibold text-zinc-300">{t.balance}:</span>
+                <span className="text-xs sm:text-sm font-bold text-amber-400">{currentUser.balance.toLocaleString()} 🪙</span>
+                <div className={`flex items-center gap-1 ${dir === 'rtl' ? 'border-r pr-2 mr-1' : 'border-l pl-2 ml-1'} border-zinc-800`}>
                   <button 
                     onClick={onOpenDeposit}
-                    title="إضافة رصيد شحن كاش"
+                    title={t.depositCash}
                     className="text-zinc-400 hover:text-amber-400 transition-colors"
                     id="add-coins-nav-btn"
                   >
@@ -134,7 +140,7 @@ export default function Navbar({
                   {onOpenWithdraw && (
                     <button 
                       onClick={onOpenWithdraw}
-                      title="سحب الأرباح كاش"
+                      title={t.withdrawCash}
                       className="text-zinc-400 hover:text-emerald-400 transition-colors"
                       id="withdraw-coins-nav-btn"
                     >
@@ -148,7 +154,7 @@ export default function Navbar({
               <button
                 onClick={onToggleChat}
                 className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all border border-zinc-900"
-                title="مساعد مينوو AI الذكي"
+                title={t.aiAssistant}
                 id="toggle-chat-navbar-btn"
               >
                 <MessageSquare className="h-5 w-5 text-emerald-400" />
@@ -169,7 +175,7 @@ export default function Navbar({
               {/* User Avatar & Name */}
               <button 
                 onClick={() => setActiveTab('dashboard')}
-                className="flex items-center gap-2 text-right hover:opacity-80 transition-opacity hidden sm:flex"
+                className="flex items-center gap-2 text-start hover:opacity-80 transition-opacity hidden sm:flex"
                 id="nav-profile-menu-btn"
               >
                 <img 
@@ -178,7 +184,7 @@ export default function Navbar({
                   className="h-8 w-8 rounded-full border border-emerald-500/50 object-cover" 
                 />
                 <div className="flex flex-col">
-                  <span className="text-xs text-zinc-400">مرحباً بك</span>
+                  <span className="text-xs text-zinc-400">{t.welcome}</span>
                   <span className="text-sm font-medium text-white max-w-[100px] truncate">{currentUser.name}</span>
                 </div>
               </button>
@@ -187,7 +193,7 @@ export default function Navbar({
               <button
                 onClick={onLogout}
                 className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900 hover:text-red-400 transition-colors"
-                title="تسجيل الخروج"
+                title={t.logout}
                 id="logout-nav-btn"
               >
                 <LogOut className="h-5 w-5" />
@@ -199,7 +205,7 @@ export default function Navbar({
               <button
                 onClick={onToggleChat}
                 className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all border border-zinc-900"
-                title="مساعد مينوو AI الذكي"
+                title={t.aiAssistant}
                 id="toggle-chat-navbar-guest-btn"
               >
                 <MessageSquare className="h-5 w-5 text-emerald-400" />
@@ -207,11 +213,11 @@ export default function Navbar({
 
               <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20"
                 id="login-register-btn"
               >
                 <UserIcon className="h-4 w-4" />
-                <span>دخول / تسجيل</span>
+                <span>{t.login}</span>
               </button>
             </div>
           )}
@@ -220,7 +226,7 @@ export default function Navbar({
       </div>
 
       {/* Mobile Submenu Navigation Bar */}
-      <div className="md:hidden flex border-t border-zinc-900 bg-zinc-950/95 justify-around py-2" dir="rtl">
+      <div className="md:hidden flex border-t border-zinc-900 bg-zinc-950/95 justify-around py-2" dir={dir}>
         <button
           onClick={() => setActiveTab('home')}
           className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
@@ -229,7 +235,7 @@ export default function Navbar({
           id="mob-nav-home"
         >
           <Trophy className="h-4 w-4" />
-          <span>الرئيسية</span>
+          <span>{t.home}</span>
         </button>
         <button
           onClick={() => setActiveTab('events')}
@@ -239,7 +245,7 @@ export default function Navbar({
           id="mob-nav-events"
         >
           <Coins className="h-4 w-4" />
-          <span>المباريات</span>
+          <span>{t.eventsAndMatches}</span>
         </button>
         {currentUser && (
           <button
@@ -250,7 +256,7 @@ export default function Navbar({
             id="mob-nav-dashboard"
           >
             <UserIcon className="h-4 w-4" />
-            <span>لوحتي</span>
+            <span>{t.userDashboard}</span>
           </button>
         )}
         {currentUser?.isAdmin && (
@@ -262,7 +268,7 @@ export default function Navbar({
             id="mob-nav-admin"
           >
             <ShieldAlert className="h-4 w-4" />
-            <span>المسؤول</span>
+            <span>{t.adminPanel}</span>
           </button>
         )}
       </div>

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { User, WithdrawalRequest } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   X, 
   Wallet, 
@@ -29,6 +30,7 @@ export default function WithdrawModal({
   withdrawalRequests = [],
   onSubmitWithdrawalRequest
 }: WithdrawModalProps) {
+  const { t, dir } = useLanguage();
   const [amountInput, setAmountInput] = useState<number>(100);
   const [receiverPhone, setReceiverPhone] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
@@ -75,7 +77,7 @@ export default function WithdrawModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" dir={dir}>
       <div className="relative w-full max-w-lg bg-zinc-950 border border-emerald-500/30 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Header */}

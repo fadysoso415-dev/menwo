@@ -21,6 +21,40 @@ export interface MatchStats {
   foulsAway: number;
 }
 
+export interface HeadToHeadMatch {
+  date: string;
+  homeTeam: string;
+  awayTeam: string;
+  scoreHome: number;
+  scoreAway: number;
+  winner: string;
+  competition: string;
+}
+
+export interface HeadToHeadData {
+  totalMatches: number;
+  homeWins: number;
+  draws: number;
+  awayWins: number;
+  recentMatches: HeadToHeadMatch[];
+}
+
+export interface StrategicTipItem {
+  title: string;
+  description: string;
+  riskLevel: 'منخفضة' | 'متوسطة' | 'عالية' | 'Low' | 'Medium' | 'High';
+  statBasis: string;
+  category?: string;
+  suggestedOutcome?: 'home' | 'draw' | 'away';
+}
+
+export interface StrategicTipsData {
+  summary: string;
+  keyInsight: string;
+  historicalFact: string;
+  tips: StrategicTipItem[];
+}
+
 export interface Match {
   id: string;
   sport: 'football' | 'basketball' | 'tennis';
@@ -43,6 +77,9 @@ export interface Match {
   customLabelDraw?: string;
   customLabelAway?: string;
   fixedStakeAmount?: number;
+  isFeatured?: boolean;
+  featuredTag?: string;
+  headToHead?: HeadToHeadData;
 }
 
 export interface Bet {
@@ -130,3 +167,23 @@ export interface WithdrawalRequest {
   createdAt: string;
   adminNote?: string;
 }
+
+export interface LeagueStandingItem {
+  id: string;
+  teamName: string;
+  logo: string;
+  league: string;
+  rank: number;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
+  points: number;
+  form?: string[]; // e.g. ['W', 'W', 'D', 'W', 'L']
+  isSecuredLeader?: boolean;
+  securityNote?: string;
+}
+

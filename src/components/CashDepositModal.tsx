@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { DepositRequest, User } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Wallet, 
   Upload, 
@@ -32,10 +33,11 @@ export default function CashDepositModal({
   depositRequests,
   onSubmitDepositRequest
 }: CashDepositModalProps) {
+  const { t, dir } = useLanguage();
   const [activeTab, setActiveTab] = useState<'new-deposit' | 'my-requests'>('new-deposit');
 
   // Form states
-  const [amountEgp, setAmountEgp] = useState<number>(100);
+  const [amountEgp, setAmountEgp] = useState<number>(50);
   const [senderPhone, setSenderPhone] = useState<string>('');
   const [receiptImage, setReceiptImage] = useState<string>('');
   const [imageFileName, setImageFileName] = useState<string>('');
@@ -81,8 +83,8 @@ export default function CashDepositModal({
     setFormError('');
     setFormSuccess(false);
 
-    if (amountEgp < 10) {
-      setFormError('الحد الأدنى لشراء الكوينز هو 10 جنيه مصري.');
+    if (amountEgp < 50) {
+      setFormError('الحد الأدنى لشحن الكوينز هو 50 جنيه مصري (50 كوينز).');
       return;
     }
 
@@ -122,8 +124,8 @@ export default function CashDepositModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" dir="rtl">
-      <div className="relative w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl text-right overflow-hidden max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4" dir={dir}>
+      <div className="relative w-full max-w-lg rounded-2xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
         
         {/* Header */}
         <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
@@ -239,13 +241,13 @@ export default function CashDepositModal({
                   <div className="flex items-center justify-between">
                     <label className="text-zinc-300 font-bold block">1. حدد مبلغ الشحن (بالجنيه المصري):</label>
                     <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-black px-2 py-0.5 rounded-full">
-                      سعر الكوين: 1 جنيه = 1 كوين 🪙
+                      سعر الكوين: 1 جنيه = 1 كوين (أقل مبلغ 50) 🪙
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      min="10"
+                      min="50"
                       step="10"
                       value={amountEgp}
                       onChange={(e) => setAmountEgp(parseInt(e.target.value) || 0)}

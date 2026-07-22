@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { User, Match, Bet, Notification, ChatMessage, DepositRequest, PublicBetOffer, WithdrawalRequest } from './types';
+import { User, Match, Bet, Notification, ChatMessage, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem } from './types';
 import { 
   DEFAULT_USERS, 
   INITIAL_MATCHES, 
   INITIAL_BETS,
-  INITIAL_PUBLIC_BETS
+  INITIAL_PUBLIC_BETS,
+  INITIAL_LEAGUE_STANDINGS
 } from './data/defaultData';
 
 // Component Imports
@@ -35,6 +36,7 @@ export default function App() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [publicBetOffers, setPublicBetOffers] = useState<PublicBetOffer[]>([]);
+  const [leagueStandings, setLeagueStandings] = useState<LeagueStandingItem[]>([]);
   
   // Cash Wallet & Deposit / Withdrawal Requests states
   const [cashWalletNumber, setCashWalletNumber] = useState<string>('01012345678');
@@ -155,7 +157,40 @@ export default function App() {
     } else {
       setWithdrawalRequests([]);
     }
+
+    const savedStandings = localStorage.getItem('stad_league_standings');
+    if (savedStandings) {
+      setLeagueStandings(JSON.parse(savedStandings));
+    } else {
+      setLeagueStandings(INITIAL_LEAGUE_STANDINGS);
+      localStorage.setItem('stad_league_standings', JSON.stringify(INITIAL_LEAGUE_STANDINGS));
+    }
   }, []);
+
+  // Handler to Update League Standings from Admin Panel
+  const handleUpdateLeagueStandings = (updatedStandings: LeagueStandingItem[]) => {
+    setLeagueStandings(updatedStandings);
+    localStorage.setItem('stad_league_standings', JSON.stringify(updatedStandings));
+    triggerNotification('🛡️ تحديث صدارة الدوريات', 'تم تحديث وتأمين ترتيب صدارة الدوريات وختم حماية المتصدر بنجاح!', 'system');
+  };
+
+  // Handler to Clear & Wipe Demo/Test Data from Platform
+  const handleClearDemoData = () => {
+    // 1. Clear test bets
+    setBets([]);
+    localStorage.setItem('stad_bets', JSON.stringify([]));
+
+    // 2. Clear deposit requests
+    setDepositRequests([]);
+    localStorage.setItem('stad_deposit_requests', JSON.stringify([]));
+
+    // 3. Clear withdrawal requests
+    setWithdrawalRequests([]);
+    localStorage.setItem('stad_withdrawal_requests', JSON.stringify([]));
+
+    // 4. Notify admin
+    triggerNotification('🧹 تصفية البيانات التجريبية', 'تمت تصفية ومسح جميع البيانات والرهانات والطلبات التجريبية للمنصة بنجاح!', 'system');
+  };
 
   // Handlers for Cash Deposit Management
   const handleUpdateCashWalletNumber = (newNumber: string) => {
@@ -743,7 +778,9 @@ export default function App() {
     customLabelHome?: string,
     customLabelDraw?: string,
     customLabelAway?: string,
-    fixedStakeAmount?: number
+    fixedStakeAmount?: number,
+    isFeatured?: boolean,
+    featuredTag?: string
   ) => {
     setMatches(prev => {
       const next = prev.map(m => {
@@ -753,7 +790,9 @@ export default function App() {
             customLabelHome,
             customLabelDraw,
             customLabelAway,
-            fixedStakeAmount
+            fixedStakeAmount,
+            isFeatured,
+            featuredTag
           };
           if (selectedMatch?.id === matchId) {
             setSelectedMatch(updated);
@@ -1190,6 +1229,7 @@ export default function App() {
             onSelectMatch={handleSelectMatchFromHome}
             onPlaceQuickBet={handlePlaceQuickBet}
             currentUser={currentUser}
+            leagueStandings={leagueStandings}
           />
         )}
 
@@ -1214,6 +1254,8 @@ export default function App() {
             currentUser={currentUser}
             onUpdateProfile={setCurrentUser}
             bets={bets}
+            allBets={bets}
+            matches={matches}
             notifications={notifications}
             onMarkNotificationRead={handleMarkNotificationRead}
             onClearNotifications={handleClearNotifications}
@@ -1255,6 +1297,9 @@ export default function App() {
             onRejectWithdrawalRequest={handleRejectWithdrawalRequest}
             onDeleteWithdrawalRequest={handleDeleteWithdrawalRequest}
             onUpdateMatchCustomizations={handleUpdateMatchCustomizations}
+            leagueStandings={leagueStandings}
+            onUpdateLeagueStandings={handleUpdateLeagueStandings}
+            onClearDemoData={handleClearDemoData}
           />
         )}
 

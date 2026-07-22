@@ -1,4 +1,4 @@
-import { Match, User, NewsItem, Bet, PublicBetOffer } from '../types';
+import { Match, User, NewsItem, Bet, PublicBetOffer, LeagueStandingItem } from '../types';
 
 export const DEFAULT_USERS: User[] = [
   {
@@ -51,6 +51,21 @@ export const INITIAL_MATCHES: Match[] = [
     league: 'الدوري الإسباني - الليغا',
     date: '2026-07-21',
     time: '21:00',
+    isFeatured: true,
+    featuredTag: '🔥 الكلاسيكو المرتقب',
+    headToHead: {
+      totalMatches: 257,
+      homeWins: 105,
+      draws: 52,
+      awayWins: 100,
+      recentMatches: [
+        { date: '2026-04-21', homeTeam: 'ريال مدريد', awayTeam: 'برشلونة', scoreHome: 3, scoreAway: 2, winner: 'ريال مدريد', competition: 'الليغا' },
+        { date: '2026-01-14', homeTeam: 'ريال مدريد', awayTeam: 'برشلونة', scoreHome: 4, scoreAway: 1, winner: 'ريال مدريد', competition: 'كأس السوبر الإسباني' },
+        { date: '2025-10-28', homeTeam: 'برشلونة', awayTeam: 'ريال مدريد', scoreHome: 1, scoreAway: 2, winner: 'ريال مدريد', competition: 'الليغا' },
+        { date: '2025-04-05', homeTeam: 'برشلونة', awayTeam: 'ريال مدريد', scoreHome: 0, scoreAway: 4, winner: 'ريال مدريد', competition: 'كأس الملك' },
+        { date: '2025-03-19', homeTeam: 'برشلونة', awayTeam: 'ريال مدريد', scoreHome: 2, scoreAway: 1, winner: 'برشلونة', competition: 'الليغا' },
+      ],
+    },
   },
   {
     id: 'match-2',
@@ -79,6 +94,20 @@ export const INITIAL_MATCHES: Match[] = [
     league: 'الدوري الإنجليزي الممتاز',
     date: '2026-07-20',
     time: '18:00',
+    isFeatured: true,
+    featuredTag: '👑 قمة البريميرليج الحاسم',
+    headToHead: {
+      totalMatches: 211,
+      homeWins: 65,
+      draws: 46,
+      awayWins: 100,
+      recentMatches: [
+        { date: '2026-03-31', homeTeam: 'مانشستر سيتي', awayTeam: 'أرسنال', scoreHome: 0, scoreAway: 0, winner: 'تعادل', competition: 'الدوري الإنجليزي' },
+        { date: '2025-10-08', homeTeam: 'أرسنال', awayTeam: 'مانشستر سيتي', scoreHome: 1, scoreAway: 0, winner: 'أرسنال', competition: 'الدوري الإنجليزي' },
+        { date: '2025-08-06', homeTeam: 'أرسنال', awayTeam: 'مانشستر سيتي', scoreHome: 1, scoreAway: 1, winner: 'أرسنال (ركلات ترجيح)', competition: 'الدرع الخيرية' },
+        { date: '2025-04-26', homeTeam: 'مانشستر سيتي', awayTeam: 'أرسنال', scoreHome: 4, scoreAway: 1, winner: 'مانشستر سيتي', competition: 'الدوري الإنجليزي' },
+      ],
+    },
   },
   {
     id: 'match-3',
@@ -299,3 +328,185 @@ export const INITIAL_PUBLIC_BETS: PublicBetOffer[] = [
     totalStakedCoins: 3100
   }
 ];
+
+export const INITIAL_LEAGUE_STANDINGS: LeagueStandingItem[] = [
+  // الدوري الإسباني
+  {
+    id: 'st-laliga-1',
+    league: 'الدوري الإسباني - الليغا',
+    teamName: 'ريال مدريد',
+    logo: '⚽',
+    rank: 1,
+    played: 38,
+    won: 29,
+    drawn: 8,
+    lost: 1,
+    goalsFor: 87,
+    goalsAgainst: 26,
+    goalDifference: 61,
+    points: 95,
+    form: ['W', 'W', 'W', 'D', 'W'],
+    isSecuredLeader: true,
+    securityNote: 'متصدر مؤمن رسمياً بحسب الإدارة والأمن الميداني'
+  },
+  {
+    id: 'st-laliga-2',
+    league: 'الدوري الإسباني - الليغا',
+    teamName: 'برشلونة',
+    logo: '🏆',
+    rank: 2,
+    played: 38,
+    won: 26,
+    drawn: 7,
+    lost: 5,
+    goalsFor: 79,
+    goalsAgainst: 44,
+    goalDifference: 35,
+    points: 85,
+    form: ['W', 'L', 'W', 'W', 'W'],
+    isSecuredLeader: false
+  },
+  {
+    id: 'st-laliga-3',
+    league: 'الدوري الإسباني - الليغا',
+    teamName: 'جيرونا',
+    logo: '🔴',
+    rank: 3,
+    played: 38,
+    won: 25,
+    drawn: 6,
+    lost: 7,
+    goalsFor: 85,
+    goalsAgainst: 46,
+    goalDifference: 39,
+    points: 81,
+    form: ['W', 'W', 'L', 'D', 'W'],
+    isSecuredLeader: false
+  },
+  {
+    id: 'st-laliga-4',
+    league: 'الدوري الإسباني - الليغا',
+    teamName: 'أتلتيكو مدريد',
+    logo: '⚪',
+    rank: 4,
+    played: 38,
+    won: 24,
+    drawn: 4,
+    lost: 10,
+    goalsFor: 70,
+    goalsAgainst: 43,
+    goalDifference: 27,
+    points: 76,
+    form: ['L', 'W', 'W', 'W', 'L'],
+    isSecuredLeader: false
+  },
+
+  // الدوري الإنجليزي الممتاز
+  {
+    id: 'st-epl-1',
+    league: 'الدوري الإنجليزي الممتاز',
+    teamName: 'مانشستر سيتي',
+    logo: '🦁',
+    rank: 1,
+    played: 38,
+    won: 28,
+    drawn: 7,
+    lost: 3,
+    goalsFor: 96,
+    goalsAgainst: 34,
+    goalDifference: 62,
+    points: 91,
+    form: ['W', 'W', 'W', 'W', 'W'],
+    isSecuredLeader: true,
+    securityNote: 'بطل وصاحب الصدارة المؤقتة المعتمدة'
+  },
+  {
+    id: 'st-epl-2',
+    league: 'الدوري الإنجليزي الممتاز',
+    teamName: 'أرسنال',
+    logo: '🔴',
+    rank: 2,
+    played: 38,
+    won: 28,
+    drawn: 5,
+    lost: 5,
+    goalsFor: 91,
+    goalsAgainst: 29,
+    goalDifference: 62,
+    points: 89,
+    form: ['W', 'W', 'W', 'W', 'W'],
+    isSecuredLeader: false
+  },
+  {
+    id: 'st-epl-3',
+    league: 'الدوري الإنجليزي الممتاز',
+    teamName: 'ليفربول',
+    logo: '🔴',
+    rank: 3,
+    played: 38,
+    won: 24,
+    drawn: 10,
+    lost: 4,
+    goalsFor: 86,
+    goalsAgainst: 41,
+    goalDifference: 45,
+    points: 82,
+    form: ['W', 'D', 'W', 'L', 'W'],
+    isSecuredLeader: false
+  },
+
+  // الدوري المصري الممتاز
+  {
+    id: 'st-egy-1',
+    league: 'الدوري المصري الممتاز',
+    teamName: 'الأهلي',
+    logo: '🦅',
+    rank: 1,
+    played: 34,
+    won: 27,
+    drawn: 4,
+    lost: 3,
+    goalsFor: 75,
+    goalsAgainst: 28,
+    goalDifference: 47,
+    points: 85,
+    form: ['W', 'W', 'W', 'W', 'W'],
+    isSecuredLeader: true,
+    securityNote: 'بطل الدوري وصدارته محصنة رسمياً'
+  },
+  {
+    id: 'st-egy-2',
+    league: 'الدوري المصري الممتاز',
+    teamName: 'بيراميدز',
+    logo: '⛰️',
+    rank: 2,
+    played: 34,
+    won: 24,
+    drawn: 7,
+    lost: 3,
+    goalsFor: 62,
+    goalsAgainst: 27,
+    goalDifference: 35,
+    points: 79,
+    form: ['W', 'L', 'W', 'W', 'D'],
+    isSecuredLeader: false
+  },
+  {
+    id: 'st-egy-3',
+    league: 'الدوري المصري الممتاز',
+    teamName: 'الزمالك',
+    logo: '🏹',
+    rank: 3,
+    played: 34,
+    won: 17,
+    drawn: 8,
+    lost: 9,
+    goalsFor: 53,
+    goalsAgainst: 37,
+    goalDifference: 16,
+    points: 59,
+    form: ['W', 'D', 'W', 'L', 'W'],
+    isSecuredLeader: false
+  }
+];
+

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Match, Bet, User, PublicBetOffer } from '../types';
+import { Match, Bet, User, PublicBetOffer, StrategicTipsData } from '../types';
 import PublicBetsSection from './PublicBetsSection';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Tv, 
   Sparkles, 
@@ -15,7 +16,15 @@ import {
   Circle,
   HelpCircle,
   BarChart3,
-  PieChart as PieIcon
+  PieChart as PieIcon,
+  Lightbulb,
+  Compass,
+  Target,
+  TrendingUp,
+  History,
+  Award,
+  CheckCircle2,
+  BrainCircuit
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -100,6 +109,7 @@ export default function EventsPage({
   onJoinPublicBet = () => {},
   onScoreChangeToast
 }: EventsPageProps) {
+  const { t, dir } = useLanguage();
   const [sportFilter, setSportFilter] = useState<'all' | 'football' | 'basketball' | 'tennis'>('all');
   const [betOutcome, setBetOutcome] = useState<'home' | 'draw' | 'away'>('home');
   const [betAmount, setBetAmount] = useState<number>(100);
@@ -111,6 +121,11 @@ export default function EventsPage({
   const [aiPrediction, setAiPrediction] = useState<AiPredictionData | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
   const [aiError, setAiError] = useState('');
+
+  // AI Strategic Tips States
+  const [strategicTips, setStrategicTips] = useState<StrategicTipsData | null>(null);
+  const [loadingTips, setLoadingTips] = useState(false);
+  const [tipsError, setTipsError] = useState('');
 
   // Live Match Simulation States
   const [simulating, setSimulating] = useState(false);
@@ -133,6 +148,8 @@ export default function EventsPage({
   useEffect(() => {
     setAiPrediction(null);
     setAiError('');
+    setStrategicTips(null);
+    setTipsError('');
     setBetSuccessMsg('');
     setBetErrorMsg('');
     setSimulating(false);
@@ -242,6 +259,37 @@ export default function EventsPage({
     }
   };
 
+  // Fetch AI Strategic Tips from server API based on Head-to-Head & match history
+  const fetchStrategicTips = async () => {
+    if (!selectedMatch) return;
+    setLoadingTips(true);
+    setTipsError('');
+    try {
+      const response = await fetch('/api/strategic-tips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          teamHome: selectedMatch.teamHome,
+          teamAway: selectedMatch.teamAway,
+          league: selectedMatch.league,
+          sport: selectedMatch.sport,
+          headToHead: selectedMatch.headToHead,
+          stats: selectedMatch.stats
+        })
+      });
+      const data = await response.json();
+      if (response.ok && data.strategicTips) {
+        setStrategicTips(data.strategicTips);
+      } else {
+        throw new Error(data.error || 'فشل استخراج النصائح الاستراتيجية.');
+      }
+    } catch (err: any) {
+      setTipsError(err.message || 'حدث خطأ أثناء محاولة جلب النصائح الاستراتيجية بالذكاء الاصطناعي.');
+    } finally {
+      setLoadingTips(false);
+    }
+  };
+
   // 2. Interactive Real-Time Match Simulation Engine
   const startMatchSimulation = () => {
     if (!selectedMatch) return;
@@ -339,7 +387,7 @@ export default function EventsPage({
   const currentMatchBets = selectedMatch ? activeBets.filter(b => b.matchId === selectedMatch.id) : [];
 
   return (
-    <div className="space-y-6 py-6" dir="rtl">
+    <div className="space-y-6 py-6" dir={dir}>
       {/* 1. Public Bets Offered by Admin for All Users */}
       {publicBetOffers.length > 0 && (
         <PublicBetsSection
@@ -535,7 +583,7 @@ export default function EventsPage({
                 <button
                   onClick={fetchPrediction}
                   disabled={loadingAi}
-                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-5 py-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-2 justify-center shadow-lg shadow-emerald-500/5 active:scale-95"
+                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-2 justify-center shadow-lg shadow-emerald-500/5 active:scale-95"
                   id="generate-prediction-btn"
                 >
                   {loadingAi ? (
@@ -544,6 +592,20 @@ export default function EventsPage({
                     <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse" />
                   )}
                   <span>توقع وتحليل الذكاء الاصطناعي (Gemini AI) ✨</span>
+                </button>
+
+                <button
+                  onClick={fetchStrategicTips}
+                  disabled={loadingTips}
+                  className="rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-3 text-xs font-bold text-amber-400 hover:text-amber-300 transition-all flex items-center gap-2 justify-center shadow-lg shadow-amber-500/5 active:scale-95"
+                  id="generate-strategic-tips-btn"
+                >
+                  {loadingTips ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
+                  ) : (
+                    <Lightbulb className="h-4 w-4 text-amber-400" />
+                  )}
+                  <span>نصائح استراتيجية (Gemini AI) 💡</span>
                 </button>
               </div>
             </div>
@@ -1105,6 +1167,188 @@ export default function EventsPage({
                 )}
               </div>
             )}
+            {/* Strategic Tips & Head-to-Head Section */}
+            <div 
+              className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 shadow-2xl relative overflow-hidden space-y-6"
+              id="strategic-tips-pane"
+            >
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
+                    <Lightbulb className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>نصائح استراتيجية مستخرجة بالذكاء الاصطناعي</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">Gemini AI</span>
+                    </h3>
+                    <p className="text-xs text-zinc-500">تحليل الأداء التاريخي والسجل المباشر للحصول على توجيهات رهان دقيقة</p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={fetchStrategicTips}
+                  disabled={loadingTips}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold transition-all flex items-center justify-center gap-2"
+                  id="fetch-strategic-tips-action"
+                >
+                  {loadingTips ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>جاري جلب النصائح...</span>
+                    </>
+                  ) : (
+                    <>
+                      <BrainCircuit className="h-4 w-4" />
+                      <span>{strategicTips ? 'تحديث النصائح الاستراتيجية' : 'استخراج النصائح الاستراتيجية'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Head To Head History Summary Bar */}
+              {selectedMatch.headToHead && (
+                <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-900 space-y-3">
+                  <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
+                    <span className="flex items-center gap-1.5">
+                      <History className="h-4 w-4 text-amber-400" />
+                      <span>سجل المواجهات المباشرة التاريخي (H2H)</span>
+                    </span>
+                    <span className="text-zinc-500 text-[11px]">إجمالي المواجهات: {selectedMatch.headToHead.totalMatches} مباراة</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center py-1">
+                    <div className="bg-zinc-950 p-2.5 rounded-xl border border-emerald-500/20">
+                      <div className="text-[11px] font-bold text-zinc-400 truncate">{selectedMatch.teamHome}</div>
+                      <div className="text-xl font-black text-emerald-400">{selectedMatch.headToHead.homeWins} فوز</div>
+                    </div>
+                    <div className="bg-zinc-950 p-2.5 rounded-xl border border-amber-500/20">
+                      <div className="text-[11px] font-bold text-zinc-400">التعادل</div>
+                      <div className="text-xl font-black text-amber-400">{selectedMatch.headToHead.draws}</div>
+                    </div>
+                    <div className="bg-zinc-950 p-2.5 rounded-xl border border-blue-500/20">
+                      <div className="text-[11px] font-bold text-zinc-400 truncate">{selectedMatch.teamAway}</div>
+                      <div className="text-xl font-black text-blue-400">{selectedMatch.headToHead.awayWins} فوز</div>
+                    </div>
+                  </div>
+
+                  {selectedMatch.headToHead.recentMatches && selectedMatch.headToHead.recentMatches.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-zinc-900/60">
+                      <span className="text-[11px] text-zinc-400 font-semibold block">آخر اللقاءات المباشرة المسجلة:</span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {selectedMatch.headToHead.recentMatches.slice(0, 4).map((m, idx) => (
+                          <div key={idx} className="bg-zinc-950/80 p-2 rounded-lg border border-zinc-900 flex items-center justify-between text-[11px]">
+                            <span className="text-zinc-400">{m.date} ({m.competition})</span>
+                            <span className="font-bold text-amber-300 font-mono">{m.homeTeam} {m.scoreHome} - {m.scoreAway} {m.awayTeam}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {loadingTips && (
+                <div className="flex flex-col items-center justify-center py-10 text-zinc-400 text-xs gap-3 bg-zinc-900/20 rounded-xl border border-zinc-900">
+                  <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
+                  <span className="font-semibold text-zinc-300">جاري تحليل تاريخ مباريات الفريقين واستخراج النصائح الاستراتيجية بـ Gemini AI...</span>
+                  <span className="text-zinc-500 text-[11px]">مقارنة إحصائيات المواجهات المباشرة، نسب الأهداف واستراتيجيات الرهان الذكي</span>
+                </div>
+              )}
+
+              {tipsError && (
+                <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-xs text-red-400">
+                  {tipsError}
+                </div>
+              )}
+
+              {strategicTips && !loadingTips && (
+                <div className="space-y-4">
+                  {/* Overview & Key Insight */}
+                  <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900/40 to-zinc-900/40 p-4 rounded-xl border border-amber-500/20 space-y-2">
+                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
+                      <Compass className="h-4 w-4" />
+                      <span>الملخص والرؤية التكتيكية العامة:</span>
+                    </div>
+                    <p className="text-xs text-zinc-300 leading-relaxed">{strategicTips.summary}</p>
+                    {strategicTips.keyInsight && (
+                      <div className="text-xs text-amber-300 font-semibold pt-2 border-t border-amber-500/10 flex items-center gap-1.5">
+                        <Lightbulb className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <span>{strategicTips.keyInsight}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Historical Fact Banner */}
+                  {strategicTips.historicalFact && (
+                    <div className="bg-zinc-900/60 p-3.5 rounded-xl border border-zinc-800 flex items-center gap-3">
+                      <Award className="h-5 w-5 text-amber-400 shrink-0" />
+                      <div className="text-xs">
+                        <span className="font-bold text-amber-300 block">حقيقة رقمية من المواجهات المباشرة:</span>
+                        <span className="text-zinc-300">{strategicTips.historicalFact}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tips Cards List */}
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
+                      <Target className="h-4 w-4 text-amber-400" />
+                      <span>النصائح الاستراتيجية المقترحة للرهان:</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {strategicTips.tips.map((tip, idx) => (
+                        <div 
+                          key={idx} 
+                          className="bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850 hover:border-amber-500/30 p-4 rounded-xl transition-all space-y-2.5 flex flex-col justify-between"
+                        >
+                          <div className="space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <h5 className="text-xs font-bold text-white flex items-center gap-1.5">
+                                <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
+                                <span>{tip.title}</span>
+                              </h5>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
+                                tip.riskLevel === 'منخفضة' || tip.riskLevel === 'Low'
+                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : tip.riskLevel === 'عالية' || tip.riskLevel === 'High'
+                                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                              }`}>
+                                مخاطرة: {tip.riskLevel}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-zinc-400 leading-relaxed">{tip.description}</p>
+                          </div>
+
+                          <div className="pt-2 border-t border-zinc-900 flex items-center justify-between gap-2 text-[11px]">
+                            <span className="text-zinc-500 flex items-center gap-1 truncate">
+                              <TrendingUp className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                              <span className="font-semibold text-zinc-400 truncate">{tip.statBasis}</span>
+                            </span>
+
+                            {tip.suggestedOutcome && (
+                              <button
+                                onClick={() => {
+                                  setBetOutcome(tip.suggestedOutcome!);
+                                  const el = document.getElementById('bet-placement-section');
+                                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                }}
+                                className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 shrink-0"
+                              >
+                                اختر بالرهان ↵
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </>
         ) : (
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-12 text-center text-zinc-500 text-sm">

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Match, NewsItem } from '../types';
+import { Match, NewsItem, LeagueStandingItem } from '../types';
+import LeagueStandingsSection from './LeagueStandingsSection';
+import FeaturedMatchesSection from './FeaturedMatchesSection';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Search, 
   Tv, 
@@ -18,14 +21,17 @@ interface MainPageProps {
   onSelectMatch: (match: Match) => void;
   onPlaceQuickBet: (match: Match, outcome: 'home' | 'draw' | 'away') => void;
   currentUser: any;
+  leagueStandings?: LeagueStandingItem[];
 }
 
 export default function MainPage({
   matches,
   onSelectMatch,
   onPlaceQuickBet,
-  currentUser
+  currentUser,
+  leagueStandings = []
 }: MainPageProps) {
+  const { t, dir } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSportFilter, setSelectedSportFilter] = useState<'all' | 'football' | 'basketball' | 'tennis'>('all');
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -101,7 +107,7 @@ export default function MainPage({
   const finishedMatches = filteredMatches.filter(m => m.status === 'finished');
 
   return (
-    <div className="space-y-10 py-6" dir="rtl">
+    <div className="space-y-10 py-6" dir={dir}>
       
       {/* 1. Hero / Premium Banner Section */}
       <section className="relative rounded-3xl overflow-hidden border border-emerald-500/10 bg-zinc-950 p-8 sm:p-12 shadow-2xl shadow-emerald-500/5">
@@ -133,6 +139,14 @@ export default function MainPage({
         {/* Subtle background sports wireframe elements */}
         <div className="absolute right-12 bottom-0 h-48 w-48 bg-emerald-500/5 blur-3xl rounded-full" />
       </section>
+
+      {/* Featured Matches Section (المباريات المتميزة ووسوم الإدارة) */}
+      <FeaturedMatchesSection
+        matches={matches}
+        onSelectMatch={onSelectMatch}
+        onPlaceQuickBet={onPlaceQuickBet}
+        currentUser={currentUser}
+      />
 
       {/* 2. Intelligent Search and Filtering Bar */}
       <section id="matches-section" className="space-y-4">
@@ -372,6 +386,9 @@ export default function MainPage({
         </div>
 
       </section>
+
+      {/* Full Secured League Standings Section */}
+      <LeagueStandingsSection standings={leagueStandings} />
 
     </div>
   );

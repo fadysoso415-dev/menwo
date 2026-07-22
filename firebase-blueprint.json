@@ -1,0 +1,154 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and coin balance information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "balance": { "type": "number" },
+        "isAdmin": { "type": "boolean" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "dailyClaimsCount": { "type": "number" },
+        "lastClaimDate": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "balance", "isAdmin", "createdAt"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "Sports match event details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "sport": { "type": "string" },
+        "teamHome": { "type": "string" },
+        "teamAway": { "type": "string" },
+        "logoHome": { "type": "string" },
+        "logoAway": { "type": "string" },
+        "oddsHome": { "type": "number" },
+        "oddsDraw": { "type": "number" },
+        "oddsAway": { "type": "number" },
+        "status": { "type": "string" },
+        "scoreHome": { "type": "number" },
+        "scoreAway": { "type": "number" },
+        "minutes": { "type": "number" },
+        "league": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" },
+        "customLabelHome": { "type": "string" },
+        "customLabelDraw": { "type": "string" },
+        "customLabelAway": { "type": "string" },
+        "fixedStakeAmount": { "type": "number" }
+      },
+      "required": ["id", "sport", "teamHome", "teamAway", "status", "league"]
+    },
+    "Bet": {
+      "title": "Bet",
+      "description": "User bet placement record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "teamHome": { "type": "string" },
+        "teamAway": { "type": "string" },
+        "selectedOutcome": { "type": "string" },
+        "amount": { "type": "number" },
+        "odds": { "type": "number" },
+        "status": { "type": "string" },
+        "payout": { "type": "number" },
+        "placedAt": { "type": "string" },
+        "matchScore": { "type": "string" },
+        "publicBetOfferId": { "type": "string" }
+      },
+      "required": ["id", "userId", "matchId", "selectedOutcome", "amount", "odds", "status"]
+    },
+    "DepositRequest": {
+      "title": "DepositRequest",
+      "description": "Vodafone Cash / InstaPay deposit request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amountEgp": { "type": "number" },
+        "coinsRequested": { "type": "number" },
+        "senderPhone": { "type": "string" },
+        "receiptImage": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "adminNote": { "type": "string" }
+      },
+      "required": ["id", "userId", "amountEgp", "coinsRequested", "senderPhone", "status"]
+    },
+    "WithdrawalRequest": {
+      "title": "WithdrawalRequest",
+      "description": "Vodafone Cash withdrawal request",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "amountCoins": { "type": "number" },
+        "amountEgp": { "type": "number" },
+        "receiverPhone": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "adminNote": { "type": "string" }
+      },
+      "required": ["id", "userId", "amountCoins", "amountEgp", "receiverPhone", "status"]
+    },
+    "PublicBetOffer": {
+      "title": "PublicBetOffer",
+      "description": "Public bet offer created by admin or high tier user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "matchId": { "type": "string" },
+        "teamHome": { "type": "string" },
+        "teamAway": { "type": "string" },
+        "selectedOutcome": { "type": "string" },
+        "outcomeLabel": { "type": "string" },
+        "odds": { "type": "number" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "participantsCount": { "type": "number" },
+        "totalStakedCoins": { "type": "number" }
+      },
+      "required": ["id", "title", "odds", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/matches/{matchId}": {
+      "schema": { "$ref": "#/entities/Match" },
+      "description": "Match schedule and live results"
+    },
+    "/bets/{betId}": {
+      "schema": { "$ref": "#/entities/Bet" },
+      "description": "Bets placed by users"
+    },
+    "/depositRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/DepositRequest" },
+      "description": "Cash deposit requests"
+    },
+    "/withdrawalRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/WithdrawalRequest" },
+      "description": "Cash withdrawal requests"
+    },
+    "/publicBetOffers/{offerId}": {
+      "schema": { "$ref": "#/entities/PublicBetOffer" },
+      "description": "Public bet challenges"
+    }
+  }
+}

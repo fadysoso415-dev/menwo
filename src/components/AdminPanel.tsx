@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { User, Match, Bet, DepositRequest, PublicBetOffer, WithdrawalRequest } from '../types';
+import { User, Match, Bet, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import { 
   Users, 
   Calendar, 
@@ -27,7 +28,12 @@ import {
   X,
   Flame,
   Globe,
-  ArrowUpRight
+  ArrowUpRight,
+  Trophy,
+  ShieldCheck,
+  Eraser,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -38,6 +44,7 @@ interface AdminPanelProps {
   depositRequests: DepositRequest[];
   withdrawalRequests?: WithdrawalRequest[];
   publicBetOffers: PublicBetOffer[];
+  leagueStandings?: LeagueStandingItem[];
   onAddMatch: (match: Match) => void;
   onUpdateMatchScore: (matchId: string, scoreHome: number, scoreAway: number, status: 'scheduled' | 'live' | 'finished') => void;
   onUpdateMatchStats: (matchId: string, stats: any) => void;
@@ -57,7 +64,17 @@ interface AdminPanelProps {
   onCreatePublicBetOffer: (offer: PublicBetOffer) => void;
   onResolvePublicBetOffer: (offerId: string, outcomeStatus: 'won' | 'lost' | 'cancelled') => void;
   onDeletePublicBetOffer: (offerId: string) => void;
-  onUpdateMatchCustomizations?: (matchId: string, customLabelHome?: string, customLabelDraw?: string, customLabelAway?: string, fixedStakeAmount?: number) => void;
+  onUpdateMatchCustomizations?: (
+    matchId: string, 
+    customLabelHome?: string, 
+    customLabelDraw?: string, 
+    customLabelAway?: string, 
+    fixedStakeAmount?: number,
+    isFeatured?: boolean,
+    featuredTag?: string
+  ) => void;
+  onUpdateLeagueStandings?: (standings: LeagueStandingItem[]) => void;
+  onClearDemoData?: () => void;
 }
 
 export default function AdminPanel({
@@ -68,6 +85,7 @@ export default function AdminPanel({
   depositRequests,
   withdrawalRequests = [],
   publicBetOffers,
+  leagueStandings = [],
   onAddMatch,
   onUpdateMatchScore,
   onUpdateMatchStats,
@@ -87,9 +105,13 @@ export default function AdminPanel({
   onCreatePublicBetOffer,
   onResolvePublicBetOffer,
   onDeletePublicBetOffer,
-  onUpdateMatchCustomizations
+  onUpdateMatchCustomizations,
+  onUpdateLeagueStandings,
+  onClearDemoData
 }: AdminPanelProps) {
-  const [adminTab, setAdminTab] = useState<'users' | 'create-bet' | 'bets-list' | 'cash-deposits' | 'cash-withdrawals' | 'events' | 'stats' | 'reports'>('users');
+  const { t, dir } = useLanguage();
+  const [adminTab, setAdminTab] = useState<'users' | 'create-bet' | 'bets-list' | 'cash-deposits' | 'cash-withdrawals' | 'events' | 'stats' | 'reports' | 'league-standings' | 'clear-data'>('users');
+
 
   // Search/Filter states
   const [userSearchQuery, setUserSearchQuery] = useState('');
@@ -140,6 +162,8 @@ export default function AdminPanel({
   const [newCustomLabelDraw, setNewCustomLabelDraw] = useState('');
   const [newCustomLabelAway, setNewCustomLabelAway] = useState('');
   const [newFixedStakeAmount, setNewFixedStakeAmount] = useState<string>('');
+  const [newIsFeatured, setNewIsFeatured] = useState<boolean>(false);
+  const [newFeaturedTag, setNewFeaturedTag] = useState<string>('🔥 قمة الأسبوع');
   const [addMatchSuccess, setAddMatchSuccess] = useState(false);
 
   // Match Bet Button Customization States
@@ -148,6 +172,8 @@ export default function AdminPanel({
   const [editCustomLabelDraw, setEditCustomLabelDraw] = useState('');
   const [editCustomLabelAway, setEditCustomLabelAway] = useState('');
   const [editFixedStakeAmount, setEditFixedStakeAmount] = useState<string>('');
+  const [editIsFeatured, setEditIsFeatured] = useState<boolean>(false);
+  const [editFeaturedTag, setEditFeaturedTag] = useState<string>('');
   const [customSaveSuccess, setCustomSaveSuccess] = useState(false);
 
   // Stats update states
@@ -279,6 +305,8 @@ export default function AdminPanel({
       setEditCustomLabelDraw(target.customLabelDraw || '');
       setEditCustomLabelAway(target.customLabelAway || '');
       setEditFixedStakeAmount(target.fixedStakeAmount ? String(target.fixedStakeAmount) : '');
+      setEditIsFeatured(Boolean(target.isFeatured));
+      setEditFeaturedTag(target.featuredTag || '');
     }
   }, [selectedMatchForCustom, allMatches]);
 
@@ -294,7 +322,9 @@ export default function AdminPanel({
         editCustomLabelHome.trim() || undefined,
         editCustomLabelDraw.trim() || undefined,
         editCustomLabelAway.trim() || undefined,
-        parsedFixedStake && parsedFixedStake > 0 ? parsedFixedStake : undefined
+        parsedFixedStake && parsedFixedStake > 0 ? parsedFixedStake : undefined,
+        editIsFeatured,
+        editIsFeatured ? (editFeaturedTag.trim() || '🔥 مباراة متميزة') : undefined
       );
       setCustomSaveSuccess(true);
       setTimeout(() => setCustomSaveSuccess(false), 3000);
@@ -338,6 +368,8 @@ export default function AdminPanel({
       customLabelDraw: newCustomLabelDraw.trim() || undefined,
       customLabelAway: newCustomLabelAway.trim() || undefined,
       fixedStakeAmount: parsedFixedStake && parsedFixedStake > 0 ? parsedFixedStake : undefined,
+      isFeatured: newIsFeatured,
+      featuredTag: newIsFeatured ? (newFeaturedTag.trim() || '🔥 مباراة متميزة') : undefined,
     };
 
     onAddMatch(created);
@@ -348,6 +380,8 @@ export default function AdminPanel({
     setNewCustomLabelDraw('');
     setNewCustomLabelAway('');
     setNewFixedStakeAmount('');
+    setNewIsFeatured(false);
+    setNewFeaturedTag('🔥 قمة الأسبوع');
     setTimeout(() => setAddMatchSuccess(false), 3000);
   };
 
@@ -400,7 +434,7 @@ export default function AdminPanel({
   const totalPayout = allBets.reduce((acc, b) => acc + (b.status === 'won' ? b.payout : 0), 0);
 
   return (
-    <div className="space-y-8 py-6 text-right" dir="rtl">
+    <div className="space-y-8 py-6" dir={dir}>
       
       {/* Admin Header */}
       <div className="flex flex-col lg:flex-row gap-4 items-center justify-between border-b border-zinc-900 pb-5">
@@ -424,7 +458,9 @@ export default function AdminPanel({
             { id: 'cash-withdrawals', label: 'طلبات سحب الأرباح 💸', icon: ArrowUpRight },
             { id: 'events', label: 'إدارة الأحداث', icon: Calendar },
             { id: 'stats', label: 'إحداثيات المباريات', icon: Activity },
-            { id: 'reports', label: 'التقارير المالية', icon: BarChart3 }
+            { id: 'league-standings', label: 'صدارة وتأمين الدوريات 🛡️', icon: Trophy },
+            { id: 'reports', label: 'التقارير المالية', icon: BarChart3 },
+            { id: 'clear-data', label: 'تصفية البيانات التجريبية 🧹', icon: Eraser }
           ].map(tab => {
             const IconComp = tab.icon;
             return (
@@ -1805,6 +1841,48 @@ export default function AdminPanel({
                     id="admin-new-fixed-stake"
                   />
                 </div>
+
+                {/* Featured Match Toggle & Tag */}
+                <div className="pt-2 border-t border-zinc-900 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="admin-new-is-featured"
+                      checked={newIsFeatured}
+                      onChange={(e) => setNewIsFeatured(e.target.checked)}
+                      className="h-4 w-4 rounded bg-zinc-900 border-zinc-800 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                    />
+                    <label htmlFor="admin-new-is-featured" className="text-amber-400 font-bold text-xs cursor-pointer flex items-center gap-1">
+                      <Flame className="h-3.5 w-3.5 text-amber-400" />
+                      <span>إبراز كـ "مباراة متميزة" في أعلى الصفحة 🌟</span>
+                    </label>
+                  </div>
+
+                  {newIsFeatured && (
+                    <div className="space-y-1.5 bg-amber-500/10 p-2.5 rounded-xl border border-amber-500/20">
+                      <label className="text-[10px] text-zinc-300 font-bold block">وسم المباراة المتميزة:</label>
+                      <input
+                        type="text"
+                        value={newFeaturedTag}
+                        onChange={(e) => setNewFeaturedTag(e.target.value)}
+                        placeholder="مثال: 🔥 الكلاسيكو الأرض"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-500"
+                      />
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {['🔥 الكلاسيكو', '👑 قمة الأسبوع', '🏆 المباراة المرتقبة', '⚔️ ديربي العاصمة', '🌟 مباراة الموسم'].map(preset => (
+                          <button
+                            type="button"
+                            key={preset}
+                            onClick={() => setNewFeaturedTag(preset)}
+                            className="text-[9px] bg-zinc-900 hover:bg-amber-500 hover:text-black text-zinc-300 px-2 py-0.5 rounded border border-zinc-800 font-bold transition-all"
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <button
@@ -1910,6 +1988,48 @@ export default function AdminPanel({
                 <p className="text-[10px] text-zinc-400">
                   عند تحديد مبلغ رهان ثابت، لن يتمكن اللاعب من اختيار مبلغ آخر عند الرهان على هذه المباراة.
                 </p>
+              </div>
+
+              {/* Featured Match Settings & Badge Tag */}
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="admin-edit-is-featured"
+                    checked={editIsFeatured}
+                    onChange={(e) => setEditIsFeatured(e.target.checked)}
+                    className="h-4 w-4 rounded bg-zinc-950 border-zinc-800 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                  />
+                  <label htmlFor="admin-edit-is-featured" className="text-amber-300 font-bold text-xs cursor-pointer flex items-center gap-1.5">
+                    <Flame className="h-4 w-4 text-amber-400" />
+                    <span>تمييز وإظهار هذه المباراة في قسم "المباريات المتميزة" 🔥</span>
+                  </label>
+                </div>
+
+                {editIsFeatured && (
+                  <div className="space-y-2 pt-1">
+                    <label className="text-[11px] text-zinc-300 font-bold block">وسم التمييز الخاص بالمباراة (مثال: 🔥 الكلاسيكو):</label>
+                    <input
+                      type="text"
+                      placeholder="أدخل وسم التمييز أو اختر وسم جاهز بالأسفل..."
+                      value={editFeaturedTag}
+                      onChange={(e) => setEditFeaturedTag(e.target.value)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-amber-300 font-bold text-xs focus:outline-none focus:border-amber-500"
+                    />
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {['🔥 الكلاسيكو', '👑 قمة الأسبوع', '🏆 المباراة المرتقبة', '⚔️ ديربي العاصمة', '🌟 مباراة الموسم', '💥 نهائي الكأس'].map(preset => (
+                        <button
+                          type="button"
+                          key={preset}
+                          onClick={() => setEditFeaturedTag(preset)}
+                          className="text-[10px] bg-zinc-900 hover:bg-amber-500 hover:text-black text-zinc-300 px-2.5 py-1 rounded-lg border border-zinc-800 font-bold transition-all"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <button
@@ -2110,6 +2230,197 @@ export default function AdminPanel({
               </div>
               <p className="text-[10px] text-zinc-500">الفارق المتبقي لبيت المنصة</p>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* 7. TAB: LEAGUE STANDINGS & SECURITY CONTROL */}
+      {adminTab === 'league-standings' && (
+        <section className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-950 border border-zinc-900 p-6 rounded-2xl">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-400" />
+                <span>إدارة صدارة وترتيب الدوريات وتحكم الأمن</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-1">
+                التحكم الكامل في ترتيب الأندية، نقاط الفرق، وتأمين حماية المتصدر بختم الأمن الميداني الرسمي 🛡️
+              </p>
+            </div>
+          </div>
+
+          {/* Standings List & Controls */}
+          <div className="space-y-4">
+            {leagueStandings.length === 0 ? (
+              <div className="bg-zinc-950 border border-zinc-900 rounded-2xl p-8 text-center text-xs text-zinc-500">
+                لا توجد بيانات ترتيب حالية. يتم تحميل البيانات الافتراضية تلقائياً.
+              </div>
+            ) : (
+              <div className="overflow-x-auto rounded-2xl border border-zinc-900 bg-zinc-950">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-900 text-zinc-500 bg-zinc-900/40 text-[11px]">
+                      <th className="py-3 px-3 text-center">الترتيب</th>
+                      <th className="py-3 px-4">الفريق</th>
+                      <th className="py-3 px-3 text-center">الدوري</th>
+                      <th className="py-3 px-3 text-center">النقاط</th>
+                      <th className="py-3 px-3 text-center">لعب</th>
+                      <th className="py-3 px-3 text-center">فوز</th>
+                      <th className="py-3 px-3 text-center">تعادل</th>
+                      <th className="py-3 px-3 text-center">خسارة</th>
+                      <th className="py-3 px-3 text-center">تأمين الصدارة 🛡️</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-900/60">
+                    {leagueStandings.map((item) => (
+                      <tr key={item.id} className="hover:bg-zinc-900/40 transition-colors">
+                        <td className="py-3 px-3 text-center font-bold">
+                          <input 
+                            type="number" 
+                            value={item.rank}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, rank: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-white py-1 font-mono"
+                          />
+                        </td>
+
+                        <td className="py-3 px-4 font-bold text-white flex items-center gap-2">
+                          <span className="text-base">{item.logo}</span>
+                          <span>{item.teamName}</span>
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-amber-300 font-medium">{item.league}</td>
+
+                        <td className="py-3 px-3 text-center font-black text-amber-400">
+                          <input 
+                            type="number" 
+                            value={item.points}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, points: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-16 bg-zinc-900 border border-amber-500/30 rounded text-center text-xs text-amber-400 font-bold py-1 font-mono"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-zinc-300">
+                          <input 
+                            type="number" 
+                            value={item.played}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, played: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-zinc-300 py-1 font-mono"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-emerald-400">
+                          <input 
+                            type="number" 
+                            value={item.won}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, won: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-12 bg-zinc-900 border border-emerald-500/30 rounded text-center text-xs text-emerald-400 py-1 font-mono font-bold"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-amber-400">
+                          <input 
+                            type="number" 
+                            value={item.drawn}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, drawn: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-amber-400 py-1 font-mono"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3 text-center text-red-400">
+                          <input 
+                            type="number" 
+                            value={item.lost}
+                            onChange={(e) => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, lost: Number(e.target.value) } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-red-400 py-1 font-mono"
+                          />
+                        </td>
+
+                        <td className="py-3 px-3 text-center">
+                          <button
+                            onClick={() => {
+                              const updated = leagueStandings.map(s => s.id === item.id ? { 
+                                ...s, 
+                                isSecuredLeader: !s.isSecuredLeader,
+                                securityNote: !s.isSecuredLeader ? 'صدارة مؤمنة بختم حماية الإدارة والأمن الميداني 🛡️' : undefined
+                              } : s);
+                              if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
+                            }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1 mx-auto ${
+                              item.isSecuredLeader
+                                ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 shadow-sm shadow-emerald-500/10'
+                                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:text-zinc-300'
+                            }`}
+                          >
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                            <span>{item.isSecuredLeader ? 'مؤمن رسمياً 🛡️' : 'تأمين الصدارة'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 8. TAB: CLEAR & RESET DEMO DATA */}
+      {adminTab === 'clear-data' && (
+        <section className="bg-zinc-950 border border-red-500/20 p-8 rounded-3xl space-y-6 max-w-2xl mx-auto shadow-2xl">
+          <div className="flex items-center gap-3 text-red-500 border-b border-zinc-900 pb-4">
+            <div className="p-3 bg-red-500/10 rounded-2xl border border-red-500/20">
+              <Eraser className="h-6 w-6" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white">تصفية ومسح جميع البيانات التجريبية للمنصة</h3>
+              <p className="text-xs text-zinc-500 mt-0.5">تنظيف سجل الرهانات المؤقتة، والطلبات التجريبية لتجهيز المنصة بالكامل</p>
+            </div>
+          </div>
+
+          <div className="bg-red-500/5 border border-red-500/10 rounded-2xl p-4 text-xs text-zinc-300 space-y-2">
+            <div className="flex items-center gap-2 text-red-400 font-bold">
+              <AlertTriangle className="h-4 w-4 shrink-0" />
+              <span>إجراء إداري هام:</span>
+            </div>
+            <p className="text-zinc-400 leading-relaxed">
+              عند الضغط على هذا الخيار، سيتم حذف جميع الرهانات الاختبارية المفتوحة والسابقة، وتفريغ قائمة طلبات الشحن والسحب التجريبية، وإعادة تعيين أرصدة الاختبار للحالة النظيفة.
+            </p>
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={() => {
+                if (window.confirm('هل أنت أخيرًا متأكد من تصفية ومسح جميع الرهانات والطلبات التجريبية للمنصة؟')) {
+                  if (onClearDemoData) {
+                    onClearDemoData();
+                  }
+                }
+              }}
+              className="w-full bg-red-500 hover:bg-red-600 text-white font-black py-3.5 px-6 rounded-xl text-xs transition-all shadow-lg shadow-red-500/20 flex items-center justify-center gap-2 active:scale-95"
+              id="admin-clear-demo-data-btn"
+            >
+              <Eraser className="h-4 w-4" />
+              <span>مسح وتصفية جميع البيانات التجريبية الآن 🧹</span>
+            </button>
           </div>
         </section>
       )}
