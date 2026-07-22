@@ -1,0 +1,6 @@
+{
+  "name": "مينوو",
+  "description": "منصة رياضية متكاملة لمحاكاة المباريات، التوقعات بالذكاء الاصطناعي، والرهانات الافتراضية مع روبوت دردشة رياضي ذكي يدعم البحث المباشر.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
