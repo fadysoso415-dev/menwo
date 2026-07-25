@@ -1,18 +1,9 @@
-npm install firebase
-// Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
-
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyD7vfU7WaKH2ncruoqSV4SpD9QK-RwLHME",
-  authDomain: "tidy-phosphene-098sv.firebaseapp.com",
-  projectId: "tidy-phosphene-098sv",
-  storageBucket: "tidy-phosphene-098sv.firebasestorage.app",
-  messagingSenderId: "270912060182",
-  appId: "1:270912060182:web:bd4bbf4df7668d48802e37"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+  }
+}
