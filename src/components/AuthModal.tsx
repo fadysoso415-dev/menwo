@@ -283,25 +283,7 @@ export default function AuthModal({
           </div>
         </div>
 
-        {/* Quick Testing Accounts Section */}
-        <div className="mt-5 pt-4 border-t border-zinc-900">
-          <p className="text-center text-[10px] font-black text-zinc-500 mb-2.5 tracking-wider uppercase flex items-center justify-center gap-1">
-            <span>⚡ تسجيل دخول سريع وتجربة فورية</span>
-          </p>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              onClick={() => handleQuickLogin('fadysoso415@gmail.com')}
-              className="w-full flex items-center justify-between rounded-xl border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs text-zinc-300 hover:bg-zinc-800 hover:border-emerald-500/50 transition-all group"
-              id="quick-login-user"
-            >
-              <div className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4 text-emerald-400" />
-                <span className="font-bold text-white">دخول كـ مسؤول النظام (fadysoso415@gmail.com)</span>
-              </div>
-              <span className="text-[10px] font-mono bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">مدير 🛡️</span>
-            </button>
-          </div>
-        </div>
+
 
       </div>
     </div>
