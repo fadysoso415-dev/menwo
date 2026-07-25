@@ -76,6 +76,7 @@ export interface Translations {
   search: string;
   noData: string;
   selectLanguage: string;
+  goBack: string;
 }
 
 const translations: Record<Language, Translations> = {
@@ -149,6 +150,7 @@ const translations: Record<Language, Translations> = {
     search: 'بحث',
     noData: 'لا توجد بيانات متاحة حالياً',
     selectLanguage: 'اختر اللغة',
+    goBack: 'رجوع',
   },
   en: {
     appName: 'Minoo AI',
@@ -220,6 +222,7 @@ const translations: Record<Language, Translations> = {
     search: 'Search',
     noData: 'No data available',
     selectLanguage: 'Select Language',
+    goBack: 'Back',
   },
   fr: {
     appName: 'Minoo AI',
@@ -291,6 +294,7 @@ const translations: Record<Language, Translations> = {
     search: 'Rechercher',
     noData: 'Aucune donnée disponible',
     selectLanguage: 'Choisir la langue',
+    goBack: 'Retour',
   }
 };
 

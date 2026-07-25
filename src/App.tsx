@@ -37,10 +37,11 @@ import CashDepositModal from './components/CashDepositModal';
 import WithdrawModal from './components/WithdrawModal';
 import ToastContainer, { ToastItem } from './components/ToastContainer';
 
-import { Trophy, Coins, MessageSquare, AlertCircle } from 'lucide-react';
+import { Trophy, Coins, MessageSquare, AlertCircle, ArrowRight } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<string>('home');
+  const [tabHistory, setTabHistory] = useState<string[]>(['home']);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   
   // Toast Notifications state
@@ -591,14 +592,39 @@ export default function App() {
     prevMatchesRef.current = matches;
   }, [matches, bets, currentUser]);
 
-  // navbar tab selector helper
+  // navbar tab selector helper & back navigation stack
   const handleTabSelect = (tab: string) => {
-    setActiveTab(tab);
+    if (tab !== activeTab) {
+      setTabHistory(prev => [...prev, tab]);
+      setActiveTab(tab);
+    }
   };
+
+  const handleGoBack = () => {
+    // If a match is selected in EventsPage, reset selected match first
+    if (selectedMatch) {
+      setSelectedMatch(null);
+      return;
+    }
+
+    if (tabHistory.length > 1) {
+      const updatedHistory = tabHistory.slice(0, -1);
+      setTabHistory(updatedHistory);
+      setActiveTab(updatedHistory[updatedHistory.length - 1]);
+    } else {
+      setActiveTab('home');
+      setTabHistory(['home']);
+    }
+  };
+
+  const canGoBack = activeTab !== 'home' || selectedMatch !== null || tabHistory.length > 1;
 
   const handleSelectMatchFromHome = (match: Match) => {
     setSelectedMatch(match);
-    setActiveTab('events');
+    if (activeTab !== 'events') {
+      setTabHistory(prev => [...prev, 'events']);
+      setActiveTab('events');
+    }
   };
 
   // User Auth Actions
@@ -1258,6 +1284,8 @@ export default function App() {
         notifications={notifications}
         activeTab={activeTab}
         setActiveTab={handleTabSelect}
+        canGoBack={canGoBack}
+        onGoBack={handleGoBack}
         onOpenAuth={() => setIsAuthOpen(true)}
         onLogout={handleLogout}
         onToggleChat={() => setIsChatOpen(!isChatOpen)}
@@ -1278,8 +1306,27 @@ export default function App() {
       />
 
       {/* Main Container Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pb-16 pt-4">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pb-16 pt-3 sm:pt-4">
         
+        {/* Top Back Navigation Bar for sub-pages / non-home tabs */}
+        {(canGoBack || activeTab !== 'home') && (
+          <div className="flex items-center justify-between bg-zinc-900/90 border border-zinc-800 rounded-2xl px-3.5 py-2.5 mb-4 backdrop-blur-md shadow-sm">
+            <button
+              onClick={handleGoBack}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-black transition-all cursor-pointer active:scale-95 shadow-sm"
+              id="top-page-back-btn"
+            >
+              <ArrowRight className="h-4 w-4" />
+              <span>رجوع للصفحة السابقة</span>
+            </button>
+            <span className="text-xs font-bold text-zinc-400 truncate max-w-[180px] sm:max-w-none">
+              {activeTab === 'events' && (selectedMatch ? `مباراة: ${selectedMatch.teamHome} × ${selectedMatch.teamAway}` : 'قسم الأحداث والمباريات')}
+              {activeTab === 'dashboard' && 'لوحة حسابي والمحفظة'}
+              {activeTab === 'admin' && 'لوحة تحكم المسؤول'}
+            </span>
+          </div>
+        )}
+
         {/* Render Tab pages dynamically */}
         {activeTab === 'home' && (
           <MainPage 

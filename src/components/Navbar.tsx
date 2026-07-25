@@ -11,7 +11,9 @@ import {
   PlusCircle, 
   Coins,
   MessageSquare,
-  ArrowUpRight
+  ArrowUpRight,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -19,6 +21,8 @@ interface NavbarProps {
   notifications: Notification[];
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  canGoBack?: boolean;
+  onGoBack?: () => void;
   onOpenAuth: () => void;
   onLogout: () => void;
   onToggleChat: () => void;
@@ -31,6 +35,8 @@ export default function Navbar({
   notifications,
   activeTab,
   setActiveTab,
+  canGoBack = false,
+  onGoBack,
   onOpenAuth,
   onLogout,
   onToggleChat,
@@ -41,20 +47,32 @@ export default function Navbar({
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-md">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8" dir={dir}>
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8" dir={dir}>
         
-        {/* Logo / Brand */}
-        <div className="flex items-center gap-3">
+        {/* Back Button & Logo / Brand */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {(canGoBack || activeTab !== 'home') && onGoBack && (
+            <button
+              onClick={onGoBack}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer"
+              title={t.goBack}
+              id="nav-top-back-btn"
+            >
+              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              <span>{t.goBack}</span>
+            </button>
+          )}
+
           <button 
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-2 text-emerald-400 hover:opacity-90 transition-opacity"
             id="nav-logo-btn"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
+            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
               <Trophy className="h-5 w-5" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-white">
+            <span className="text-lg sm:text-xl font-bold tracking-tight text-white">
               {t.appName.split(' ')[0]} <span className="text-emerald-400">{t.appName.split(' ')[1] || 'AI'}</span>
             </span>
           </button>
@@ -226,11 +244,21 @@ export default function Navbar({
       </div>
 
       {/* Mobile Submenu Navigation Bar */}
-      <div className="md:hidden flex border-t border-zinc-900 bg-zinc-950/95 justify-around py-2" dir={dir}>
+      <div className="md:hidden flex border-t border-zinc-900 bg-zinc-950/98 justify-around items-center py-2 px-1" dir={dir}>
+        {(canGoBack || activeTab !== 'home') && onGoBack && (
+          <button
+            onClick={onGoBack}
+            className="flex flex-col items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
+            id="mob-nav-back"
+          >
+            {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+            <span>{t.goBack}</span>
+          </button>
+        )}
         <button
           onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-            activeTab === 'home' ? 'text-emerald-400 font-bold' : 'text-zinc-500'
+          className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
+            activeTab === 'home' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
           }`}
           id="mob-nav-home"
         >
@@ -239,8 +267,8 @@ export default function Navbar({
         </button>
         <button
           onClick={() => setActiveTab('events')}
-          className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-            activeTab === 'events' ? 'text-emerald-400 font-bold' : 'text-zinc-500'
+          className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
+            activeTab === 'events' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
           }`}
           id="mob-nav-events"
         >
@@ -250,8 +278,8 @@ export default function Navbar({
         {currentUser && (
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-              activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-zinc-500'
+            className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
+              activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
             id="mob-nav-dashboard"
           >
@@ -262,8 +290,8 @@ export default function Navbar({
         {currentUser?.isAdmin && (
           <button
             onClick={() => setActiveTab('admin')}
-            className={`flex flex-col items-center gap-0.5 text-xs transition-colors ${
-              activeTab === 'admin' ? 'text-red-400 font-bold' : 'text-zinc-500'
+            className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
+              activeTab === 'admin' ? 'text-red-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
             }`}
             id="mob-nav-admin"
           >
