@@ -1,12 +1,10 @@
 {
-  "projectId": "tidy-phosphene-098sv",
-  "appId": "1:270912060182:web:bd4bbf4df7668d48802e37",
-  "apiKey": "AIzaSyD7vfU7WaKH2ncruoqSV4SpD9QK-RwLHME",
-  "authDomain": "tidy-phosphene-098sv.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-acfed7fc-5e4e-4f0c-b935-e4ef7572bc9b",
-  "storageBucket": "tidy-phosphene-098sv.firebasestorage.app",
-  "messagingSenderId": "270912060182",
-  "measurementId": "",
-  "oAuthClientId": "270912060182-c11t8bil71v46e1gh095a3aj352dcecj.apps.googleusercontent.com",
-  "recaptchaSiteKey": ""
+  "projectId": "menwo-e8655",
+  "appId": "1:943523789488:web:93e834b74b855479bb1975",
+  "apiKey": "AIzaSyCeXIm9LXPbD6ICARK0H4WkvoLiS_TxPk8",
+  "authDomain": "menwo-e8655.firebaseapp.com",
+  "firestoreDatabaseId": "(default)",
+  "storageBucket": "menwo-e8655.firebasestorage.app",
+  "messagingSenderId": "943523789488",
+  "measurementId": "G-YXK3KH2B5V"
 }
