@@ -9,6 +9,21 @@ import {
   INITIAL_SPORTS_CATEGORIES,
   INITIAL_GUIDE_CATEGORIES
 } from './data/defaultData';
+import { 
+  subscribeToMatches, 
+  subscribeToBets, 
+  saveMatchToFirestore, 
+  seedMatchesIfEmpty, 
+  saveBetToFirestore, 
+  updateBetInFirestore, 
+  deleteBetFromFirestore, 
+  seedBetsIfEmpty,
+  saveUserToFirestore,
+  subscribeToUsers,
+  subscribeToPublicBets,
+  savePublicBetToFirestore,
+  deletePublicBetFromFirestore
+} from './lib/firestoreService';
 
 // Component Imports
 import Navbar from './components/Navbar';
@@ -55,9 +70,44 @@ export default function App() {
   const [loadingChat, setLoadingChat] = useState(false);
 
 
-  // Initialize data from LocalStorage or defaults
+  // Initialize data and set up real-time Firestore listeners for Matches, Bets, Users, and Public Bets
   useEffect(() => {
-    // 1. Users
+    // Seed initial matches and bets if Firestore collections are empty
+    seedMatchesIfEmpty(INITIAL_MATCHES);
+    seedBetsIfEmpty(INITIAL_BETS);
+
+    // Real-time listener for Matches from Firestore
+    const unsubMatches = subscribeToMatches((realtimeMatches) => {
+      if (realtimeMatches.length > 0) {
+        setMatches(realtimeMatches);
+      } else {
+        setMatches(INITIAL_MATCHES);
+      }
+    });
+
+    // Real-time listener for Bets from Firestore
+    const unsubBets = subscribeToBets((realtimeBets) => {
+      setBets(realtimeBets);
+    });
+
+    // Real-time listener for Users
+    const unsubUsers = subscribeToUsers((realtimeUsers) => {
+      if (realtimeUsers.length > 0) {
+        const updated = realtimeUsers.map(u => 
+          u.email.toLowerCase() === 'fadysoso415@gmail.com' ? { ...u, isAdmin: true } : u
+        );
+        setAllUsers(updated);
+      }
+    });
+
+    // Real-time listener for Public Bets
+    const unsubPublicBets = subscribeToPublicBets((realtimeOffers) => {
+      if (realtimeOffers.length > 0) {
+        setPublicBetOffers(realtimeOffers);
+      }
+    });
+
+    // Fallback users from local storage
     const savedUsers = localStorage.getItem('stad_users');
     if (savedUsers) {
       const parsed: User[] = JSON.parse(savedUsers);
@@ -70,25 +120,21 @@ export default function App() {
       localStorage.setItem('stad_users', JSON.stringify(DEFAULT_USERS));
     }
 
-    // 2. Matches
-    const savedMatches = localStorage.getItem('stad_matches');
-    if (savedMatches) {
-      setMatches(JSON.parse(savedMatches));
+    // Active user session
+    const savedActiveUser = localStorage.getItem('stad_active_user');
+    if (savedActiveUser) {
+      const parsedUser: User = JSON.parse(savedActiveUser);
+      if (parsedUser.email.toLowerCase() === 'fadysoso415@gmail.com') {
+        parsedUser.isAdmin = true;
+      }
+      setCurrentUser(parsedUser);
     } else {
-      setMatches(INITIAL_MATCHES);
-      localStorage.setItem('stad_matches', JSON.stringify(INITIAL_MATCHES));
+      const defaultUser = { ...DEFAULT_USERS[1], isAdmin: true };
+      setCurrentUser(defaultUser);
+      localStorage.setItem('stad_active_user', JSON.stringify(defaultUser));
     }
 
-    // 3. Bets
-    const savedBets = localStorage.getItem('stad_bets');
-    if (savedBets) {
-      setBets(JSON.parse(savedBets));
-    } else {
-      setBets(INITIAL_BETS);
-      localStorage.setItem('stad_bets', JSON.stringify(INITIAL_BETS));
-    }
-
-    // 4. Notifications
+    // Local notifications, chat history, cash wallet, etc.
     const savedNotifs = localStorage.getItem('stad_notifications');
     if (savedNotifs) {
       setNotifications(JSON.parse(savedNotifs));
@@ -108,39 +154,11 @@ export default function App() {
       localStorage.setItem('stad_notifications', JSON.stringify(initialNotifs));
     }
 
-    // 5. Public Bet Offers
-    const savedPublicBets = localStorage.getItem('stad_public_bets');
-    if (savedPublicBets) {
-      setPublicBetOffers(JSON.parse(savedPublicBets));
-    } else {
-      setPublicBetOffers(INITIAL_PUBLIC_BETS);
-      localStorage.setItem('stad_public_bets', JSON.stringify(INITIAL_PUBLIC_BETS));
-    }
-
-    // 5. Active user session (Auto-login as Fady Soso for absolute friction-free testing!)
-    const savedActiveUser = localStorage.getItem('stad_active_user');
-    if (savedActiveUser) {
-      const parsedUser: User = JSON.parse(savedActiveUser);
-      if (parsedUser.email.toLowerCase() === 'fadysoso415@gmail.com') {
-        parsedUser.isAdmin = true;
-      }
-      setCurrentUser(parsedUser);
-    } else {
-      // Default auto-login as User-1 (Fady Soso)
-      const defaultUser = { ...DEFAULT_USERS[1], isAdmin: true };
-      setCurrentUser(defaultUser);
-      localStorage.setItem('stad_active_user', JSON.stringify(defaultUser));
-    }
-
-    // 6. Chat History
     const savedChat = localStorage.getItem('stad_chat_history');
     if (savedChat) {
       setChatHistory(JSON.parse(savedChat));
-    } else {
-      setChatHistory([]);
     }
 
-    // 7. Cash Wallet Number & Deposit Requests
     const savedCashNumber = localStorage.getItem('stad_cash_wallet_number');
     if (savedCashNumber) {
       setCashWalletNumber(savedCashNumber);
@@ -151,15 +169,11 @@ export default function App() {
     const savedDepositReqs = localStorage.getItem('stad_deposit_requests');
     if (savedDepositReqs) {
       setDepositRequests(JSON.parse(savedDepositReqs));
-    } else {
-      setDepositRequests([]);
     }
 
     const savedWithdrawReqs = localStorage.getItem('stad_withdrawal_requests');
     if (savedWithdrawReqs) {
       setWithdrawalRequests(JSON.parse(savedWithdrawReqs));
-    } else {
-      setWithdrawalRequests([]);
     }
 
     const savedStandings = localStorage.getItem('stad_league_standings');
@@ -167,7 +181,6 @@ export default function App() {
       setLeagueStandings(JSON.parse(savedStandings));
     } else {
       setLeagueStandings(INITIAL_LEAGUE_STANDINGS);
-      localStorage.setItem('stad_league_standings', JSON.stringify(INITIAL_LEAGUE_STANDINGS));
     }
 
     const savedSportsCats = localStorage.getItem('stad_sports_categories');
@@ -175,7 +188,6 @@ export default function App() {
       setSportsCategories(JSON.parse(savedSportsCats));
     } else {
       setSportsCategories(INITIAL_SPORTS_CATEGORIES);
-      localStorage.setItem('stad_sports_categories', JSON.stringify(INITIAL_SPORTS_CATEGORIES));
     }
 
     const savedGuide = localStorage.getItem('stad_guide_categories');
@@ -183,8 +195,14 @@ export default function App() {
       setGuideCategories(JSON.parse(savedGuide));
     } else {
       setGuideCategories(INITIAL_GUIDE_CATEGORIES);
-      localStorage.setItem('stad_guide_categories', JSON.stringify(INITIAL_GUIDE_CATEGORIES));
     }
+
+    return () => {
+      unsubMatches();
+      unsubBets();
+      unsubUsers();
+      unsubPublicBets();
+    };
   }, []);
 
   // Handler for Beginner Guide Management
@@ -436,7 +454,7 @@ export default function App() {
   // Selected Match State (used for Event page sync)
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
-  // Synchronize active user state to allUsers array and LocalStorage
+  // Synchronize active user state to allUsers array and LocalStorage & Firestore
   const updateCurrentUserAndState = (updatedUser: User | null) => {
     setCurrentUser(updatedUser);
     if (updatedUser) {
@@ -446,6 +464,7 @@ export default function App() {
         localStorage.setItem('stad_users', JSON.stringify(next));
         return next;
       });
+      saveUserToFirestore(updatedUser);
     } else {
       localStorage.removeItem('stad_active_user');
     }
@@ -690,18 +709,15 @@ export default function App() {
       placedAt: new Date().toISOString()
     };
 
-    // Deduct coins from user balance
+    // Deduct coins from user balance & save user to Firestore
     const updatedUser = {
       ...currentUser,
       balance: currentUser.balance - amount
     };
     updateCurrentUserAndState(updatedUser);
 
-    setBets(prev => {
-      const next = [newBet, ...prev];
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
-    });
+    // Save bet to Firestore
+    saveBetToFirestore(newBet);
 
     triggerNotification(
       '⚡ تمت الموافقة التلقائية على رهانك بنجاح', 
@@ -743,30 +759,26 @@ export default function App() {
     let matchRef: Match | null = null;
     const targetStatus = status || 'finished';
 
-    // 1. Update Match Score, status, date, time, minutes and stats in state & storage
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id === matchId) {
-          matchRef = {
-            ...m,
-            status: targetStatus,
-            scoreHome,
-            scoreAway,
-            date: date !== undefined && date !== '' ? date : m.date,
-            time: time !== undefined && time !== '' ? time : m.time,
-            minutes: minutes !== undefined ? minutes : (targetStatus === 'live' ? (m.minutes || 1) : m.minutes),
-            stats: stats ? { ...m.stats, ...stats } : m.stats
-          };
-          return matchRef;
-        }
-        return m;
-      });
-      localStorage.setItem('stad_matches', JSON.stringify(next));
-      if (selectedMatch?.id === matchId && matchRef) {
-        setSelectedMatch(matchRef);
-      }
-      return next;
-    });
+    const currentMatch = matches.find(m => m.id === matchId);
+    if (!currentMatch) return;
+
+    matchRef = {
+      ...currentMatch,
+      status: targetStatus,
+      scoreHome,
+      scoreAway,
+      date: date !== undefined && date !== '' ? date : currentMatch.date,
+      time: time !== undefined && time !== '' ? time : currentMatch.time,
+      minutes: minutes !== undefined ? minutes : (targetStatus === 'live' ? (currentMatch.minutes || 1) : currentMatch.minutes),
+      stats: stats ? { ...currentMatch.stats, ...stats } : currentMatch.stats
+    };
+
+    // Save updated match in Firestore
+    saveMatchToFirestore(matchRef);
+
+    if (selectedMatch?.id === matchId && matchRef) {
+      setSelectedMatch(matchRef);
+    }
 
     // If targetStatus is not 'finished', we don't settle bets yet
     if (targetStatus !== 'finished') {
@@ -784,59 +796,41 @@ export default function App() {
     const userWonBetsCount: Record<string, number> = {};
     const userLostBetsCount: Record<string, number> = {};
 
-    setBets(prev => {
-      const next = prev.map(bet => {
-        if (bet.matchId === matchId && bet.status === 'pending') {
-          const didWin = bet.selectedOutcome === finalOutcome;
-          const payout = didWin ? Math.round(bet.amount * bet.odds) : 0;
-          
-          if (didWin) {
-            userPayoutsMap[bet.userId] = (userPayoutsMap[bet.userId] || 0) + payout;
-            userWonBetsCount[bet.userId] = (userWonBetsCount[bet.userId] || 0) + 1;
-          } else {
-            userLostBetsCount[bet.userId] = (userLostBetsCount[bet.userId] || 0) + 1;
-          }
-
-          return {
-            ...bet,
-            status: didWin ? 'won' : 'lost',
-            payout,
-            matchScore: `${scoreHome} - ${scoreAway}`
-          } as Bet;
+    bets.forEach(bet => {
+      if (bet.matchId === matchId && bet.status === 'pending') {
+        const didWin = bet.selectedOutcome === finalOutcome;
+        const payout = didWin ? Math.round(bet.amount * bet.odds) : 0;
+        
+        if (didWin) {
+          userPayoutsMap[bet.userId] = (userPayoutsMap[bet.userId] || 0) + payout;
+          userWonBetsCount[bet.userId] = (userWonBetsCount[bet.userId] || 0) + 1;
+        } else {
+          userLostBetsCount[bet.userId] = (userLostBetsCount[bet.userId] || 0) + 1;
         }
-        return bet;
-      });
 
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
+        // Update bet status & payout in Firestore
+        updateBetInFirestore(bet.id, {
+          status: didWin ? 'won' : 'lost',
+          payout,
+          matchScore: `${scoreHome} - ${scoreAway}`
+        });
+      }
     });
 
-    // Update ALL users balance in allUsers state & localStorage
-    setAllUsers(prev => {
-      const next = prev.map(u => {
-        const addedCoins = userPayoutsMap[u.id] || 0;
-        if (addedCoins > 0) {
-          return {
-            ...u,
-            balance: u.balance + addedCoins
-          };
+    // Update user balances in Firestore
+    allUsers.forEach(u => {
+      const addedCoins = userPayoutsMap[u.id] || 0;
+      if (addedCoins > 0) {
+        const updatedUser = { ...u, balance: u.balance + addedCoins };
+        saveUserToFirestore(updatedUser);
+        if (currentUser?.id === u.id) {
+          updateCurrentUserAndState(updatedUser);
         }
-        return u;
-      });
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      return next;
+      }
     });
 
-    // Update active currentUser if affected
     if (currentUser && userPayoutsMap[currentUser.id]) {
       const addedCoins = userPayoutsMap[currentUser.id];
-      const updatedCurr = {
-        ...currentUser,
-        balance: currentUser.balance + addedCoins
-      };
-      setCurrentUser(updatedCurr);
-      localStorage.setItem('stad_active_user', JSON.stringify(updatedCurr));
-
       triggerNotification(
         '🏆 مبارك! تم تصفية أرباح الرهان',
         `لقد تم إضافة ${addedCoins} كوينز لمحفظتك بعد انتهاء مباراة ${matchName} بنتيجة ${scoreHome}-${scoreAway}!`,
@@ -851,49 +845,33 @@ export default function App() {
     }
 
     // Settle public bet offers associated with this match
-    setPublicBetOffers(prev => {
-      const next = prev.map(pOffer => {
-        if (pOffer.matchId === matchId && pOffer.status === 'active') {
-          return {
-            ...pOffer,
-            status: 'resolved'
-          } as PublicBetOffer;
-        }
-        return pOffer;
-      });
-      localStorage.setItem('stad_public_bets', JSON.stringify(next));
-      return next;
+    publicBetOffers.forEach(pOffer => {
+      if (pOffer.matchId === matchId && pOffer.status === 'active') {
+        savePublicBetToFirestore({
+          ...pOffer,
+          status: 'resolved'
+        });
+      }
     });
   };
 
   // 3. ADMIN ACTION: Update Match Stats
   const handleUpdateMatchStats = (matchId: string, stats: any) => {
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id === matchId) {
-          const updated = {
-            ...m,
-            stats: { ...m.stats, ...stats }
-          };
-          if (selectedMatch?.id === matchId) {
-            setSelectedMatch(updated);
-          }
-          return updated;
-        }
-        return m;
-      });
-      localStorage.setItem('stad_matches', JSON.stringify(next));
-      return next;
-    });
+    const target = matches.find(m => m.id === matchId);
+    if (!target) return;
+    const updated = {
+      ...target,
+      stats: { ...target.stats, ...stats }
+    };
+    saveMatchToFirestore(updated);
+    if (selectedMatch?.id === matchId) {
+      setSelectedMatch(updated);
+    }
   };
 
   // 4. ADMIN ACTION: Create new Match
   const handleAddMatch = (newMatch: Match) => {
-    setMatches(prev => {
-      const next = [...prev, newMatch];
-      localStorage.setItem('stad_matches', JSON.stringify(next));
-      return next;
-    });
+    saveMatchToFirestore(newMatch);
   };
 
   const handleUpdateMatchCustomizations = (
@@ -919,76 +897,64 @@ export default function App() {
     bettingStatus?: 'open' | 'closed' | 'suspended',
     bettingNote?: string
   ) => {
-    setMatches(prev => {
-      const next = prev.map(m => {
-        if (m.id === matchId) {
-          const updated = {
-            ...m,
-            customLabelHome,
-            customLabelDraw,
-            customLabelAway,
-            fixedStakeAmount,
-            isFeatured,
-            featuredTag,
-            oddsHome: oddsHome !== undefined ? oddsHome : m.oddsHome,
-            oddsDraw: oddsDraw !== undefined ? oddsDraw : m.oddsDraw,
-            oddsAway: oddsAway !== undefined ? oddsAway : m.oddsAway,
-            isFeaturedBet: isFeaturedBet !== undefined ? isFeaturedBet : m.isFeaturedBet,
-            featuredBetMultiplier: featuredBetMultiplier !== undefined ? featuredBetMultiplier : m.featuredBetMultiplier,
-            featuredBetLabel: featuredBetLabel !== undefined ? featuredBetLabel : m.featuredBetLabel,
-            matchImage: matchImage !== undefined ? matchImage : m.matchImage,
-            adTitle: adTitle !== undefined ? adTitle : m.adTitle,
-            adDescription: adDescription !== undefined ? adDescription : m.adDescription,
-            adBadge: adBadge !== undefined ? adBadge : m.adBadge,
-            isAdFeatured: isAdFeatured !== undefined ? isAdFeatured : m.isAdFeatured,
-            isBettingClosed: isBettingClosed !== undefined ? isBettingClosed : m.isBettingClosed,
-            bettingStatus: bettingStatus !== undefined ? bettingStatus : m.bettingStatus,
-            bettingNote: bettingNote !== undefined ? bettingNote : m.bettingNote
-          };
-          if (selectedMatch?.id === matchId) {
-            setSelectedMatch(updated);
-          }
-          return updated;
-        }
-        return m;
-      });
-      localStorage.setItem('stad_matches', JSON.stringify(next));
-      return next;
-    });
+    const target = matches.find(m => m.id === matchId);
+    if (!target) return;
+
+    const updated: Match = {
+      ...target,
+      customLabelHome,
+      customLabelDraw,
+      customLabelAway,
+      fixedStakeAmount,
+      isFeatured,
+      featuredTag,
+      oddsHome: oddsHome !== undefined ? oddsHome : target.oddsHome,
+      oddsDraw: oddsDraw !== undefined ? oddsDraw : target.oddsDraw,
+      oddsAway: oddsAway !== undefined ? oddsAway : target.oddsAway,
+      isFeaturedBet: isFeaturedBet !== undefined ? isFeaturedBet : target.isFeaturedBet,
+      featuredBetMultiplier: featuredBetMultiplier !== undefined ? featuredBetMultiplier : target.featuredBetMultiplier,
+      featuredBetLabel: featuredBetLabel !== undefined ? featuredBetLabel : target.featuredBetLabel,
+      matchImage: matchImage !== undefined ? matchImage : target.matchImage,
+      adTitle: adTitle !== undefined ? adTitle : target.adTitle,
+      adDescription: adDescription !== undefined ? adDescription : target.adDescription,
+      adBadge: adBadge !== undefined ? adBadge : target.adBadge,
+      isAdFeatured: isAdFeatured !== undefined ? isAdFeatured : target.isAdFeatured,
+      isBettingClosed: isBettingClosed !== undefined ? isBettingClosed : target.isBettingClosed,
+      bettingStatus: bettingStatus !== undefined ? bettingStatus : target.bettingStatus,
+      bettingNote: bettingNote !== undefined ? bettingNote : target.bettingNote
+    };
+
+    saveMatchToFirestore(updated);
+    if (selectedMatch?.id === matchId) {
+      setSelectedMatch(updated);
+    }
   };
 
   // 5. ADMIN ACTIONS ON USERS
   const handleUpdateUserBalance = (userId: string, newBalance: number) => {
-    setAllUsers(prev => {
-      const next = prev.map(u => u.id === userId ? { ...u, balance: newBalance } : u);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      if (currentUser?.id === userId) {
-        setCurrentUser({ ...currentUser, balance: newBalance });
-        localStorage.setItem('stad_active_user', JSON.stringify({ ...currentUser, balance: newBalance }));
-      }
-      return next;
-    });
+    const target = allUsers.find(u => u.id === userId);
+    if (!target) return;
+    const updated = { ...target, balance: newBalance };
+    saveUserToFirestore(updated);
+    if (currentUser?.id === userId) {
+      setCurrentUser(updated);
+      localStorage.setItem('stad_active_user', JSON.stringify(updated));
+    }
   };
 
   const handleToggleUserAdmin = (userId: string) => {
-    setAllUsers(prev => {
-      const next = prev.map(u => u.id === userId ? { ...u, isAdmin: !u.isAdmin } : u);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      if (currentUser?.id === userId) {
-        const updated = { ...currentUser, isAdmin: !currentUser.isAdmin };
-        setCurrentUser(updated);
-        localStorage.setItem('stad_active_user', JSON.stringify(updated));
-      }
-      return next;
-    });
+    const target = allUsers.find(u => u.id === userId);
+    if (!target) return;
+    const updated = { ...target, isAdmin: !target.isAdmin };
+    saveUserToFirestore(updated);
+    if (currentUser?.id === userId) {
+      setCurrentUser(updated);
+      localStorage.setItem('stad_active_user', JSON.stringify(updated));
+    }
   };
 
   const handleDeleteUser = (userId: string) => {
-    setAllUsers(prev => {
-      const next = prev.filter(u => u.id !== userId);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      return next;
-    });
+    setAllUsers(prev => prev.filter(u => u.id !== userId));
   };
 
   // 6. ADMIN ACTIONS ON BETS & CREATING USER BETS
@@ -1019,22 +985,13 @@ export default function App() {
       balance: Math.max(0, targetUser.balance - amount)
     };
 
-    setAllUsers(prev => {
-      const next = prev.map(u => u.id === userId ? updatedUser : u);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      return next;
-    });
-
+    saveUserToFirestore(updatedUser);
     if (currentUser?.id === userId) {
       setCurrentUser(updatedUser);
       localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
     }
 
-    setBets(prev => {
-      const next = [newBet, ...prev];
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
-    });
+    saveBetToFirestore(newBet);
 
     triggerNotification(
       '🎯 رهان جديد تم إنشاؤه بواسطة الإدارة',
@@ -1044,39 +1001,26 @@ export default function App() {
   };
 
   const handleAdminUpdateBetStatus = (betId: string, newStatus: 'pending' | 'won' | 'lost') => {
-    setBets(prev => {
-      const betToUpdate = prev.find(b => b.id === betId);
-      if (!betToUpdate) return prev;
+    const betToUpdate = bets.find(b => b.id === betId);
+    if (!betToUpdate) return;
 
-      const payout = newStatus === 'won' ? Math.round(betToUpdate.amount * betToUpdate.odds) : 0;
-      const updatedBet: Bet = {
-        ...betToUpdate,
-        status: newStatus,
-        payout
-      };
+    const payout = newStatus === 'won' ? Math.round(betToUpdate.amount * betToUpdate.odds) : 0;
 
-      // If status changed to won, credit payout to user
-      if (newStatus === 'won' && betToUpdate.status !== 'won') {
-        setAllUsers(uList => {
-          const uNext = uList.map(u => {
-            if (u.id === betToUpdate.userId) {
-              const updated = { ...u, balance: u.balance + payout };
-              if (currentUser?.id === u.id) {
-                setCurrentUser(updated);
-                localStorage.setItem('stad_active_user', JSON.stringify(updated));
-              }
-              return updated;
-            }
-            return u;
-          });
-          localStorage.setItem('stad_users', JSON.stringify(uNext));
-          return uNext;
-        });
+    if (newStatus === 'won' && betToUpdate.status !== 'won') {
+      const u = allUsers.find(x => x.id === betToUpdate.userId);
+      if (u) {
+        const updatedUser = { ...u, balance: u.balance + payout };
+        saveUserToFirestore(updatedUser);
+        if (currentUser?.id === u.id) {
+          setCurrentUser(updatedUser);
+          localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
+        }
       }
+    }
 
-      const next = prev.map(b => b.id === betId ? updatedBet : b);
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
+    updateBetInFirestore(betId, {
+      status: newStatus,
+      payout
     });
   };
 
@@ -1085,48 +1029,33 @@ export default function App() {
   };
 
   const handleCancelBet = (betId: string) => {
-    setBets(prev => {
-      const betToCancel = prev.find(b => b.id === betId);
-      if (!betToCancel) return prev;
+    const betToCancel = bets.find(b => b.id === betId);
+    if (!betToCancel) return;
 
-      // Refund pending bet coins to user
-      if (betToCancel.status === 'pending') {
-        setAllUsers(uList => {
-          const uNext = uList.map(u => {
-            if (u.id === betToCancel.userId) {
-              const updated = { ...u, balance: u.balance + betToCancel.amount };
-              if (currentUser?.id === u.id) {
-                setCurrentUser(updated);
-                localStorage.setItem('stad_active_user', JSON.stringify(updated));
-              }
-              return updated;
-            }
-            return u;
-          });
-          localStorage.setItem('stad_users', JSON.stringify(uNext));
-          return uNext;
-        });
-
-        triggerNotification(
-          '🔄 تم إلغاء الرهان المعلق بنجاح',
-          `تم إلغاء توقعك المعلق على مباراة (${betToCancel.teamHome} × ${betToCancel.teamAway}) وإعادة ${betToCancel.amount.toLocaleString()} 🪙 كوينز إلى محفظتك.`,
-          'bet'
-        );
+    if (betToCancel.status === 'pending') {
+      const u = allUsers.find(x => x.id === betToCancel.userId);
+      if (u) {
+        const updatedUser = { ...u, balance: u.balance + betToCancel.amount };
+        saveUserToFirestore(updatedUser);
+        if (currentUser?.id === u.id) {
+          setCurrentUser(updatedUser);
+          localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
+        }
       }
 
-      const next = prev.filter(b => b.id !== betId);
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
-    });
+      triggerNotification(
+        '🔄 تم إلغاء الرهان المعلق بنجاح',
+        `تم إلغاء توقعك المعلق على مباراة (${betToCancel.teamHome} × ${betToCancel.teamAway}) وإعادة ${betToCancel.amount.toLocaleString()} 🪙 كوينز إلى محفظتك.`,
+        'bet'
+      );
+    }
+
+    deleteBetFromFirestore(betId);
   };
 
   // 7. PUBLIC BET OFFER HANDLERS (الرهانات العامة التفاعلية للجميع)
   const handleCreatePublicBetOffer = (offer: PublicBetOffer) => {
-    setPublicBetOffers(prev => {
-      const next = [offer, ...prev];
-      localStorage.setItem('stad_public_bets', JSON.stringify(next));
-      return next;
-    });
+    savePublicBetToFirestore(offer);
 
     triggerNotification(
       '🌐 رهان عام جديد معروض!',
@@ -1157,12 +1086,7 @@ export default function App() {
     const updatedUser = { ...currentUser, balance: currentUser.balance - stakeAmount };
     setCurrentUser(updatedUser);
     localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
-
-    setAllUsers(prev => {
-      const next = prev.map(u => u.id === currentUser.id ? updatedUser : u);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      return next;
-    });
+    saveUserToFirestore(updatedUser);
 
     // 2. Add user bet
     const outcomeLabel = offer.outcomeLabel || (offer.selectedOutcome === 'home' ? `فوز ${offer.teamHome}` : offer.selectedOutcome === 'away' ? `فوز ${offer.teamAway}` : 'التعادل');
@@ -1181,26 +1105,13 @@ export default function App() {
       publicBetOfferId: offer.id
     };
 
-    setBets(prev => {
-      const next = [newBet, ...prev];
-      localStorage.setItem('stad_bets', JSON.stringify(next));
-      return next;
-    });
+    saveBetToFirestore(newBet);
 
     // 3. Update public bet offer stats
-    setPublicBetOffers(prev => {
-      const next = prev.map(o => {
-        if (o.id === offerId) {
-          return {
-            ...o,
-            participantsCount: (o.participantsCount || 0) + 1,
-            totalStakedCoins: (o.totalStakedCoins || 0) + stakeAmount
-          };
-        }
-        return o;
-      });
-      localStorage.setItem('stad_public_bets', JSON.stringify(next));
-      return next;
+    savePublicBetToFirestore({
+      ...offer,
+      participantsCount: (offer.participantsCount || 0) + 1,
+      totalStakedCoins: (offer.totalStakedCoins || 0) + stakeAmount
     });
 
     triggerNotification(
@@ -1214,55 +1125,39 @@ export default function App() {
     const offer = publicBetOffers.find(o => o.id === offerId);
     if (!offer) return;
 
-    // 1. Update public offer status
-    setPublicBetOffers(prev => {
-      const next = prev.map(o => o.id === offerId ? { ...o, status: outcomeStatus } : o);
-      localStorage.setItem('stad_public_bets', JSON.stringify(next));
-      return next;
+    savePublicBetToFirestore({
+      ...offer,
+      status: outcomeStatus
     });
 
-    // 2. Resolve matching bets for all users
     const userPayouts: { [uId: string]: number } = {};
 
-    setBets(prevBets => {
-      const updatedBets = prevBets.map(b => {
-        if (b.publicBetOfferId === offerId && b.status === 'pending') {
-          if (outcomeStatus === 'won') {
-            const winAmount = b.payout || Math.round(b.amount * b.odds);
-            userPayouts[b.userId] = (userPayouts[b.userId] || 0) + winAmount;
-            return { ...b, status: 'won' as const, payout: winAmount };
-          } else if (outcomeStatus === 'lost') {
-            return { ...b, status: 'lost' as const, payout: 0 };
-          } else if (outcomeStatus === 'cancelled') {
-            userPayouts[b.userId] = (userPayouts[b.userId] || 0) + b.amount;
-            return { ...b, status: 'lost' as const, payout: 0 };
-          }
+    bets.forEach(b => {
+      if (b.publicBetOfferId === offerId && b.status === 'pending') {
+        if (outcomeStatus === 'won') {
+          const winAmount = b.payout || Math.round(b.amount * b.odds);
+          userPayouts[b.userId] = (userPayouts[b.userId] || 0) + winAmount;
+          updateBetInFirestore(b.id, { status: 'won', payout: winAmount });
+        } else if (outcomeStatus === 'lost') {
+          updateBetInFirestore(b.id, { status: 'lost', payout: 0 });
+        } else if (outcomeStatus === 'cancelled') {
+          userPayouts[b.userId] = (userPayouts[b.userId] || 0) + b.amount;
+          updateBetInFirestore(b.id, { status: 'lost', payout: 0 });
         }
-        return b;
-      });
-      localStorage.setItem('stad_bets', JSON.stringify(updatedBets));
-      return updatedBets;
+      }
     });
 
-    // 3. Deposit earnings/refunds to users
-    setTimeout(() => {
-      setAllUsers(uList => {
-        const uNext = uList.map(u => {
-          if (userPayouts[u.id]) {
-            const newBal = u.balance + userPayouts[u.id];
-            if (currentUser?.id === u.id) {
-              const updatedCurrent = { ...currentUser, balance: newBal };
-              setCurrentUser(updatedCurrent);
-              localStorage.setItem('stad_active_user', JSON.stringify(updatedCurrent));
-            }
-            return { ...u, balance: newBal };
-          }
-          return u;
-        });
-        localStorage.setItem('stad_users', JSON.stringify(uNext));
-        return uNext;
-      });
-    }, 50);
+    Object.keys(userPayouts).forEach(uId => {
+      const u = allUsers.find(x => x.id === uId);
+      if (u) {
+        const updatedUser = { ...u, balance: u.balance + userPayouts[uId] };
+        saveUserToFirestore(updatedUser);
+        if (currentUser?.id === uId) {
+          setCurrentUser(updatedUser);
+          localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
+        }
+      }
+    });
 
     triggerNotification(
       outcomeStatus === 'won' ? '🏆 فوز بالرهان العام!' : outcomeStatus === 'cancelled' ? '🔄 إلغاء الرهان العام' : '❌ نتيجة الرهان العام',
@@ -1278,11 +1173,7 @@ export default function App() {
   };
 
   const handleDeletePublicBetOffer = (offerId: string) => {
-    setPublicBetOffers(prev => {
-      const next = prev.filter(o => o.id !== offerId);
-      localStorage.setItem('stad_public_bets', JSON.stringify(next));
-      return next;
-    });
+    deletePublicBetFromFirestore(offerId);
   };
 
   // Chatbot Actions (Google Search Grounding proxy route)
