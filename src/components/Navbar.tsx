@@ -242,64 +242,6 @@ export default function Navbar({
 
         </div>
       </div>
-
-      {/* Mobile Submenu Navigation Bar */}
-      <div className="md:hidden flex border-t border-zinc-900 bg-zinc-950/98 justify-around items-center py-2 px-1" dir={dir}>
-        {(canGoBack || activeTab !== 'home') && onGoBack && (
-          <button
-            onClick={onGoBack}
-            className="flex flex-col items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1.5 rounded-xl transition-all active:scale-95"
-            id="mob-nav-back"
-          >
-            {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
-            <span>{t.goBack}</span>
-          </button>
-        )}
-        <button
-          onClick={() => setActiveTab('home')}
-          className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
-            activeTab === 'home' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-          id="mob-nav-home"
-        >
-          <Trophy className="h-4 w-4" />
-          <span>{t.home}</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('events')}
-          className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
-            activeTab === 'events' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
-          }`}
-          id="mob-nav-events"
-        >
-          <Coins className="h-4 w-4" />
-          <span>{t.eventsAndMatches}</span>
-        </button>
-        {currentUser && (
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
-              activeTab === 'dashboard' ? 'text-emerald-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            id="mob-nav-dashboard"
-          >
-            <UserIcon className="h-4 w-4" />
-            <span>{t.userDashboard}</span>
-          </button>
-        )}
-        {currentUser?.isAdmin && (
-          <button
-            onClick={() => setActiveTab('admin')}
-            className={`flex flex-col items-center gap-1 text-[11px] transition-colors py-1 px-2 ${
-              activeTab === 'admin' ? 'text-red-400 font-bold' : 'text-zinc-500 hover:text-zinc-300'
-            }`}
-            id="mob-nav-admin"
-          >
-            <ShieldAlert className="h-4 w-4" />
-            <span>{t.adminPanel}</span>
-          </button>
-        )}
-      </div>
     </header>
   );
 }

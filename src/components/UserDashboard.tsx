@@ -224,7 +224,9 @@ import {
   BookOpen,
   HelpCircle,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -499,14 +501,27 @@ export default function UserDashboard({
 
       {/* Render Beginner Guide if 'guide' tab is active */}
       {activeSection === 'guide' ? (
-        <BeginnerGuide
-          guideCategories={guideCategories}
-          onOpenCashDepositModal={onOpenCashDepositModal}
-          onOpenWithdrawModal={onOpenWithdrawModal}
-          onNavigateTab={onNavigateTab}
-          isAdmin={currentUser.isAdmin}
-          onOpenAdminGuideEdit={onOpenAdminGuideEdit}
-        />
+        <div className="space-y-4">
+          <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-3 shadow-md">
+            <button
+              onClick={() => setActiveSection('dashboard')}
+              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
+              id="guide-back-to-dash-btn"
+            >
+              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              <span>الرجوع للوحة التحكم الإحصائية</span>
+            </button>
+            <span className="text-xs text-zinc-400 font-semibold">دليل التعليمات والإرشادات</span>
+          </div>
+          <BeginnerGuide
+            guideCategories={guideCategories}
+            onOpenCashDepositModal={onOpenCashDepositModal}
+            onOpenWithdrawModal={onOpenWithdrawModal}
+            onNavigateTab={onNavigateTab}
+            isAdmin={currentUser.isAdmin}
+            onOpenAdminGuideEdit={onOpenAdminGuideEdit}
+          />
+        </div>
       ) : (
         <>
       {/* 1. Header & Profile customization */}

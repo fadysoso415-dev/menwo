@@ -34,3 +34,42 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #3f3f46;
 }
+
+/* Mobile responsive layout fixes */
+@media (max-width: 768px) {
+  /* Prevent horizontal scroll on small screens */
+  body, html {
+    overflow-x: hidden;
+    width: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Touch target height optimization */
+  button, input, select, a {
+    min-height: 40px;
+  }
+
+  /* Extra bottom padding on main container for fixed bottom navigation */
+  main {
+    padding-bottom: 5rem !important;
+  }
+
+  /* Responsive font scaling */
+  .mobile-text-sm {
+    font-size: 0.875rem !important;
+  }
+
+  /* Sticky top bar shadow fix */
+  header {
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding: max(0px)) {
+  .safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}
+

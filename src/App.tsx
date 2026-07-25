@@ -36,10 +36,13 @@ import Chatbot from './components/Chatbot';
 import CashDepositModal from './components/CashDepositModal';
 import WithdrawModal from './components/WithdrawModal';
 import ToastContainer, { ToastItem } from './components/ToastContainer';
+import MobileBottomNav from './components/MobileBottomNav';
 
-import { Trophy, Coins, MessageSquare, AlertCircle, ArrowRight } from 'lucide-react';
+import { Trophy, Coins, MessageSquare, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useLanguage } from './context/LanguageContext';
 
 export default function App() {
+  const { t, dir } = useLanguage();
   const [activeTab, setActiveTab] = useState<string>('home');
   const [tabHistory, setTabHistory] = useState<string[]>(['home']);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -641,8 +644,22 @@ export default function App() {
       }
       return prev;
     });
+
+    // Instantly navigate user to available matches for betting
+    setActiveTab('events');
+    setTabHistory(['home', 'events']);
+
+    // Auto-select active match so betting card is instantly open and ready
+    const activeMatch = matches.find(m => m.status === 'live' || m.status === 'upcoming') || matches[0];
+    if (activeMatch) {
+      setSelectedMatch(activeMatch);
+    }
     
-    triggerNotification('🔓 تم تسجيل الدخول بنجاح', `مرحباً بك مجدداً يا ${user.name}! تصفح وتوقع نتائج مبارياتك الرياضية المفضلة الآن.`, 'system');
+    triggerNotification(
+      '⚡ تم تسجيل الدخول بنجاح', 
+      `أهلاً بك يا ${user.name}! تم نقلك فوراً لقسم المباريات المتاحة للرهان لبدء التوقع والمراهنة السريعة.`, 
+      'system'
+    );
   };
 
   const handleRegisterUser = (newUser: User) => {
@@ -1310,16 +1327,16 @@ export default function App() {
         
         {/* Top Back Navigation Bar for sub-pages / non-home tabs */}
         {(canGoBack || activeTab !== 'home') && (
-          <div className="flex items-center justify-between bg-zinc-900/90 border border-zinc-800 rounded-2xl px-3.5 py-2.5 mb-4 backdrop-blur-md shadow-sm">
+          <div className="flex items-center justify-between bg-zinc-900/90 border border-zinc-800 rounded-2xl px-3.5 py-2.5 mb-4 backdrop-blur-md shadow-sm" dir={dir}>
             <button
               onClick={handleGoBack}
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-black transition-all cursor-pointer active:scale-95 shadow-sm"
               id="top-page-back-btn"
             >
-              <ArrowRight className="h-4 w-4" />
-              <span>رجوع للصفحة السابقة</span>
+              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              <span>{t.goBack} ({dir === 'rtl' ? 'للصفحة السابقة' : 'To Previous Page'})</span>
             </button>
-            <span className="text-xs font-bold text-zinc-400 truncate max-w-[180px] sm:max-w-none">
+            <span className="text-xs font-bold text-zinc-400 truncate max-w-[170px] sm:max-w-none">
               {activeTab === 'events' && (selectedMatch ? `مباراة: ${selectedMatch.teamHome} × ${selectedMatch.teamAway}` : 'قسم الأحداث والمباريات')}
               {activeTab === 'dashboard' && 'لوحة حسابي والمحفظة'}
               {activeTab === 'admin' && 'لوحة تحكم المسؤول'}
@@ -1477,6 +1494,18 @@ export default function App() {
           </p>
         </div>
       </footer>
+
+      {/* Fixed Mobile Bottom Navigation Bar */}
+      <MobileBottomNav 
+        currentUser={currentUser}
+        activeTab={activeTab}
+        setActiveTab={handleTabSelect}
+        canGoBack={canGoBack}
+        onGoBack={handleGoBack}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onToggleChat={() => setIsChatOpen(!isChatOpen)}
+        isChatOpen={isChatOpen}
+      />
 
     </div>
   );

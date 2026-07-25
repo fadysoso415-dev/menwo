@@ -24,7 +24,9 @@ import {
   History,
   Award,
   CheckCircle2,
-  BrainCircuit
+  BrainCircuit,
+  ArrowRight,
+  ArrowLeft
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -413,7 +415,7 @@ export default function EventsPage({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Column 1: List of Matches */}
-      <div className="space-y-4 lg:col-span-1">
+        <div className={`space-y-4 lg:col-span-1 ${selectedMatch ? 'hidden lg:block' : 'block'}`}>
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-bold text-white tracking-tight flex items-center gap-1.5">
             <Flame className="h-4.5 w-4.5 text-emerald-400" />
@@ -525,6 +527,21 @@ export default function EventsPage({
       <div className="lg:col-span-2 space-y-6">
         {selectedMatch ? (
           <>
+            {/* Back button above match details on mobile & desktop */}
+            <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-3 shadow-md">
+              <button
+                onClick={() => onSelectMatch(null as any)}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
+                id="events-back-to-list-btn"
+              >
+                {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+                <span>الرجوع إلى قائمة المباريات</span>
+              </button>
+              <span className="text-xs text-zinc-400 font-semibold truncate max-w-[150px] sm:max-w-none">
+                تفاصيل مباراة {selectedMatch.teamHome} × {selectedMatch.teamAway}
+              </span>
+            </div>
+
             {/* A. Selected Match Scoreboard */}
             <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 h-1 w-full bg-emerald-500" />
@@ -786,13 +803,43 @@ export default function EventsPage({
                             <span className="text-sm font-black text-amber-400">{selectedMatch.fixedStakeAmount} 🪙</span>
                           </div>
                         ) : (
-                          <input
-                            type="number"
-                            value={betAmount}
-                            onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 0))}
-                            className="w-full rounded-lg border border-zinc-900 bg-zinc-900/50 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none font-bold"
-                            id="bet-amount-input"
-                          />
+                          <div className="space-y-2">
+                            <input
+                              type="number"
+                              value={betAmount}
+                              onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 0))}
+                              className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none font-bold shadow-inner"
+                              id="bet-amount-input"
+                              placeholder="أدخل قيمة الرهان بالكوينز"
+                            />
+                            {/* Fast preset amount chips */}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-zinc-400 font-bold ml-1">تحديد سريع:</span>
+                              {[50, 100, 250, 500].map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => setBetAmount(preset)}
+                                  className={`text-[11px] font-extrabold px-2.5 py-1 rounded-lg border transition-all active:scale-95 cursor-pointer ${
+                                    betAmount === preset
+                                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow'
+                                      : 'bg-zinc-900/80 text-zinc-300 border-zinc-800 hover:border-emerald-500/50 hover:text-emerald-400'
+                                  }`}
+                                >
+                                  +{preset} 🪙
+                                </button>
+                              ))}
+                              {currentUser && currentUser.balance > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setBetAmount(currentUser.balance)}
+                                  className="text-[10px] font-black px-2.5 py-1 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all active:scale-95 cursor-pointer"
+                                >
+                                  الكل ({currentUser.balance} 🪙)
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         )}
                       </div>
 
