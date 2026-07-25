@@ -1,11 +1,19 @@
-import { Match, User, NewsItem, Bet, PublicBetOffer, LeagueStandingItem } from '../types';
+import { Match, User, NewsItem, Bet, PublicBetOffer, LeagueStandingItem, SportCategory, GuideCategory } from '../types';
+
+export const INITIAL_SPORTS_CATEGORIES: SportCategory[] = [
+  { id: 'football', name: 'كرة القدم', icon: '⚽', description: 'مباريات وأحداث كرة القدم المحلية والعالمية' },
+  { id: 'basketball', name: 'كرة السلة', icon: '🏀', description: 'دوري NBA والبطولات القارية والمحلية' },
+  { id: 'tennis', name: 'التنس', icon: '🎾', description: 'بطولات الجراند سلام ومنافسات التنس العالمية' },
+  { id: 'volleyball', name: 'كرة الطائرة', icon: '🏐', description: 'بطولات كرة الطائرة الصالات والشاطئية' },
+  { id: 'esports', name: 'الألعاب الإلكترونية', icon: '🎮', description: 'بطولات ألعاب الفيديو والرياضات الإلكترونية E-Sports' },
+];
 
 export const DEFAULT_USERS: User[] = [
   {
     id: 'admin-1',
     name: 'أدمن مينوو',
     email: 'admin@stad.com',
-    balance: 5000,
+    balance: 0,
     isAdmin: true,
     avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
     createdAt: '2026-01-01T12:00:00Z',
@@ -15,7 +23,7 @@ export const DEFAULT_USERS: User[] = [
     id: 'user-1',
     name: 'فادي سوسو',
     email: 'fadysoso415@gmail.com',
-    balance: 10,
+    balance: 0,
     isAdmin: true,
     avatar: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150',
     createdAt: '2026-07-20T10:00:00Z',
@@ -53,6 +61,9 @@ export const INITIAL_MATCHES: Match[] = [
     time: '21:00',
     isFeatured: true,
     featuredTag: '🔥 الكلاسيكو المرتقب',
+    isFeaturedBet: true,
+    featuredBetMultiplier: 3,
+    featuredBetLabel: '🔥 رهان مميز مضاعف x3',
     headToHead: {
       totalMatches: 257,
       homeWins: 105,
@@ -507,6 +518,126 @@ export const INITIAL_LEAGUE_STANDINGS: LeagueStandingItem[] = [
     points: 59,
     form: ['W', 'D', 'W', 'L', 'W'],
     isSecuredLeader: false
+  }
+];
+
+export const INITIAL_GUIDE_CATEGORIES: GuideCategory[] = [
+  {
+    id: 'wallet-guide',
+    title: '💳 دليل شحن المحفظة والإيداع',
+    description: 'خطوات بسيطة وسريعة لشحن محفظتك بالكوينز وبدء التوقع فوراً عبر فودافون كاش وإنستاباي.',
+    icon: 'Wallet',
+    steps: [
+      {
+        id: 'w-step-1',
+        title: '1️⃣ الدخول إلى شاشة الشحن النقدي',
+        content: 'اضغط على زر "طلب شحن نقدي" في أعلى الصفحة أو في لوحة التحكم الشخصية لإظهار وسائل الدفع المتاحة.',
+        icon: 'Wallet',
+        badgeText: 'خطوة أساسية',
+        actionType: 'deposit',
+        actionLabel: 'فتح نافذة الشحن الآن'
+      },
+      {
+        id: 'w-step-2',
+        title: '2️⃣ تحويل المبلغ المطلوب وإرفاق الإيصال',
+        content: 'قم بتحويل المبلغ إلى رقم كاش المحدد المنشور، ثم أدخل رقم محفظتك والمبلغ بالجنيه المصري، وقم برفع صورة أو لقطة شاشة لإيصال التحويل لضمان سرعة المعالجة.',
+        icon: 'Upload',
+        badgeText: 'تأكيد العملية'
+      },
+      {
+        id: 'w-step-3',
+        title: '3️⃣ مراجعة الإدارة وإضافة الكوينز',
+        content: 'يقوم فريق الإدارة بمرجعة الطلب فوراً والموافقة عليه، لتتم إضافة الكوينز مباشرة إلى محفظتك مع إشعار فوري بالتحديث.',
+        icon: 'CheckCircle',
+        badgeText: 'تفعيل فوري'
+      }
+    ]
+  },
+  {
+    id: 'public-bets-guide',
+    title: '🏆 المشاركة في الرهانات العامة والتحديات',
+    description: 'كيفية الانضمام للتحديات الجماعية والرهانات العامة التي تطلقها الإدارة وتحديد عوائدك.',
+    icon: 'TrendingUp',
+    steps: [
+      {
+        id: 'pb-step-1',
+        title: '1️⃣ تصفح قسم الرهانات العامة',
+        content: 'توجه إلى قسم "الرهانات العامة" في الصفحة الرئيسية لتجد قائمة بكافة التحديات والرهانات الجاهزة ذات الأودز المميز.',
+        icon: 'TrendingUp',
+        badgeText: 'تحديات جماعية',
+        actionType: 'public_bets',
+        actionLabel: 'تصفح الرهانات العامة'
+      },
+      {
+        id: 'pb-step-2',
+        title: '2️⃣ اختيار التوقع المناسب وتحديد المبلغ',
+        content: 'اختر العرض المناسب لمباراتك المفضلة، وحدد عدد الكوينز التي ترغب في الرهان بها بناءً على معامل الفوز المكتوب (Odds).',
+        icon: 'Coins',
+        badgeText: 'حساب العائد'
+      },
+      {
+        id: 'pb-step-3',
+        title: '3️⃣ متابعة النتيجة وحصد الأرباح',
+        content: 'عند انتهاء الفعالية، تتم تسوية التوقع تلقائياً وإيداع أرباحك في محفظتك فوراً مع إمكانية متابعة السجل في لوحتك.',
+        icon: 'Award',
+        badgeText: 'ربح فوري'
+      }
+    ]
+  },
+  {
+    id: 'platform-mechanics-guide',
+    title: '⚙️ طريقة عمل منصة التوقعات والأودز',
+    description: 'شرح آلية حساب معاملات التوقع، الاستعانة بالذكاء الاصطناعي، والتسوية التلقائية.',
+    icon: 'Sparkles',
+    steps: [
+      {
+        id: 'pm-step-1',
+        title: '1️⃣ مفهوم معاملات الفوز (Odds)',
+        content: 'يعبر معامل الأودز عن قيمة مضاعفة أرباحك. مثلاً: إذا كان الأودز 2.50 وراهنت بـ 100 كوينز، فإن العائد الإجمالي عند الفوز يكون 250 كوينز (صافي ربح 150 كوينز).',
+        icon: 'Percent',
+        badgeText: 'حساب الرياضيات'
+      },
+      {
+        id: 'pm-step-2',
+        title: '2️⃣ استخدام تحليلات الذكاء الاصطناعي و H2H',
+        content: 'تستطيع الضغط على زر "تحليلات واستراتيجية الذكاء الاصطناعي" في كل مباراة للحصول على تحليل دقيق لتاريخ المواجهات المباشرة وتوصيات الذكاء الاصطناعي الأرضي قبل حسم توقعك.',
+        icon: 'Sparkles',
+        badgeText: 'ذكاء أرضي AI',
+        actionType: 'events',
+        actionLabel: 'استكشف المباريات والأحداث'
+      },
+      {
+        id: 'pm-step-3',
+        title: '3️⃣ الشفافية والتسوية التلقائية',
+        content: 'تحدث نتائج المباريات مباشرة، وتغلق الرهانات عند انطلاق المباراة لمنع التلاعب، ويتم تسليم الأرباح فور إعلان النتيجة الرسمية.',
+        icon: 'ShieldCheck',
+        badgeText: 'أمان وشفافية'
+      }
+    ]
+  },
+  {
+    id: 'faq-support-guide',
+    title: '❓ الأسئلة الشائعة والدعم الفني',
+    description: 'إجابات على أكثر الاستفسارات تكراراً وسحب الأرباح والتواصل مع الدعم.',
+    icon: 'HelpCircle',
+    steps: [
+      {
+        id: 'faq-step-1',
+        title: '1️⃣ كيف أطلب سحب الأرباح النقدي؟',
+        content: 'يمكنك الدخول لوحة التحكم الشخصية ثم الضغط على "طلب سحب نقدي"، إدخال رقم محفظتك التي ترغب باستلام الأموال عليها والمبلغ، وسيصلك المبلغ فور موافقة الأدمن.',
+        icon: 'ArrowUpRight',
+        badgeText: 'سحب كاش',
+        actionType: 'withdraw',
+        actionLabel: 'طلب سحب نقدي'
+      },
+      {
+        id: 'faq-step-2',
+        title: '2️⃣ ماذا لو واجهت أي مشكلة أو استفسار؟',
+        content: 'استخدم المساعد الذكي (الشات بوت) في أسفل الشاشة المتاح 24/7 للإجابة الفورية عن كافة استفساراتك حول القوانين والنصائح.',
+        icon: 'MessageSquare',
+        badgeText: 'دعم 24/7'
+      }
+    ]
   }
 ];
 

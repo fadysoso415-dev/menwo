@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Match, Bet, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem } from '../types';
+import { User, Match, Bet, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem, SportCategory, GuideCategory, GuideStep } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   Users, 
@@ -33,7 +33,22 @@ import {
   ShieldCheck,
   Eraser,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  BookOpen,
+  Plus,
+  HelpCircle,
+  Info,
+  Sparkles,
+  Lock,
+  Unlock,
+  Sliders,
+  PauseCircle,
+  PlayCircle,
+  EyeOff,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+  Gamepad2
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -46,7 +61,15 @@ interface AdminPanelProps {
   publicBetOffers: PublicBetOffer[];
   leagueStandings?: LeagueStandingItem[];
   onAddMatch: (match: Match) => void;
-  onUpdateMatchScore: (matchId: string, scoreHome: number, scoreAway: number, status: 'scheduled' | 'live' | 'finished') => void;
+  onUpdateMatchScore: (
+    matchId: string, 
+    scoreHome: number, 
+    scoreAway: number, 
+    status: 'scheduled' | 'live' | 'finished',
+    date?: string,
+    time?: string,
+    minutes?: number
+  ) => void;
   onUpdateMatchStats: (matchId: string, stats: any) => void;
   onUpdateUserBalance: (userId: string, newBalance: number) => void;
   onToggleUserAdmin: (userId: string) => void;
@@ -71,10 +94,30 @@ interface AdminPanelProps {
     customLabelAway?: string, 
     fixedStakeAmount?: number,
     isFeatured?: boolean,
-    featuredTag?: string
+    featuredTag?: string,
+    oddsHome?: number,
+    oddsDraw?: number,
+    oddsAway?: number,
+    isFeaturedBet?: boolean,
+    featuredBetMultiplier?: number,
+    featuredBetLabel?: string,
+    matchImage?: string,
+    adTitle?: string,
+    adDescription?: string,
+    adBadge?: string,
+    isAdFeatured?: boolean,
+    isBettingClosed?: boolean,
+    bettingStatus?: 'open' | 'closed' | 'suspended',
+    bettingNote?: string
   ) => void;
   onUpdateLeagueStandings?: (standings: LeagueStandingItem[]) => void;
   onClearDemoData?: () => void;
+  sportsCategories?: SportCategory[];
+  onAddSportCategory?: (category: SportCategory) => void;
+  onUpdateSportCategory?: (catId: string, updatedFields: Partial<SportCategory>) => void;
+  onDeleteSportCategory?: (catId: string) => void;
+  guideCategories?: GuideCategory[];
+  onUpdateGuideCategories?: (categories: GuideCategory[]) => void;
 }
 
 export default function AdminPanel({
@@ -107,16 +150,31 @@ export default function AdminPanel({
   onDeletePublicBetOffer,
   onUpdateMatchCustomizations,
   onUpdateLeagueStandings,
-  onClearDemoData
+  onClearDemoData,
+  sportsCategories = [],
+  onAddSportCategory,
+  onUpdateSportCategory,
+  onDeleteSportCategory,
+  guideCategories = [],
+  onUpdateGuideCategories
 }: AdminPanelProps) {
   const { t, dir } = useLanguage();
-  const [adminTab, setAdminTab] = useState<'users' | 'create-bet' | 'bets-list' | 'cash-deposits' | 'cash-withdrawals' | 'events' | 'stats' | 'reports' | 'league-standings' | 'clear-data'>('users');
+  const [adminTab, setAdminTab] = useState<'users' | 'match-bets-management' | 'create-bet' | 'bets-list' | 'cash-deposits' | 'cash-withdrawals' | 'events' | 'sports-categories' | 'stats' | 'reports' | 'league-standings' | 'guide-management' | 'clear-data'>('users');
+
+  // Dedicated Match Bets Management States
+  const [matchBetsSearchQuery, setMatchBetsSearchQuery] = useState('');
+  const [matchBetsStatusFilter, setMatchBetsStatusFilter] = useState<'all' | 'open' | 'closed' | 'suspended' | 'live' | 'finished'>('all');
+  const [expandedMatchBetsId, setExpandedMatchBetsId] = useState<string | null>(null);
+  const [editingMatchOdds, setEditingMatchOdds] = useState<{ [matchId: string]: { home: number; draw: number; away: number } }>({});
+  const [editingMatchBetNote, setEditingMatchBetNote] = useState<{ [matchId: string]: string }>({});
+  const [matchOddsSaveMsg, setMatchOddsSaveMsg] = useState<{ [matchId: string]: boolean }>({});
 
 
   // Search/Filter states
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [betSearchQuery, setBetSearchQuery] = useState('');
   const [betStatusFilter, setBetStatusFilter] = useState<'all' | 'pending' | 'won' | 'lost'>('all');
+  const [betToDeleteConfirm, setBetToDeleteConfirm] = useState<Bet | null>(null);
 
   // Cash Wallet Admin Editing States
   const [editingCashNumber, setEditingCashNumber] = useState(cashWalletNumber);
@@ -129,6 +187,28 @@ export default function AdminPanel({
   // Withdrawal Requests States
   const [withdrawSearchQuery, setWithdrawSearchQuery] = useState('');
   const [withdrawStatusFilter, setWithdrawStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+
+  // Beginner Guide Editing States
+  const [editingGuideCategories, setEditingGuideCategories] = useState<GuideCategory[]>(guideCategories);
+  const [guideSaveSuccess, setGuideSaveSuccess] = useState(false);
+  const [addingNewCategory, setAddingNewCategory] = useState(false);
+  const [newGuideCatTitle, setNewGuideCatTitle] = useState('');
+  const [newGuideCatDesc, setNewGuideCatDesc] = useState('');
+  const [newGuideCatIcon, setNewGuideCatIcon] = useState('BookOpen');
+
+  const [addingStepForCatId, setAddingStepForCatId] = useState<string | null>(null);
+  const [newStepTitle, setNewStepTitle] = useState('');
+  const [newStepContent, setNewStepContent] = useState('');
+  const [newStepBadge, setNewStepBadge] = useState('');
+  const [newStepIcon, setNewStepIcon] = useState('CheckCircle');
+  const [newStepActionType, setNewStepActionType] = useState<'deposit' | 'withdraw' | 'public_bets' | 'events' | 'none'>('none');
+  const [newStepActionLabel, setNewStepActionLabel] = useState('');
+
+  React.useEffect(() => {
+    if (guideCategories && guideCategories.length > 0) {
+      setEditingGuideCategories(guideCategories);
+    }
+  }, [guideCategories]);
 
   // Manual User Balance editing state per user
   const [editingUserBalance, setEditingUserBalance] = useState<{ [userId: string]: number }>({});
@@ -152,8 +232,21 @@ export default function AdminPanel({
   // Create Match form states
   const [newHome, setNewHome] = useState('');
   const [newAway, setNewAway] = useState('');
-  const [newSport, setNewSport] = useState<'football' | 'basketball' | 'tennis'>('football');
+  const [newSport, setNewSport] = useState<string>('football');
   const [newLeague, setNewLeague] = useState('الدوري الإنجليزي الممتاز');
+
+  // Sports Categories Management States
+  const [newCatId, setNewCatId] = useState('');
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatIcon, setNewCatIcon] = useState('🏆');
+  const [newCatDesc, setNewCatDesc] = useState('');
+  const [catAddSuccess, setCatAddSuccess] = useState(false);
+
+  const [editingCatId, setEditingCatId] = useState<string | null>(null);
+  const [editCatName, setEditCatName] = useState('');
+  const [editCatIcon, setEditCatIcon] = useState('');
+  const [editCatDesc, setEditCatDesc] = useState('');
+  const [catEditSuccess, setCatEditSuccess] = useState(false);
   const [newOddsHome, setNewOddsHome] = useState(2.00);
   const [newOddsDraw, setNewOddsDraw] = useState(3.20);
   const [newOddsAway, setNewOddsAway] = useState(2.50);
@@ -164,6 +257,10 @@ export default function AdminPanel({
   const [newFixedStakeAmount, setNewFixedStakeAmount] = useState<string>('');
   const [newIsFeatured, setNewIsFeatured] = useState<boolean>(false);
   const [newFeaturedTag, setNewFeaturedTag] = useState<string>('🔥 قمة الأسبوع');
+  const [newIsFeaturedBet, setNewIsFeaturedBet] = useState<boolean>(false);
+  const [newFeaturedBetMultiplier, setNewFeaturedBetMultiplier] = useState<number>(3.0);
+  const [newFeaturedBetLabel, setNewFeaturedBetLabel] = useState<string>('🔥 رهان مميز مضاعف x3');
+  const [newMatchImage, setNewMatchImage] = useState<string>('');
   const [addMatchSuccess, setAddMatchSuccess] = useState(false);
 
   // Match Bet Button Customization States
@@ -174,7 +271,37 @@ export default function AdminPanel({
   const [editFixedStakeAmount, setEditFixedStakeAmount] = useState<string>('');
   const [editIsFeatured, setEditIsFeatured] = useState<boolean>(false);
   const [editFeaturedTag, setEditFeaturedTag] = useState<string>('');
+  const [editOddsHome, setEditOddsHome] = useState<number>(2.00);
+  const [editOddsDraw, setEditOddsDraw] = useState<number>(3.20);
+  const [editOddsAway, setEditOddsAway] = useState<number>(2.50);
+  const [editIsFeaturedBet, setEditIsFeaturedBet] = useState<boolean>(false);
+  const [editFeaturedBetMultiplier, setEditFeaturedBetMultiplier] = useState<number>(3.0);
+  const [editFeaturedBetLabel, setEditFeaturedBetLabel] = useState<string>('🔥 رهان مميز مضاعف x3');
+  const [editMatchImage, setEditMatchImage] = useState<string>('');
   const [customSaveSuccess, setCustomSaveSuccess] = useState(false);
+
+  // Promotional Betting Announcement States (إعلان للرهان على مباراة مميزة)
+  const [adMatchId, setAdMatchId] = useState<string>(allMatches[0]?.id || '');
+  const [adTitle, setAdTitle] = useState<string>('');
+  const [adDescription, setAdDescription] = useState<string>('');
+  const [adBadge, setAdBadge] = useState<string>('🔥 رهان موسم 2026');
+  const [adImage, setAdImage] = useState<string>('');
+  const [isAdFeaturedToggle, setIsAdFeaturedToggle] = useState<boolean>(true);
+  const [adSaveSuccess, setAdSaveSuccess] = useState<boolean>(false);
+
+  // Helper for uploading image files locally
+  const handleImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          setter(reader.result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Stats update states
   const [selectedMatchForStats, setSelectedMatchForStats] = useState(allMatches[0]?.id || '');
@@ -192,7 +319,23 @@ export default function AdminPanel({
   const [scoreHome, setScoreHome] = useState(0);
   const [scoreAway, setScoreAway] = useState(0);
   const [resolveStatus, setResolveStatus] = useState<'scheduled' | 'live' | 'finished'>('finished');
+  const [matchDate, setMatchDate] = useState('2026-07-25');
+  const [matchTime, setMatchTime] = useState('20:00');
+  const [matchMinutes, setMatchMinutes] = useState(0);
   const [scoreSuccess, setScoreSuccess] = useState(false);
+
+  // Sync match details whenever selectedMatchForScore changes
+  React.useEffect(() => {
+    const target = allMatches.find(m => m.id === selectedMatchForScore);
+    if (target) {
+      setScoreHome(target.scoreHome || 0);
+      setScoreAway(target.scoreAway || 0);
+      setResolveStatus(target.status || 'scheduled');
+      setMatchDate(target.date || '2026-07-25');
+      setMatchTime(target.time || '20:00');
+      setMatchMinutes(target.minutes || 0);
+    }
+  }, [selectedMatchForScore, allMatches]);
 
   // Filtered lists
   const filteredUsers = allUsers.filter(u => 
@@ -307,6 +450,13 @@ export default function AdminPanel({
       setEditFixedStakeAmount(target.fixedStakeAmount ? String(target.fixedStakeAmount) : '');
       setEditIsFeatured(Boolean(target.isFeatured));
       setEditFeaturedTag(target.featuredTag || '');
+      setEditOddsHome(target.oddsHome || 2.00);
+      setEditOddsDraw(target.oddsDraw || 3.20);
+      setEditOddsAway(target.oddsAway || 2.50);
+      setEditIsFeaturedBet(Boolean(target.isFeaturedBet));
+      setEditFeaturedBetMultiplier(target.featuredBetMultiplier || 3.0);
+      setEditFeaturedBetLabel(target.featuredBetLabel || '🔥 رهان مميز مضاعف x3');
+      setEditMatchImage(target.matchImage || '');
     }
   }, [selectedMatchForCustom, allMatches]);
 
@@ -324,10 +474,100 @@ export default function AdminPanel({
         editCustomLabelAway.trim() || undefined,
         parsedFixedStake && parsedFixedStake > 0 ? parsedFixedStake : undefined,
         editIsFeatured,
-        editIsFeatured ? (editFeaturedTag.trim() || '🔥 مباراة متميزة') : undefined
+        editIsFeatured ? (editFeaturedTag.trim() || '🔥 مباراة متميزة') : undefined,
+        Number(editOddsHome) > 0 ? Number(editOddsHome) : 2.00,
+        Number(editOddsDraw) > 0 ? Number(editOddsDraw) : 3.20,
+        Number(editOddsAway) > 0 ? Number(editOddsAway) : 2.50,
+        editIsFeaturedBet,
+        editIsFeaturedBet ? (Number(editFeaturedBetMultiplier) > 0 ? Number(editFeaturedBetMultiplier) : 3) : 1,
+        editIsFeaturedBet ? (editFeaturedBetLabel.trim() || `🔥 رهان مميز مضاعف x${editFeaturedBetMultiplier}`) : undefined,
+        editMatchImage.trim() || undefined
       );
       setCustomSaveSuccess(true);
       setTimeout(() => setCustomSaveSuccess(false), 3000);
+    }
+  };
+
+  // Handler to publish a promotional betting announcement on a featured match
+  const handlePublishPromotionalAd = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!adMatchId) return;
+
+    const targetMatch = allMatches.find(m => m.id === adMatchId);
+    if (!targetMatch) return;
+
+    if (onUpdateMatchCustomizations) {
+      onUpdateMatchCustomizations(
+        adMatchId,
+        targetMatch.customLabelHome,
+        targetMatch.customLabelDraw,
+        targetMatch.customLabelAway,
+        targetMatch.fixedStakeAmount,
+        true, // Ensure it is set as featured
+        targetMatch.featuredTag || '🔥 مباراة متميزة',
+        targetMatch.oddsHome,
+        targetMatch.oddsDraw,
+        targetMatch.oddsAway,
+        true, // Enable featured bet multiplier
+        targetMatch.featuredBetMultiplier || 3,
+        targetMatch.featuredBetLabel || '🔥 رهان مميز مضاعف x3',
+        adImage.trim() || targetMatch.matchImage || undefined,
+        adTitle.trim() || `🚀 إعلان رهان قمة الأسبوع: ${targetMatch.teamHome} × ${targetMatch.teamAway}`,
+        adDescription.trim() || `توقع نتيجة مباراة ${targetMatch.teamHome} × ${targetMatch.teamAway} الآن واحصل على أرباح حصرية مضاعفة!`,
+        adBadge.trim() || '🔥 إعلان رهان مميز',
+        isAdFeaturedToggle
+      );
+      setAdSaveSuccess(true);
+      setTimeout(() => setAdSaveSuccess(false), 3500);
+    }
+  };
+
+  // Handle Add Sports Category
+  const handleCreateCategorySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCatName.trim()) return;
+
+    const generatedId = newCatId.trim().toLowerCase().replace(/\s+/g, '-') || `cat-${Date.now()}`;
+    const newCategory: SportCategory = {
+      id: generatedId,
+      name: newCatName.trim(),
+      icon: newCatIcon.trim() || '🏆',
+      description: newCatDesc.trim() || undefined
+    };
+
+    if (onAddSportCategory) {
+      onAddSportCategory(newCategory);
+      setCatAddSuccess(true);
+      setNewCatId('');
+      setNewCatName('');
+      setNewCatIcon('🏆');
+      setNewCatDesc('');
+      setTimeout(() => setCatAddSuccess(false), 3000);
+    }
+  };
+
+  // Start Editing Category
+  const handleStartEditCategory = (category: SportCategory) => {
+    setEditingCatId(category.id);
+    setEditCatName(category.name);
+    setEditCatIcon(category.icon || '🏆');
+    setEditCatDesc(category.description || '');
+  };
+
+  // Save Category Edit
+  const handleSaveCategoryEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCatId || !editCatName.trim()) return;
+
+    if (onUpdateSportCategory) {
+      onUpdateSportCategory(editingCatId, {
+        name: editCatName.trim(),
+        icon: editCatIcon.trim() || '🏆',
+        description: editCatDesc.trim() || undefined
+      });
+      setCatEditSuccess(true);
+      setEditingCatId(null);
+      setTimeout(() => setCatEditSuccess(false), 3000);
     }
   };
 
@@ -342,7 +582,7 @@ export default function AdminPanel({
       sport: newSport,
       teamHome: newHome,
       teamAway: newAway,
-      logoHome: newSport === 'football' ? '⚽' : newSport === 'basketball' ? '🏀' : '🎾',
+      logoHome: sportsCategories.find(c => c.id === newSport)?.icon || (newSport === 'football' ? '⚽' : newSport === 'basketball' ? '🏀' : '🎾'),
       logoAway: '🏳️',
       oddsHome: Number(newOddsHome),
       oddsDraw: Number(newOddsDraw),
@@ -370,6 +610,10 @@ export default function AdminPanel({
       fixedStakeAmount: parsedFixedStake && parsedFixedStake > 0 ? parsedFixedStake : undefined,
       isFeatured: newIsFeatured,
       featuredTag: newIsFeatured ? (newFeaturedTag.trim() || '🔥 مباراة متميزة') : undefined,
+      isFeaturedBet: newIsFeaturedBet,
+      featuredBetMultiplier: newIsFeaturedBet ? (Number(newFeaturedBetMultiplier) > 0 ? Number(newFeaturedBetMultiplier) : 3) : 1,
+      featuredBetLabel: newIsFeaturedBet ? (newFeaturedBetLabel.trim() || `🔥 رهان مميز مضاعف x${newFeaturedBetMultiplier}`) : undefined,
+      matchImage: newMatchImage.trim() || undefined,
     };
 
     onAddMatch(created);
@@ -382,6 +626,10 @@ export default function AdminPanel({
     setNewFixedStakeAmount('');
     setNewIsFeatured(false);
     setNewFeaturedTag('🔥 قمة الأسبوع');
+    setNewIsFeaturedBet(false);
+    setNewFeaturedBetMultiplier(3.0);
+    setNewFeaturedBetLabel('🔥 رهان مميز مضاعف x3');
+    setNewMatchImage('');
     setTimeout(() => setAddMatchSuccess(false), 3000);
   };
 
@@ -404,9 +652,170 @@ export default function AdminPanel({
 
   const handleResolveScoreSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateMatchScore(selectedMatchForScore, Number(scoreHome), Number(scoreAway), resolveStatus);
+    onUpdateMatchScore(
+      selectedMatchForScore, 
+      Number(scoreHome), 
+      Number(scoreAway), 
+      resolveStatus,
+      matchDate,
+      matchTime,
+      Number(matchMinutes)
+    );
     setScoreSuccess(true);
     setTimeout(() => setScoreSuccess(false), 3000);
+  };
+
+  // Helper to directly determine winning team and trigger automatic profit payout
+  const handleSetWinnerAndSettle = (
+    matchId: string,
+    winnerOutcome: 'home' | 'draw' | 'away',
+    customScoreHome?: number,
+    customScoreAway?: number
+  ) => {
+    const targetMatch = allMatches.find(m => m.id === matchId);
+    if (!targetMatch) return;
+
+    let finalHome = customScoreHome !== undefined ? customScoreHome : (targetMatch.scoreHome || 0);
+    let finalAway = customScoreAway !== undefined ? customScoreAway : (targetMatch.scoreAway || 0);
+
+    if (winnerOutcome === 'home') {
+      if (finalHome <= finalAway) {
+        finalHome = Math.max(finalAway + 1, 2);
+      }
+    } else if (winnerOutcome === 'draw') {
+      if (finalHome !== finalAway) {
+        finalHome = 1;
+        finalAway = 1;
+      }
+    } else if (winnerOutcome === 'away') {
+      if (finalAway <= finalHome) {
+        finalAway = Math.max(finalHome + 1, 2);
+      }
+    }
+
+    onUpdateMatchScore(
+      matchId,
+      finalHome,
+      finalAway,
+      'finished',
+      targetMatch.date,
+      targetMatch.time,
+      90
+    );
+
+    setScoreSuccess(true);
+    setTimeout(() => setScoreSuccess(false), 4000);
+  };
+
+  const handleSaveMatchOdds = (matchId: string) => {
+    const currentOdds = editingMatchOdds[matchId];
+    if (!currentOdds) return;
+    const targetMatch = allMatches.find(m => m.id === matchId);
+    if (!targetMatch || !onUpdateMatchCustomizations) return;
+
+    onUpdateMatchCustomizations(
+      matchId,
+      targetMatch.customLabelHome,
+      targetMatch.customLabelDraw,
+      targetMatch.customLabelAway,
+      targetMatch.fixedStakeAmount,
+      targetMatch.isFeatured,
+      targetMatch.featuredTag,
+      currentOdds.home,
+      currentOdds.draw,
+      currentOdds.away,
+      targetMatch.isFeaturedBet,
+      targetMatch.featuredBetMultiplier,
+      targetMatch.featuredBetLabel,
+      targetMatch.matchImage,
+      targetMatch.adTitle,
+      targetMatch.adDescription,
+      targetMatch.adBadge,
+      targetMatch.isAdFeatured,
+      targetMatch.isBettingClosed,
+      targetMatch.bettingStatus,
+      targetMatch.bettingNote
+    );
+
+    setMatchOddsSaveMsg({ ...matchOddsSaveMsg, [matchId]: true });
+    setTimeout(() => {
+      setMatchOddsSaveMsg(prev => ({ ...prev, [matchId]: false }));
+    }, 2500);
+  };
+
+  const handleSaveGuideCategories = (updatedCats: GuideCategory[]) => {
+    setEditingGuideCategories(updatedCats);
+    if (onUpdateGuideCategories) {
+      onUpdateGuideCategories(updatedCats);
+    }
+    setGuideSaveSuccess(true);
+    setTimeout(() => setGuideSaveSuccess(false), 3000);
+  };
+
+  const handleUpdateCategoryField = (catId: string, field: string, value: string) => {
+    const updated = editingGuideCategories.map(cat => cat.id === catId ? { ...cat, [field]: value } : cat);
+    setEditingGuideCategories(updated);
+  };
+
+  const handleUpdateStepField = (catId: string, stepId: string, field: string, value: any) => {
+    const updated = editingGuideCategories.map(cat => {
+      if (cat.id !== catId) return cat;
+      const updatedSteps = cat.steps.map(s => s.id === stepId ? { ...s, [field]: value } : s);
+      return { ...cat, steps: updatedSteps };
+    });
+    setEditingGuideCategories(updated);
+  };
+
+  const handleDeleteStep = (catId: string, stepId: string) => {
+    const updated = editingGuideCategories.map(cat => {
+      if (cat.id !== catId) return cat;
+      return { ...cat, steps: cat.steps.filter(s => s.id !== stepId) };
+    });
+    setEditingGuideCategories(updated);
+  };
+
+  const handleDeleteCategory = (catId: string) => {
+    const updated = editingGuideCategories.filter(cat => cat.id !== catId);
+    setEditingGuideCategories(updated);
+  };
+
+  const handleAddCategory = () => {
+    if (!newGuideCatTitle.trim()) return;
+    const newCat: GuideCategory = {
+      id: `cat-${Date.now()}`,
+      title: newGuideCatTitle,
+      description: newGuideCatDesc,
+      icon: newGuideCatIcon,
+      steps: []
+    };
+    const updated = [...editingGuideCategories, newCat];
+    setEditingGuideCategories(updated);
+    setNewGuideCatTitle('');
+    setNewGuideCatDesc('');
+    setAddingNewCategory(false);
+  };
+
+  const handleAddStepToCategory = (catId: string) => {
+    if (!newStepTitle.trim() || !newStepContent.trim()) return;
+    const newStep: GuideStep = {
+      id: `step-${Date.now()}`,
+      title: newStepTitle,
+      content: newStepContent,
+      icon: newStepIcon,
+      badgeText: newStepBadge || undefined,
+      actionType: newStepActionType !== 'none' ? newStepActionType : undefined,
+      actionLabel: newStepActionLabel || undefined
+    };
+    const updated = editingGuideCategories.map(cat => {
+      if (cat.id !== catId) return cat;
+      return { ...cat, steps: [...cat.steps, newStep] };
+    });
+    setEditingGuideCategories(updated);
+    setNewStepTitle('');
+    setNewStepContent('');
+    setNewStepBadge('');
+    setNewStepActionLabel('');
+    setAddingStepForCatId(null);
   };
 
   // Handler for saving cash wallet number
@@ -452,11 +861,14 @@ export default function AdminPanel({
         <div className="flex flex-wrap gap-1.5 bg-zinc-950 p-1.5 rounded-xl border border-zinc-900">
           {[
             { id: 'users', label: 'المستخدمين والأرصدة', icon: Users },
+            { id: 'match-bets-management', label: 'إدارة رهانات المباريات 🎲', icon: SlidersHorizontal },
             { id: 'create-bet', label: 'إنشاء رهان للمستخدم', icon: Target },
             { id: 'bets-list', label: 'سجل الرهانات', icon: Ticket },
             { id: 'cash-deposits', label: 'طلبات الشحن كاش', icon: Wallet },
             { id: 'cash-withdrawals', label: 'طلبات سحب الأرباح 💸', icon: ArrowUpRight },
             { id: 'events', label: 'إدارة الأحداث', icon: Calendar },
+            { id: 'sports-categories', label: 'تصنيفات الرياضات 🏆', icon: Trophy },
+            { id: 'guide-management', label: 'دليل المبتدئين والتعليمات 📖', icon: BookOpen },
             { id: 'stats', label: 'إحداثيات المباريات', icon: Activity },
             { id: 'league-standings', label: 'صدارة وتأمين الدوريات 🛡️', icon: Trophy },
             { id: 'reports', label: 'التقارير المالية', icon: BarChart3 },
@@ -673,6 +1085,639 @@ export default function AdminPanel({
                 </tbody>
               </table>
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* NEW TAB: MATCH BETS MANAGEMENT (إدارة وتصفية رهانات المباريات) */}
+      {adminTab === 'match-bets-management' && (
+        <section className="space-y-6">
+          {/* Header Overview Banner */}
+          <div className="bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-6 rounded-2xl border border-amber-500/30 space-y-4 shadow-2xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-800/80 pb-4">
+              <div>
+                <h3 className="text-xl font-black text-white flex items-center gap-2">
+                  <SlidersHorizontal className="h-6 w-6 text-amber-400" />
+                  <span>صفحة إدارة رهانات المباريات للتحكم الكامل</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-1">
+                  تحكم مطلق في فتح وإغلاق الرهان لكل مباراة، تعديل قيم الأودز المباشرة، وتخصيص الخيارات مع إمكانية الوصول لسجل المراهنين والتصفية الآلية للأرباح.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <Unlock className="h-3.5 w-3.5" />
+                  <span>{allMatches.filter(m => m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended').length} مباريات مفتوحة للرهان</span>
+                </span>
+                <span className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                  <Lock className="h-3.5 w-3.5" />
+                  <span>{allMatches.filter(m => m.isBettingClosed || m.bettingStatus === 'closed' || m.bettingStatus === 'suspended').length} رهانات مغلقة / معلقة</span>
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Metrics Cards Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl">
+                <p className="text-[11px] text-zinc-400 font-bold">إجمالي المباريات المتاحة</p>
+                <p className="text-lg font-black text-white mt-0.5">{allMatches.length} مباراة</p>
+              </div>
+
+              <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl">
+                <p className="text-[11px] text-zinc-400 font-bold">إجمالي الرهانات القائمة</p>
+                <p className="text-lg font-black text-amber-400 mt-0.5">{allBets.length} رهان</p>
+              </div>
+
+              <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl">
+                <p className="text-[11px] text-zinc-400 font-bold">إجمالي كوينز الرهان</p>
+                <p className="text-lg font-black text-emerald-400 mt-0.5">
+                  {allBets.reduce((sum, b) => sum + b.amount, 0).toLocaleString()} 🪙
+                </p>
+              </div>
+
+              <div className="bg-zinc-900/80 border border-zinc-800 p-3 rounded-xl">
+                <p className="text-[11px] text-zinc-400 font-bold">مباريات البث المباشر (لايف)</p>
+                <p className="text-lg font-black text-red-400 mt-0.5">
+                  {allMatches.filter(m => m.status === 'live').length} مباراة
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Search & Filter Controls */}
+          <div className="bg-zinc-950 p-4 rounded-2xl border border-zinc-900 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="h-4 w-4 absolute right-3 top-3 text-zinc-500" />
+              <input
+                type="text"
+                placeholder="بحث باسم الفريق أو الدوري أو الرياضة..."
+                value={matchBetsSearchQuery}
+                onChange={(e) => setMatchBetsSearchQuery(e.target.value)}
+                className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pr-9 pl-3 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500 font-bold"
+              />
+            </div>
+
+            {/* Status Filter Buttons */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {[
+                { id: 'all', label: 'جميع المباريات' },
+                { id: 'open', label: 'رهانات مفتوحة 🟢' },
+                { id: 'suspended', label: 'معلقة مؤقتاً ⏸️' },
+                { id: 'closed', label: 'مغلقة 🔒' },
+                { id: 'live', label: 'جارية لايف ⚡' },
+                { id: 'finished', label: 'منتهية 🏁' }
+              ].map(f => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setMatchBetsStatusFilter(f.id as any)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                    matchBetsStatusFilter === f.id
+                      ? 'bg-amber-500 text-zinc-950 font-black shadow-md'
+                      : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Matches List with Individual Betting Control Panels */}
+          <div className="space-y-6">
+            {allMatches.filter(m => {
+              const query = matchBetsSearchQuery.toLowerCase();
+              const matchText = `${m.teamHome} ${m.teamAway} ${m.league} ${m.sport}`.toLowerCase();
+              const passesSearch = matchText.includes(query);
+
+              let passesStatus = true;
+              if (matchBetsStatusFilter === 'open') {
+                passesStatus = m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
+              } else if (matchBetsStatusFilter === 'suspended') {
+                passesStatus = m.bettingStatus === 'suspended';
+              } else if (matchBetsStatusFilter === 'closed') {
+                passesStatus = m.isBettingClosed || m.bettingStatus === 'closed';
+              } else if (matchBetsStatusFilter === 'live') {
+                passesStatus = m.status === 'live';
+              } else if (matchBetsStatusFilter === 'finished') {
+                passesStatus = m.status === 'finished';
+              }
+
+              return passesSearch && passesStatus;
+            }).length === 0 ? (
+              <div className="bg-zinc-950 p-12 rounded-2xl border border-zinc-900 text-center space-y-3">
+                <Sliders className="h-10 w-10 text-zinc-600 mx-auto" />
+                <p className="text-sm text-zinc-400 font-bold">لا توجد مباريات تطابق الفلتر أو البحث حالياً.</p>
+              </div>
+            ) : (
+              allMatches.filter(m => {
+                const query = matchBetsSearchQuery.toLowerCase();
+                const matchText = `${m.teamHome} ${m.teamAway} ${m.league} ${m.sport}`.toLowerCase();
+                const passesSearch = matchText.includes(query);
+
+                let passesStatus = true;
+                if (matchBetsStatusFilter === 'open') {
+                  passesStatus = m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
+                } else if (matchBetsStatusFilter === 'suspended') {
+                  passesStatus = m.bettingStatus === 'suspended';
+                } else if (matchBetsStatusFilter === 'closed') {
+                  passesStatus = m.isBettingClosed || m.bettingStatus === 'closed';
+                } else if (matchBetsStatusFilter === 'live') {
+                  passesStatus = m.status === 'live';
+                } else if (matchBetsStatusFilter === 'finished') {
+                  passesStatus = m.status === 'finished';
+                }
+
+                return passesSearch && passesStatus;
+              }).map(m => {
+                const isBettingOpen = m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
+                const matchBets = allBets.filter(b => b.matchId === m.id);
+                const totalStakedOnMatch = matchBets.reduce((sum, b) => sum + b.amount, 0);
+                const isExpanded = expandedMatchBetsId === m.id;
+
+                const homeBetsCount = matchBets.filter(b => b.selectedOutcome === 'home').length;
+                const drawBetsCount = matchBets.filter(b => b.selectedOutcome === 'draw').length;
+                const awayBetsCount = matchBets.filter(b => b.selectedOutcome === 'away').length;
+
+                const currentOdds = editingMatchOdds[m.id] || { home: m.oddsHome, draw: m.oddsDraw, away: m.oddsAway };
+
+                return (
+                  <div 
+                    key={m.id}
+                    className={`rounded-2xl border bg-zinc-950 p-5 space-y-5 transition-all shadow-xl ${
+                      m.status === 'live' 
+                        ? 'border-emerald-500/40 ring-1 ring-emerald-500/20' 
+                        : m.isBettingClosed || m.bettingStatus === 'closed'
+                        ? 'border-red-500/30 bg-zinc-950/80'
+                        : m.bettingStatus === 'suspended'
+                        ? 'border-amber-500/40 bg-zinc-950/90'
+                        : 'border-zinc-900'
+                    }`}
+                  >
+                    {/* Top Bar inside Match Card */}
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-900 pb-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-lg border border-amber-500/20">
+                          {m.league}
+                        </span>
+                        <span className="text-xs text-zinc-400 font-mono">
+                          {m.date || 'اليوم'} - {m.time}
+                        </span>
+                      </div>
+
+                      {/* Status Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {m.status === 'finished' ? (
+                          <span className="bg-zinc-800 text-zinc-300 text-[11px] font-bold px-2.5 py-1 rounded-lg">
+                            🏁 مباراة منتهية
+                          </span>
+                        ) : m.status === 'live' ? (
+                          <span className="bg-red-500/20 text-red-400 text-[11px] font-black px-2.5 py-1 rounded-lg border border-red-500/30 flex items-center gap-1 animate-pulse">
+                            <span className="h-2 w-2 rounded-full bg-red-500" />
+                            <span>مباشر لايف ({m.minutes}')</span>
+                          </span>
+                        ) : null}
+
+                        {isBettingOpen ? (
+                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-black px-3 py-1 rounded-lg flex items-center gap-1">
+                            <Unlock className="h-3.5 w-3.5" />
+                            <span>الرهان مفتوح 🟢</span>
+                          </span>
+                        ) : m.bettingStatus === 'suspended' ? (
+                          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[11px] font-black px-3 py-1 rounded-lg flex items-center gap-1">
+                            <PauseCircle className="h-3.5 w-3.5" />
+                            <span>الرهان معلق مؤقتاً ⏸️</span>
+                          </span>
+                        ) : (
+                          <span className="bg-red-500/10 text-red-400 border border-red-500/30 text-[11px] font-black px-3 py-1 rounded-lg flex items-center gap-1">
+                            <Lock className="h-3.5 w-3.5" />
+                            <span>الرهان مغلق 🔒</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Match Score & Goals Control Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 items-center gap-4 bg-zinc-900/40 p-4 rounded-xl border border-zinc-900">
+                      {/* Home Team */}
+                      <div className="flex items-center justify-between sm:justify-start gap-3">
+                        <div className="text-2xl">{m.logoHome}</div>
+                        <div>
+                          <div className="font-black text-white text-sm">{m.teamHome}</div>
+                          <div className="text-[10px] text-emerald-400 font-bold">فريق المضيف (1)</div>
+                        </div>
+                        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-emerald-500/30 mr-auto sm:mr-0">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, Math.max(0, (m.scoreHome || 0) - 1), m.scoreAway || 0, m.status, m.date, m.time, m.minutes)}
+                            className="h-7 w-7 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded text-xs"
+                          >-</button>
+                          <span className="text-emerald-400 font-mono font-black px-2">{m.scoreHome ?? 0}</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, (m.scoreHome || 0) + 1, m.scoreAway || 0, m.status, m.date, m.time, m.minutes)}
+                            className="h-7 w-7 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded text-xs"
+                          >+</button>
+                        </div>
+                      </div>
+
+                      {/* VS / Score Divider */}
+                      <div className="text-center space-y-1">
+                        <div className="text-2xl font-black text-white font-mono">
+                          {m.scoreHome ?? 0} : {m.scoreAway ?? 0}
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-bold">
+                          حالة المباراة: {m.status === 'live' ? `شغال دقيقة ${m.minutes}'` : m.status === 'finished' ? 'منتهية' : 'مجدولة'}
+                        </div>
+                      </div>
+
+                      {/* Away Team */}
+                      <div className="flex items-center justify-between sm:justify-end gap-3">
+                        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-blue-500/30 ml-auto sm:ml-0">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, (m.scoreAway || 0) + 1, m.status, m.date, m.time, m.minutes)}
+                            className="h-7 w-7 bg-blue-500 hover:bg-blue-400 text-zinc-950 font-black rounded text-xs"
+                          >+</button>
+                          <span className="text-blue-400 font-mono font-black px-2">{m.scoreAway ?? 0}</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, Math.max(0, (m.scoreAway || 0) - 1), m.status, m.date, m.time, m.minutes)}
+                            className="h-7 w-7 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded text-xs"
+                          >-</button>
+                        </div>
+                        <div className="text-left sm:text-right">
+                          <div className="font-black text-white text-sm">{m.teamAway}</div>
+                          <div className="text-[10px] text-blue-400 font-bold">فريق الضيف (2)</div>
+                        </div>
+                        <div className="text-2xl">{m.logoAway}</div>
+                      </div>
+                    </div>
+
+                    {/* Full Match Betting Control Grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      
+                      {/* Section 1: Controlling Betting Status (فتح / تعليق / إغلاق) */}
+                      <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+                        <span className="text-xs font-black text-amber-400 flex items-center gap-1.5 border-b border-zinc-800 pb-2">
+                          <Lock className="h-4 w-4" />
+                          <span>1. التحكم في حالة الرهان لهذه المباراة:</span>
+                        </span>
+
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onUpdateMatchCustomizations) {
+                                onUpdateMatchCustomizations(
+                                  m.id, m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                                  m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                                  m.oddsHome, m.oddsDraw, m.oddsAway,
+                                  m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                                  m.matchImage, m.adTitle, m.adDescription, m.adBadge, m.isAdFeatured,
+                                  false, 'open', ''
+                                );
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition-all ${
+                              isBettingOpen
+                                ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow-lg shadow-emerald-500/20'
+                                : 'bg-zinc-950 text-emerald-400 border-zinc-800 hover:bg-emerald-500/10'
+                            }`}
+                          >
+                            <Unlock className="h-4 w-4" />
+                            <span>فتح الرهان 🟢</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onUpdateMatchCustomizations) {
+                                onUpdateMatchCustomizations(
+                                  m.id, m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                                  m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                                  m.oddsHome, m.oddsDraw, m.oddsAway,
+                                  m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                                  m.matchImage, m.adTitle, m.adDescription, m.adBadge, m.isAdFeatured,
+                                  true, 'suspended', editingMatchBetNote[m.id] || 'تم تعليق الرهان مؤقتاً'
+                                );
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition-all ${
+                              m.bettingStatus === 'suspended'
+                                ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black shadow-lg shadow-amber-500/20'
+                                : 'bg-zinc-950 text-amber-400 border-zinc-800 hover:bg-amber-500/10'
+                            }`}
+                          >
+                            <PauseCircle className="h-4 w-4" />
+                            <span>تعليق مؤقت ⏸️</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (onUpdateMatchCustomizations) {
+                                onUpdateMatchCustomizations(
+                                  m.id, m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                                  m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                                  m.oddsHome, m.oddsDraw, m.oddsAway,
+                                  m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                                  m.matchImage, m.adTitle, m.adDescription, m.adBadge, m.isAdFeatured,
+                                  true, 'closed', editingMatchBetNote[m.id] || 'الرهان مغلق بقرار الإدارة'
+                                );
+                              }
+                            }}
+                            className={`p-2.5 rounded-xl border font-bold text-xs flex flex-col items-center justify-center gap-1 transition-all ${
+                              m.isBettingClosed || m.bettingStatus === 'closed'
+                                ? 'bg-red-500 text-white border-red-400 font-black shadow-lg shadow-red-500/20'
+                                : 'bg-zinc-950 text-red-400 border-zinc-800 hover:bg-red-500/10'
+                            }`}
+                          >
+                            <Lock className="h-4 w-4" />
+                            <span>إغلاق الرهان 🔒</span>
+                          </button>
+                        </div>
+
+                        {/* Note Input */}
+                        <div>
+                          <label className="text-[10px] text-zinc-400 block mb-1 font-bold">ملاحظة يراها المستخدم عند تعليق أو إغلاق الرهان:</label>
+                          <input
+                            type="text"
+                            placeholder="مثال: تم تعليق الرهان لمراجعة حالة الفار VAR..."
+                            value={editingMatchBetNote[m.id] !== undefined ? editingMatchBetNote[m.id] : (m.bettingNote || '')}
+                            onChange={(e) => setEditingMatchBetNote({ ...editingMatchBetNote, [m.id]: e.target.value })}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-xs text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-amber-500 font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Section 2: Editing Odds (تعديل نسب الأودز المباشرة) */}
+                      <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+                        <div className="flex items-center justify-between border-b border-zinc-800 pb-2">
+                          <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                            <Activity className="h-4 w-4" />
+                            <span>2. تعديل نسب معاملات الفوز (Odds):</span>
+                          </span>
+                          {matchOddsSaveMsg[m.id] && (
+                            <span className="text-[10px] text-emerald-400 font-bold animate-pulse">تم حفظ الأودز!</span>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          {/* Home Odds */}
+                          <div className="bg-zinc-950 p-2 rounded-xl border border-emerald-500/30">
+                            <label className="text-[10px] text-emerald-400 font-bold block mb-1">فوز المضيف (1)</label>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="1.01"
+                              value={currentOdds.home}
+                              onChange={(e) => setEditingMatchOdds({
+                                ...editingMatchOdds,
+                                [m.id]: { ...currentOdds, home: parseFloat(e.target.value) || 1.01 }
+                              })}
+                              className="w-full bg-zinc-900 border border-emerald-500/40 rounded-lg p-1.5 text-center text-sm font-black text-emerald-400"
+                            />
+                          </div>
+
+                          {/* Draw Odds */}
+                          <div className="bg-zinc-950 p-2 rounded-xl border border-amber-500/30">
+                            <label className="text-[10px] text-amber-400 font-bold block mb-1">تعادل (X)</label>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="1.01"
+                              value={currentOdds.draw}
+                              onChange={(e) => setEditingMatchOdds({
+                                ...editingMatchOdds,
+                                [m.id]: { ...currentOdds, draw: parseFloat(e.target.value) || 1.01 }
+                              })}
+                              className="w-full bg-zinc-900 border border-amber-500/40 rounded-lg p-1.5 text-center text-sm font-black text-amber-400"
+                            />
+                          </div>
+
+                          {/* Away Odds */}
+                          <div className="bg-zinc-950 p-2 rounded-xl border border-blue-500/30">
+                            <label className="text-[10px] text-blue-400 font-bold block mb-1">فوز الضيف (2)</label>
+                            <input
+                              type="number"
+                              step="0.05"
+                              min="1.01"
+                              value={currentOdds.away}
+                              onChange={(e) => setEditingMatchOdds({
+                                ...editingMatchOdds,
+                                [m.id]: { ...currentOdds, away: parseFloat(e.target.value) || 1.01 }
+                              })}
+                              className="w-full bg-zinc-900 border border-blue-500/40 rounded-lg p-1.5 text-center text-sm font-black text-blue-400"
+                            />
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveMatchOdds(m.id)}
+                          className="w-full bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs py-2 rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          <Save className="h-3.5 w-3.5" />
+                          <span>حفظ تحديث الأودز الآن</span>
+                        </button>
+                      </div>
+
+                    </div>
+
+                    {/* Section 3: Winner Determination & Quick Settle */}
+                    <div className="bg-gradient-to-r from-zinc-900 via-zinc-950 to-zinc-900 p-4 rounded-xl border border-amber-500/30 space-y-2">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                          <Trophy className="h-4 w-4" />
+                          <span>3. تحديد الفريق الفائز وتوزيع الأرباح فوراً:</span>
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-bold">
+                          يحوّل الحالة لـ (منتهية) ويحوّل الكوينز للفائزين
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleSetWinnerAndSettle(m.id, 'home', 2, 0)}
+                          className="py-2.5 px-3 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500 hover:text-black font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          🥇 فوز {m.teamHome}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetWinnerAndSettle(m.id, 'draw', 1, 1)}
+                          className="py-2.5 px-3 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500 hover:text-black font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          🤝 تعادل الفريقين
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSetWinnerAndSettle(m.id, 'away', 0, 2)}
+                          className="py-2.5 px-3 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500 hover:text-black font-black text-xs transition-all shadow-md flex items-center justify-center gap-1.5"
+                        >
+                          🥇 فوز {m.teamAway}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Section 4: Active Bets Placed on Match Breakdown */}
+                    <div className="bg-zinc-900/40 p-4 rounded-xl border border-zinc-800 space-y-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div className="flex items-center gap-2">
+                          <Ticket className="h-4 w-4 text-emerald-400" />
+                          <span className="text-xs font-black text-white">
+                            إحصائيات المراهنين على هذه المباراة: ({matchBets.length} رهانات)
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-xs font-mono font-bold">
+                          <span className="text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20">
+                            مجموع المراهنات: {totalStakedOnMatch.toLocaleString()} 🪙
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Outcome Breakdown Bar */}
+                      <div className="grid grid-cols-3 gap-2 text-center text-xs font-bold">
+                        <div className="bg-zinc-950 p-2 rounded-lg border border-emerald-500/20">
+                          <span className="text-emerald-400 block text-[10px]">فوز {m.teamHome}</span>
+                          <span className="text-white font-mono">{homeBetsCount} رهان</span>
+                        </div>
+                        <div className="bg-zinc-950 p-2 rounded-lg border border-amber-500/20">
+                          <span className="text-amber-400 block text-[10px]">التعادل</span>
+                          <span className="text-white font-mono">{drawBetsCount} رهان</span>
+                        </div>
+                        <div className="bg-zinc-950 p-2 rounded-lg border border-blue-500/20">
+                          <span className="text-blue-400 block text-[10px]">فوز {m.teamAway}</span>
+                          <span className="text-white font-mono">{awayBetsCount} رهان</span>
+                        </div>
+                      </div>
+
+                      {/* Toggle Expand Active Bettors List */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedMatchBetsId(isExpanded ? null : m.id)}
+                        className="w-full bg-zinc-900 hover:bg-zinc-850 text-zinc-300 font-bold text-xs py-2 px-3 rounded-xl border border-zinc-800 flex items-center justify-between transition-all"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Users className="h-3.5 w-3.5 text-amber-400" />
+                          <span>عرض قائمة المراهنين لهذه المباراة والتصفية الفردية</span>
+                        </span>
+                        {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                      </button>
+
+                      {/* Expanded Active Bettors Table */}
+                      {isExpanded && (
+                        <div className="pt-2 overflow-x-auto">
+                          {matchBets.length === 0 ? (
+                            <p className="text-center text-zinc-500 text-xs py-4">
+                              لم يقم أي مستخدم بالرهان على هذه المباراة حتى الآن.
+                            </p>
+                          ) : (
+                            <table className="w-full text-right border-collapse text-xs">
+                              <thead>
+                                <tr className="border-b border-zinc-800 text-zinc-500 font-bold">
+                                  <th className="py-2 px-3">المستخدم</th>
+                                  <th className="py-2 px-3 text-center">الخيار المختار</th>
+                                  <th className="py-2 px-3 text-center">المبلغ والأودز</th>
+                                  <th className="py-2 px-3 text-center">الربح المحتمل</th>
+                                  <th className="py-2 px-3 text-center">الحالة</th>
+                                  <th className="py-2 px-3 text-center">إجراءات التحكم</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-zinc-900 text-zinc-300">
+                                {matchBets.map(bet => {
+                                  const betUser = allUsers.find(u => u.id === bet.userId);
+                                  const potWin = Math.round(bet.amount * bet.odds);
+
+                                  return (
+                                    <tr key={bet.id} className="hover:bg-zinc-900/50 transition-colors">
+                                      <td className="py-2.5 px-3 font-bold text-white">
+                                        <div>{betUser?.name || bet.userId}</div>
+                                        <div className="text-[10px] text-zinc-500 font-mono">{betUser?.email}</div>
+                                      </td>
+
+                                      <td className="py-2.5 px-3 text-center">
+                                        <span className={`px-2 py-0.5 rounded font-black text-[10px] ${
+                                          bet.selectedOutcome === 'home'
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                            : bet.selectedOutcome === 'draw'
+                                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                            : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                                        }`}>
+                                          {bet.selectedOutcome === 'home' ? `فوز ${m.teamHome}` : bet.selectedOutcome === 'draw' ? 'تعادل' : `فوز ${m.teamAway}`}
+                                        </span>
+                                      </td>
+
+                                      <td className="py-2.5 px-3 text-center font-mono font-bold">
+                                        <div className="text-amber-400">{bet.amount} 🪙</div>
+                                        <div className="text-[10px] text-zinc-500">معامل: x{bet.odds.toFixed(2)}</div>
+                                      </td>
+
+                                      <td className="py-2.5 px-3 text-center font-mono font-bold text-emerald-400">
+                                        {potWin} 🪙
+                                      </td>
+
+                                      <td className="py-2.5 px-3 text-center">
+                                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                          bet.status === 'won'
+                                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                                            : bet.status === 'lost'
+                                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                        }`}>
+                                          {bet.status === 'won' ? 'فائز 🟢' : bet.status === 'lost' ? 'خاسر 🔴' : 'قيد الانتظار ⏳'}
+                                        </span>
+                                      </td>
+
+                                      <td className="py-2.5 px-3 text-center">
+                                        <div className="flex items-center justify-center gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => onUpdateBetStatus(bet.id, 'won')}
+                                            className="px-2 py-1 rounded bg-emerald-500/10 hover:bg-emerald-500 hover:text-black text-emerald-400 text-[10px] font-bold border border-emerald-500/20"
+                                            title="اعتماد كـ فائز وتحويل الأرباح"
+                                          >
+                                            فائز 🟢
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => onUpdateBetStatus(bet.id, 'lost')}
+                                            className="px-2 py-1 rounded bg-red-500/10 hover:bg-red-500 hover:text-white text-red-400 text-[10px] font-bold border border-red-500/20"
+                                            title="اعتماد كـ خاسر"
+                                          >
+                                            خاسر 🔴
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => onDeleteBet(bet.id)}
+                                            className="p-1 text-zinc-500 hover:text-red-400 hover:bg-zinc-900 rounded"
+                                            title="حذف الرهان"
+                                          >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                          </button>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                );
+              })
+            )}
           </div>
         </section>
       )}
@@ -1232,11 +2277,11 @@ export default function AdminPanel({
 
                             {onDeleteBet && (
                               <button
-                                onClick={() => onDeleteBet(b.id)}
-                                className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-[10px] text-amber-400 font-bold hover:bg-amber-500 hover:text-zinc-950 transition-all"
+                                onClick={() => setBetToDeleteConfirm(b)}
+                                className="rounded bg-amber-500/10 border border-amber-500/20 px-2 py-1 text-[10px] text-amber-400 font-bold hover:bg-amber-500 hover:text-zinc-950 transition-all cursor-pointer"
                                 title="إلغاء الرهان واسترجاع الكوينز للمستخدم"
                               >
-                                إلغاء واسرجاع 🔄
+                                إلغاء واسترجاع 🔄
                               </button>
                             )}
                           </div>
@@ -1248,6 +2293,75 @@ export default function AdminPanel({
               </tbody>
             </table>
           </div>
+
+          {/* Admin Confirmation Modal for cancelling/deleting a bet */}
+          {betToDeleteConfirm && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" dir="rtl">
+              <div className="relative w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl space-y-5 overflow-hidden">
+                
+                <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                      <AlertTriangle className="h-6 w-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-white">تأكيد إلغاء / حذف الرهان (إدارة)</h3>
+                      <p className="text-[11px] text-zinc-400">تأكيد لمنع الحذف أو الإلغاء بالخطأ</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setBetToDeleteConfirm(null)}
+                    className="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+
+                <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-2.5 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">المستخدم:</span>
+                    <span className="font-bold text-white">{allUsers.find(u => u.id === betToDeleteConfirm.userId)?.name || betToDeleteConfirm.userId}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">المباراة:</span>
+                    <span className="font-bold text-white">{betToDeleteConfirm.teamHome} × {betToDeleteConfirm.teamAway}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400">المبلغ المستثمر:</span>
+                    <span className="font-black text-amber-400">{betToDeleteConfirm.amount.toLocaleString()} 🪙 كوينز</span>
+                  </div>
+                </div>
+
+                <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3 text-xs text-amber-300">
+                  سيتم حذف هذا الرهان وإعادة مبلغ <strong className="text-white">{betToDeleteConfirm.amount.toLocaleString()} كوينز</strong> إلى محفظة المستخدم.
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onDeleteBet) {
+                        onDeleteBet(betToDeleteConfirm.id);
+                      }
+                      setBetToDeleteConfirm(null);
+                    }}
+                    className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black py-2.5 px-4 rounded-xl shadow-lg shadow-red-500/20 text-xs transition-all cursor-pointer"
+                  >
+                    تأكيد الإلغاء والإرجاع
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBetToDeleteConfirm(null)}
+                    className="w-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold py-2.5 px-4 rounded-xl border border-zinc-800 text-xs transition-all cursor-pointer"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
         </section>
       )}
 
@@ -1718,16 +2832,22 @@ export default function AdminPanel({
               </div>
 
               <div>
-                <label className="text-zinc-400 block mb-1 font-medium">نوع الرياضة:</label>
+                <label className="text-zinc-400 block mb-1 font-medium">نوع الرياضة (التصنيف):</label>
                 <select
                   value={newSport}
-                  onChange={(e) => setNewSport(e.target.value as any)}
+                  onChange={(e) => setNewSport(e.target.value)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-emerald-500"
                   id="admin-new-sport"
                 >
-                  <option value="football">كرة قدم ⚽</option>
-                  <option value="basketball">كرة سلة 🏀</option>
-                  <option value="tennis">كرة مضرب (تنس) 🎾</option>
+                  {(sportsCategories && sportsCategories.length > 0 ? sportsCategories : [
+                    { id: 'football', name: 'كرة القدم', icon: '⚽' },
+                    { id: 'basketball', name: 'كرة السلة', icon: '🏀' },
+                    { id: 'tennis', name: 'التنس', icon: '🎾' }
+                  ]).map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.icon || '🏆'} {cat.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -1882,6 +3002,126 @@ export default function AdminPanel({
                       </div>
                     </div>
                   )}
+
+                  {/* Featured Super Bet (ميزة رهان مميز / مضاعَف الأرباح) */}
+                  <div className="pt-2 border-t border-zinc-900 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="admin-new-is-featured-bet"
+                        checked={newIsFeaturedBet}
+                        onChange={(e) => setNewIsFeaturedBet(e.target.checked)}
+                        className="h-4 w-4 rounded bg-zinc-900 border-zinc-800 text-purple-500 focus:ring-purple-500 cursor-pointer"
+                      />
+                      <label htmlFor="admin-new-is-featured-bet" className="text-purple-400 font-bold text-xs cursor-pointer flex items-center gap-1">
+                        <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+                        <span>تفعيل ميزة "رهان مميز" (مضاعفة أرباح المباراة) 🔥</span>
+                      </label>
+                    </div>
+
+                    {newIsFeaturedBet && (
+                      <div className="space-y-2 bg-purple-500/10 p-3 rounded-xl border border-purple-500/30 text-xs">
+                        <div>
+                          <label className="text-purple-300 font-bold block mb-1">
+                            قيمة مضاعفة الرهان المميز (أضعاف الرهان العادي):
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="number"
+                              step="0.5"
+                              min="1.1"
+                              value={newFeaturedBetMultiplier}
+                              onChange={(e) => setNewFeaturedBetMultiplier(parseFloat(e.target.value) || 1)}
+                              className="w-full bg-zinc-950 border border-purple-500/40 rounded-xl px-3 py-1.5 text-purple-300 font-black text-sm focus:outline-none focus:border-purple-400"
+                              placeholder="مثال: 2, 3, 5, 10..."
+                            />
+                            <span className="font-black text-purple-400 text-xs whitespace-nowrap">x أضعاف</span>
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {[2, 3, 5, 10, 20].map(val => (
+                              <button
+                                type="button"
+                                key={val}
+                                onClick={() => setNewFeaturedBetMultiplier(val)}
+                                className={`text-[10px] px-2 py-0.5 rounded-lg font-bold border transition-all ${
+                                  newFeaturedBetMultiplier === val
+                                    ? 'bg-purple-500 text-white border-purple-400 font-black'
+                                    : 'bg-zinc-900 text-purple-300 border-purple-500/20 hover:bg-purple-500/20'
+                                }`}
+                              >
+                                x{val} مضاعف
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-zinc-400 font-bold block mb-1">عنوان الرهان المميز:</label>
+                          <input
+                            type="text"
+                            value={newFeaturedBetLabel}
+                            onChange={(e) => setNewFeaturedBetLabel(e.target.value)}
+                            placeholder="مثال: 🔥 رهان مميز مضاعف x3"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2.5 py-1 text-white font-semibold focus:outline-none focus:border-purple-400 text-xs"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Match Image Upload Field */}
+                  <div className="pt-2 border-t border-zinc-900 space-y-2">
+                    <label className="text-zinc-300 font-bold block text-xs">📸 رفع/تحديد صورة غلاف للمباراة (Image Banner):</label>
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row gap-2 items-center">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handleImageFileUpload(e, setNewMatchImage)}
+                          className="text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/20 file:text-emerald-300 hover:file:bg-emerald-500/30 cursor-pointer w-full sm:w-auto"
+                        />
+                        <input
+                          type="url"
+                          value={newMatchImage}
+                          onChange={(e) => setNewMatchImage(e.target.value)}
+                          placeholder="أو أدخل رابط صورة مباشر https://..."
+                          className="flex-1 w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      {/* Preset Image Selection */}
+                      <div className="flex flex-wrap gap-1">
+                        <span className="text-[10px] text-zinc-500 block w-full">نماذج صور جاهزة:</span>
+                        {[
+                          { label: '⚽ ملعب تحت الأضواء', url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1200&q=80' },
+                          { label: '🔥 جمهور الكلاسيكو', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=80' },
+                          { label: '🏆 ليلة النهائي', url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80' },
+                          { label: '🏀 صالة كرة سلة', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1200&q=80' }
+                        ].map((preset, idx) => (
+                          <button
+                            type="button"
+                            key={idx}
+                            onClick={() => setNewMatchImage(preset.url)}
+                            className="text-[9px] bg-zinc-900 hover:bg-emerald-500 hover:text-black text-zinc-300 px-2 py-0.5 rounded border border-zinc-800 font-medium transition-all"
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+
+                      {newMatchImage && (
+                        <div className="relative w-full h-24 rounded-xl overflow-hidden border border-emerald-500/40 mt-1">
+                          <img src={newMatchImage} alt="Match Preview" className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => setNewMatchImage('')}
+                            className="absolute top-1 right-1 bg-black/80 text-red-400 p-1 rounded-full hover:bg-red-500 hover:text-white"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -1990,6 +3230,135 @@ export default function AdminPanel({
                 </p>
               </div>
 
+              {/* Edit Odds & Multipliers */}
+              <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+                <label className="text-emerald-400 font-bold block text-xs">
+                  تعديل أودز المباراة (Odds الأساسية قبل المضاعفة):
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-zinc-400 text-[11px] font-semibold block mb-1">فوز المضيف (1):</label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="1.01"
+                      value={editOddsHome}
+                      onChange={(e) => setEditOddsHome(parseFloat(e.target.value) || 1)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-emerald-400 font-bold focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-[11px] font-semibold block mb-1">التعادل (X):</label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="1.01"
+                      value={editOddsDraw}
+                      onChange={(e) => setEditOddsDraw(parseFloat(e.target.value) || 1)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-amber-400 font-bold focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-zinc-400 text-[11px] font-semibold block mb-1">فوز الضيف (2):</label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      min="1.01"
+                      value={editOddsAway}
+                      onChange={(e) => setEditOddsAway(parseFloat(e.target.value) || 1)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-blue-400 font-bold focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Super Multiplier Bet Toggle */}
+              <div className="bg-purple-500/10 border border-purple-500/30 p-4 rounded-xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="admin-edit-is-featured-bet"
+                    checked={editIsFeaturedBet}
+                    onChange={(e) => setEditIsFeaturedBet(e.target.checked)}
+                    className="h-4 w-4 rounded bg-zinc-950 border-zinc-800 text-purple-500 focus:ring-purple-500 cursor-pointer"
+                  />
+                  <label htmlFor="admin-edit-is-featured-bet" className="text-purple-300 font-bold text-xs cursor-pointer flex items-center gap-1.5">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    <span>تفعيل ميزة "رهان مميز" (مضاعفة أرباح المباراة بالكامل برقم يحدده الأدمن) 🔥</span>
+                  </label>
+                </div>
+
+                {editIsFeaturedBet && (
+                  <div className="space-y-3 pt-2 border-t border-purple-500/20">
+                    <div>
+                      <label className="text-purple-300 text-xs font-bold block mb-1">
+                        قيمة مضاعفة الرهان المميز (أضعاف الرهان العادي):
+                      </label>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="1.1"
+                          value={editFeaturedBetMultiplier}
+                          onChange={(e) => setEditFeaturedBetMultiplier(parseFloat(e.target.value) || 1)}
+                          className="flex-1 bg-zinc-950 border border-purple-500/40 rounded-xl px-3 py-2 text-purple-300 font-black text-sm focus:outline-none focus:border-purple-400"
+                          placeholder="أدخل أي قيمة: 2, 3, 5, 10..."
+                        />
+                        <span className="font-black text-purple-400 text-sm">x أضعاف</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[2, 3, 5, 10, 20].map(val => (
+                          <button
+                            type="button"
+                            key={val}
+                            onClick={() => setEditFeaturedBetMultiplier(val)}
+                            className={`text-xs px-3 py-1 rounded-lg font-bold border transition-all ${
+                              editFeaturedBetMultiplier === val
+                                ? 'bg-purple-500 text-white border-purple-400 font-black shadow-md'
+                                : 'bg-zinc-900 text-purple-300 border-purple-500/20 hover:bg-purple-500/20'
+                            }`}
+                          >
+                            x{val} مضاعف
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-zinc-300 text-xs font-bold block mb-1">وسم / عنوان الرهان المميز:</label>
+                      <input
+                        type="text"
+                        value={editFeaturedBetLabel}
+                        onChange={(e) => setEditFeaturedBetLabel(e.target.value)}
+                        placeholder="مثال: 🔥 رهان مميز مضاعف x3"
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white font-semibold text-xs focus:outline-none focus:border-purple-400"
+                      />
+                    </div>
+
+                    {/* Live Odds Preview Calculation Box */}
+                    <div className="bg-zinc-950/80 p-3 rounded-xl border border-purple-500/30 text-[11px] text-purple-200 space-y-1">
+                      <div className="font-bold text-white flex items-center gap-1">
+                        <span>⚡ الأودز النهائية التي سيحصل عليها الفائز بعد تطبيق المضاعفة (x{editFeaturedBetMultiplier}):</span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 pt-1 font-mono text-center">
+                        <div className="bg-emerald-500/10 p-1.5 rounded border border-emerald-500/20">
+                          <div className="text-zinc-400 text-[9px]">فوز المضيف</div>
+                          <div className="text-emerald-400 font-bold">{(editOddsHome * editFeaturedBetMultiplier).toFixed(2)}x</div>
+                        </div>
+                        <div className="bg-amber-500/10 p-1.5 rounded border border-amber-500/20">
+                          <div className="text-zinc-400 text-[9px]">التعادل</div>
+                          <div className="text-amber-400 font-bold">{(editOddsDraw * editFeaturedBetMultiplier).toFixed(2)}x</div>
+                        </div>
+                        <div className="bg-blue-500/10 p-1.5 rounded border border-blue-500/20">
+                          <div className="text-zinc-400 text-[9px]">فوز الضيف</div>
+                          <div className="text-blue-400 font-bold">{(editOddsAway * editFeaturedBetMultiplier).toFixed(2)}x</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Featured Match Settings & Badge Tag */}
               <div className="bg-amber-500/10 border border-amber-500/20 p-3.5 rounded-xl space-y-2">
                 <div className="flex items-center gap-2">
@@ -2032,12 +3401,224 @@ export default function AdminPanel({
                 )}
               </div>
 
+              {/* Match Image Upload Field in Customization */}
+              <div className="bg-zinc-900/60 border border-zinc-800 p-3.5 rounded-xl space-y-2">
+                <label className="text-zinc-300 font-bold block text-xs">📸 رفع / تغيير صورة غلاف المباراة (Match Banner Image):</label>
+                <div className="space-y-2">
+                  <div className="flex flex-col sm:flex-row gap-2 items-center">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageFileUpload(e, setEditMatchImage)}
+                      className="text-xs text-zinc-400 file:mr-2 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-emerald-500/20 file:text-emerald-300 hover:file:bg-emerald-500/30 cursor-pointer w-full sm:w-auto"
+                    />
+                    <input
+                      type="url"
+                      value={editMatchImage}
+                      onChange={(e) => setEditMatchImage(e.target.value)}
+                      placeholder="أو أدخل رابط صورة مباشر https://..."
+                      className="flex-1 w-full bg-zinc-950 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-[10px] text-zinc-500 block w-full">نماذج صور جاهزة للتحديد السريع:</span>
+                    {[
+                      { label: '⚽ ملعب سانتياغو برنابيو', url: 'https://images.unsplash.com/photo-1508098682722-e99c43a406b2?auto=format&fit=crop&w=1200&q=80' },
+                      { label: '🔥 جمهور الكلاسيكو', url: 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?auto=format&fit=crop&w=1200&q=80' },
+                      { label: '🏆 كرة القدم تحت الأضواء', url: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?auto=format&fit=crop&w=1200&q=80' },
+                      { label: '🏀 صالة كرة سلة', url: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?auto=format&fit=crop&w=1200&q=80' }
+                    ].map((preset, idx) => (
+                      <button
+                        type="button"
+                        key={idx}
+                        onClick={() => setEditMatchImage(preset.url)}
+                        className="text-[9px] bg-zinc-950 hover:bg-emerald-500 hover:text-black text-zinc-300 px-2 py-0.5 rounded border border-zinc-800 font-medium transition-all"
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {editMatchImage && (
+                    <div className="relative w-full h-28 rounded-xl overflow-hidden border border-emerald-500/40 mt-1">
+                      <img src={editMatchImage} alt="Match Custom Banner" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setEditMatchImage('')}
+                        className="absolute top-1.5 right-1.5 bg-black/80 text-red-400 p-1 rounded-full hover:bg-red-500 hover:text-white transition-all"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="w-full rounded-xl bg-emerald-500 text-zinc-950 font-bold py-3 text-xs hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/10"
                 id="admin-submit-customizations-btn"
               >
-                حفظ التخصيصات للمباراة 💾
+                حفظ التخصيصات والصورة للمباراة 💾
+              </button>
+            </form>
+          </div>
+
+          {/* 📣 Promotional Betting Announcement Creator (إنشاء إعلان للرهان على مباراة مميزة) */}
+          <div className="rounded-2xl border border-amber-500/40 bg-gradient-to-br from-amber-950/30 via-zinc-950 to-zinc-950 p-6 space-y-5 lg:col-span-2 shadow-2xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-center justify-between border-b border-amber-500/20 pb-3 flex-wrap gap-2">
+              <h3 className="text-base font-black text-amber-400 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-amber-400" />
+                <span>إنشاء إعلان ترويجي للرهان على مباراة مميزة 📣</span>
+              </h3>
+              <span className="text-xs bg-amber-500/20 text-amber-300 font-bold px-3 py-1 rounded-full border border-amber-500/30">
+                إعلان مخصص مع وسم وصورة وبانر للمستخدمين
+              </span>
+            </div>
+
+            {adSaveSuccess && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                <span>تم نشر وتعميم إعلان الرهان المميز بنجاح للمستخدمين! 🚀</span>
+              </div>
+            )}
+
+            <form onSubmit={handlePublishPromotionalAd} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-zinc-300 font-bold block mb-1">اختر المباراة المميزة للإعلان:</label>
+                  <select
+                    value={adMatchId}
+                    onChange={(e) => {
+                      const mId = e.target.value;
+                      setAdMatchId(mId);
+                      const selected = allMatches.find(m => m.id === mId);
+                      if (selected) {
+                        setAdTitle(selected.adTitle || `🚀 إعلان رهان قمة الأسبوع: ${selected.teamHome} × ${selected.teamAway}`);
+                        setAdDescription(selected.adDescription || `توقع النتيجة الآن واحصل على أرباح مضاعفة x${selected.featuredBetMultiplier || 3} مع تسوية فورية للأرباح!`);
+                        setAdBadge(selected.adBadge || '🔥 رهان موسم 2026');
+                        setAdImage(selected.matchImage || '');
+                        setIsAdFeaturedToggle(Boolean(selected.isAdFeatured !== false));
+                      }
+                    }}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-amber-500"
+                  >
+                    {allMatches.map(m => (
+                      <option key={m.id} value={m.id}>
+                        [{m.league}] {m.teamHome} ضد {m.teamAway} {m.isFeatured ? '🔥 (مباراة متميزة)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-zinc-300 font-bold block mb-1">وسم / شارة الإعلان (Badge):</label>
+                  <input
+                    type="text"
+                    value={adBadge}
+                    onChange={(e) => setAdBadge(e.target.value)}
+                    placeholder="مثال: 🔥 رهان موسم 2026 / 👑 المباراة الكبرى"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-amber-300 font-bold focus:outline-none focus:border-amber-500"
+                  />
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {['🔥 إعلان رهان مميز', '👑 تحدي الكلاسيكو الذهبي', '💥 أرباح مضاعفة x5', '🌟 مباراة اليوم الكبرى'].map(preset => (
+                      <button
+                        type="button"
+                        key={preset}
+                        onClick={() => setAdBadge(preset)}
+                        className="text-[10px] bg-zinc-900 text-zinc-300 hover:text-amber-300 px-2 py-0.5 rounded border border-zinc-800 font-bold"
+                      >
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-zinc-300 font-bold block mb-1">عنوان الإعلان للرهان (Ad Title):</label>
+                <input
+                  type="text"
+                  value={adTitle}
+                  onChange={(e) => setAdTitle(e.target.value)}
+                  placeholder="مثال: 🚀 رهان الكلاسيكو المميز: ضاعف أرباحك الآن بنسبة x3!"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-white font-bold text-sm focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              <div>
+                <label className="text-zinc-300 font-bold block mb-1">وصف الإعلان الترويجي (Ad Description):</label>
+                <textarea
+                  rows={2}
+                  value={adDescription}
+                  onChange={(e) => setAdDescription(e.target.value)}
+                  placeholder="مثال: اشترك في الرهان المباشر لمباراة القمة واحصل على أرباح حصرية، بدون حد أقصى للرهان!"
+                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-300 focus:outline-none focus:border-amber-500"
+                />
+              </div>
+
+              {/* Image upload / preset for Ad Banner */}
+              <div>
+                <label className="text-zinc-300 font-bold block mb-1">صورة إعلان الرهان الترويجي (Upload Image):</label>
+                <div className="flex flex-col sm:flex-row gap-3 items-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleImageFileUpload(e, setAdImage)}
+                    className="text-xs text-zinc-400 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-500/20 file:text-amber-300 hover:file:bg-amber-500/30 cursor-pointer w-full sm:w-auto"
+                  />
+                  <input
+                    type="url"
+                    value={adImage}
+                    onChange={(e) => setAdImage(e.target.value)}
+                    placeholder="أو أدخل رابط صورة مباشر https://..."
+                    className="flex-1 w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-amber-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="admin-ad-featured-toggle"
+                  checked={isAdFeaturedToggle}
+                  onChange={(e) => setIsAdFeaturedToggle(e.target.checked)}
+                  className="h-4 w-4 rounded bg-zinc-900 border-zinc-800 text-amber-500 focus:ring-amber-500 cursor-pointer"
+                />
+                <label htmlFor="admin-ad-featured-toggle" className="text-amber-300 font-bold text-xs cursor-pointer">
+                  إظهار بانر الإعلان الترويجي في أعلى صفحة المباريات الرئيسية للمستخدمين 🌟
+                </label>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="bg-zinc-900/80 p-4 rounded-xl border border-amber-500/30 space-y-2">
+                <span className="text-[11px] font-bold text-amber-400 block">👀 معاينة شكل إعلان الرهان للمستخدمين:</span>
+                <div className="relative rounded-xl overflow-hidden border border-amber-500/40 bg-zinc-950 p-4 flex flex-col sm:flex-row items-center gap-4">
+                  {adImage ? (
+                    <img src={adImage} alt="Ad Preview" className="w-full sm:w-32 h-24 object-cover rounded-lg shrink-0 border border-zinc-800" />
+                  ) : (
+                    <div className="w-full sm:w-32 h-24 bg-gradient-to-br from-amber-500/20 to-purple-500/20 rounded-lg shrink-0 flex items-center justify-center font-bold text-amber-400 text-xs border border-amber-500/30">
+                      ⚽ صورة الإعلان
+                    </div>
+                  )}
+                  <div className="space-y-1 flex-1 text-right">
+                    <div className="flex items-center gap-2">
+                      <span className="bg-amber-500 text-black font-black text-[10px] px-2 py-0.5 rounded-full">{adBadge || 'إعلان رهان'}</span>
+                      <span className="text-[10px] text-zinc-400">مباراة مميزة</span>
+                    </div>
+                    <h4 className="font-black text-white text-sm">{adTitle || 'عنوان إعلان الرهان المميز'}</h4>
+                    <p className="text-xs text-zinc-400 line-clamp-2">{adDescription || 'وصف إعلان الرهان للجمهور والمراهنين.'}</p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-amber-500 text-zinc-950 font-black py-3 text-sm hover:brightness-110 transition-all shadow-xl shadow-amber-500/20"
+              >
+                🚀 نشر الإعلان الترويجي للرهان وتعميمه فوراً
               </button>
             </form>
           </div>
@@ -2046,19 +3627,19 @@ export default function AdminPanel({
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 lg:col-span-2">
             <h3 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
               <Activity className="h-4 w-4 text-amber-400" />
-              <span>تحديث وحسم أهداف المباراة والتسوية</span>
+              <span>التحكم في حالة المباراة، تاريخ انعقادها، وتصفية أرباح المراهنين</span>
             </h3>
 
             {scoreSuccess && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
                 <Check className="h-4 w-4" />
-                <span>تم تحديث النتيجة وحسم الرهانات التلقائية!</span>
+                <span>تم تحديث المباراة بنجاح وحسم وتصفية أرباح المراهنين تلقائياً!</span>
               </div>
             )}
 
             <form onSubmit={handleResolveScoreSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="text-zinc-400 block mb-1 font-medium">اختر المباراة المراد حسمها:</label>
+                <label className="text-zinc-400 block mb-1 font-medium">اختر المباراة المراد تعديل حالتها أو تاريخها أو تسويتها:</label>
                 <select
                   value={selectedMatchForScore}
                   onChange={(e) => setSelectedMatchForScore(e.target.value)}
@@ -2067,59 +3648,773 @@ export default function AdminPanel({
                 >
                   {allMatches.map(m => (
                     <option key={m.id} value={m.id}>
-                      [{m.league}] {m.teamHome} ({m.scoreHome}) ضد {m.teamAway} ({m.scoreAway}) — الحالة: {m.status}
+                      [{m.league}] {m.teamHome} ({m.scoreHome}) ضد {m.teamAway} ({m.scoreAway}) — {m.date} | {m.time} — (الحالة: {m.status === 'scheduled' ? '📅 مجدولة' : m.status === 'live' ? '🔴 بث مباشر' : '🏁 منتهية'})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 bg-zinc-900/40 p-4 rounded-xl border border-zinc-900">
+              {/* Dedicated Winner Determination & Automatic Profit Payout Card */}
+              {selectedMatchForScore && (() => {
+                const activeMatch = allMatches.find(m => m.id === selectedMatchForScore);
+                if (!activeMatch) return null;
+                return (
+                  <div className="bg-gradient-to-br from-zinc-900 via-zinc-950 to-zinc-950 p-4 rounded-xl border border-amber-500/40 space-y-3 shadow-xl">
+                    <div className="flex items-center justify-between flex-wrap gap-2 border-b border-amber-500/20 pb-2">
+                      <span className="font-black text-amber-400 text-xs flex items-center gap-1.5">
+                        <Trophy className="h-4 w-4 text-amber-400" />
+                        <span>🏆 تحديد الفريق الفائز وتوزيع الأرباح تلقائياً بنقرة واحدة:</span>
+                      </span>
+                      <span className="text-[10px] text-zinc-300 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                        {activeMatch.teamHome} (مضيف) × {activeMatch.teamAway} (ضيف)
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-zinc-400 leading-relaxed">
+                      اختر الفريق الفائز فوراً أدناه لتسجيل النتيجة النهائية، تحويل حالة المباراة إلى (منتهية)، وتوزيع الأرباح والكوينز تلقائياً لجميع المستخدمين الذين راهنوا بصورة صحيحة:
+                    </p>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => handleSetWinnerAndSettle(selectedMatchForScore, 'home', 2, 0)}
+                        className="p-3.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/50 hover:bg-emerald-500 hover:text-black font-black text-xs transition-all shadow-lg flex flex-col items-center justify-center gap-1 group cursor-pointer"
+                        title={`تحديد ${activeMatch.teamHome} كفائز وتمرير الأرباح للمراهنين على المضيف`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>🥇</span>
+                          <span>فوز {activeMatch.teamHome}</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 font-normal group-hover:opacity-100">
+                          (توزيع أرباح المضيف 🪙)
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSetWinnerAndSettle(selectedMatchForScore, 'draw', 1, 1)}
+                        className="p-3.5 rounded-xl bg-amber-500/20 text-amber-300 border border-amber-500/50 hover:bg-amber-500 hover:text-black font-black text-xs transition-all shadow-lg flex flex-col items-center justify-center gap-1 group cursor-pointer"
+                        title="تحديد النتيجة كتعادل وتوزيع الأرباح على مراهني التعادل"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>🤝</span>
+                          <span>تعادل الفريقين</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 font-normal group-hover:opacity-100">
+                          (توزيع أرباح التعادل 🪙)
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSetWinnerAndSettle(selectedMatchForScore, 'away', 0, 2)}
+                        className="p-3.5 rounded-xl bg-blue-500/20 text-blue-300 border border-blue-500/50 hover:bg-blue-500 hover:text-black font-black text-xs transition-all shadow-lg flex flex-col items-center justify-center gap-1 group cursor-pointer"
+                        title={`تحديد ${activeMatch.teamAway} كفائز وتمرير الأرباح للمراهنين على الضيف`}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <span>🥇</span>
+                          <span>فوز {activeMatch.teamAway}</span>
+                        </div>
+                        <span className="text-[10px] opacity-80 font-normal group-hover:opacity-100">
+                          (توزيع أرباح الضيف 🪙)
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Date & Time Settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-zinc-900/50 p-3.5 rounded-xl border border-zinc-800">
                 <div>
-                  <label className="text-zinc-300 block mb-1 font-bold">أهداف الفريق المضيف:</label>
+                  <label className="text-amber-400 block mb-1 font-bold">تاريخ المباراة المحدد (Date):</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={scoreHome}
-                    onChange={(e) => setScoreHome(parseInt(e.target.value) || 0)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center font-black text-lg text-emerald-400 focus:outline-none"
-                    id="admin-resolve-score-home"
+                    type="date"
+                    value={matchDate}
+                    onChange={(e) => setMatchDate(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-amber-500"
+                    id="admin-resolve-match-date"
                   />
                 </div>
                 <div>
-                  <label className="text-zinc-300 block mb-1 font-bold">أهداف الفريق الضيف:</label>
+                  <label className="text-amber-400 block mb-1 font-bold">توقيت المباراة (Time):</label>
                   <input
-                    type="number"
-                    min="0"
-                    value={scoreAway}
-                    onChange={(e) => setScoreAway(parseInt(e.target.value) || 0)}
-                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-2.5 text-center font-black text-lg text-blue-400 focus:outline-none"
-                    id="admin-resolve-score-away"
+                    type="text"
+                    placeholder="20:00"
+                    value={matchTime}
+                    onChange={(e) => setMatchTime(e.target.value)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-white font-bold focus:outline-none focus:border-amber-500"
+                    id="admin-resolve-match-time"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-zinc-400 block mb-1 font-medium">حالة المباراة الجارية:</label>
-                <select
-                  value={resolveStatus}
-                  onChange={(e) => setResolveStatus(e.target.value as any)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white font-bold focus:outline-none"
-                  id="admin-resolve-status-select"
-                >
-                  <option value="scheduled">مجدولة لم تبدأ (Scheduled)</option>
-                  <option value="live">جارية الآن بث مباشر (Live)</option>
-                  <option value="finished">منتهية وتسوية أرباح الرهانات (Finished)</option>
-                </select>
+              {/* Scores & Minutes */}
+              <div className="bg-zinc-900/60 p-4 rounded-xl border border-zinc-800 space-y-3">
+                <span className="text-xs font-bold text-amber-400 block border-b border-zinc-800 pb-2">
+                  ⚽ تعديل نتيجة الأهداف بدقة لكل فريق:
+                </span>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* Home Team Goals */}
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-emerald-500/30 space-y-2">
+                    <label className="text-emerald-400 block font-bold text-xs">
+                      أهداف {selectedMatchForScore ? (allMatches.find(m => m.id === selectedMatchForScore)?.teamHome || 'الفريق المضيف') : 'الفريق المضيف'}:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScoreHome(prev => Math.max(0, prev - 1))}
+                        className="h-10 w-10 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded-lg border border-zinc-800 text-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+                        title="إنقاص هدف"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        value={scoreHome}
+                        onChange={(e) => setScoreHome(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="flex-1 bg-zinc-900 border border-emerald-500/50 rounded-lg p-2 text-center font-black text-xl text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                        id="admin-resolve-score-home"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setScoreHome(prev => prev + 1)}
+                        className="h-10 w-10 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded-lg text-lg transition-all active:scale-95 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20"
+                        title="إضافة هدف"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Away Team Goals */}
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-blue-500/30 space-y-2">
+                    <label className="text-blue-400 block font-bold text-xs">
+                      أهداف {selectedMatchForScore ? (allMatches.find(m => m.id === selectedMatchForScore)?.teamAway || 'الفريق الضيف') : 'الفريق الضيف'}:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setScoreAway(prev => Math.max(0, prev - 1))}
+                        className="h-10 w-10 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded-lg border border-zinc-800 text-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
+                        title="إنقاص هدف"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        value={scoreAway}
+                        onChange={(e) => setScoreAway(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="flex-1 bg-zinc-900 border border-blue-500/50 rounded-lg p-2 text-center font-black text-xl text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        id="admin-resolve-score-away"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setScoreAway(prev => prev + 1)}
+                        className="h-10 w-10 bg-blue-500 hover:bg-blue-400 text-zinc-950 font-black rounded-lg text-lg transition-all active:scale-95 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20"
+                        title="إضافة هدف"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Match Minutes */}
+                  <div className="bg-zinc-950 p-3 rounded-xl border border-amber-500/30 space-y-2">
+                    <label className="text-amber-400 block font-bold text-xs">
+                      دقيقة المباراة الحالية (للبث المباشر):
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setMatchMinutes(prev => Math.max(0, prev - 5))}
+                        className="h-10 px-2 bg-zinc-900 hover:bg-zinc-800 text-amber-400 font-bold rounded-lg border border-zinc-800 text-xs transition-all active:scale-95 flex items-center justify-center shrink-0"
+                        title="-5 دقائق"
+                      >
+                        -5د
+                      </button>
+                      <input
+                        type="number"
+                        min="0"
+                        max="120"
+                        value={matchMinutes}
+                        onChange={(e) => setMatchMinutes(Math.max(0, parseInt(e.target.value) || 0))}
+                        className="flex-1 bg-zinc-900 border border-amber-500/50 rounded-lg p-2 text-center font-black text-xl text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                        id="admin-resolve-match-minutes"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setMatchMinutes(prev => Math.min(120, prev + 5))}
+                        className="h-10 px-2 bg-zinc-900 hover:bg-zinc-800 text-amber-400 font-bold rounded-lg border border-zinc-800 text-xs transition-all active:scale-95 flex items-center justify-center shrink-0"
+                        title="+5 دقائق"
+                      >
+                        +5د
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score Presets */}
+                <div className="pt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[10px] text-zinc-400 font-bold">نماذج نتيجه سريعة:</span>
+                  {[
+                    { h: 0, a: 0, label: '0 - 0 (تعادل سلبي)' },
+                    { h: 1, a: 0, label: '1 - 0 (فوز المضيف)' },
+                    { h: 2, a: 1, label: '2 - 1 (تقدم المضيف)' },
+                    { h: 3, a: 0, label: '3 - 0 (ثلاثية)' },
+                    { h: 0, a: 1, label: '0 - 1 (فوز الضيف)' },
+                    { h: 1, a: 2, label: '1 - 2 (تقدم الضيف)' },
+                    { h: 2, a: 2, label: '2 - 2 (تعادل إيجابي)' }
+                  ].map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setScoreHome(preset.h);
+                        setScoreAway(preset.a);
+                      }}
+                      className="text-[10px] bg-zinc-950 hover:bg-amber-500 hover:text-black text-zinc-300 font-bold px-2 py-1 rounded-lg border border-zinc-800 transition-all"
+                    >
+                      ⚽ {preset.label}
+                    </button>
+                  ))}
+                </div>
               </div>
+
+              {/* Status Selector */}
+              <div>
+                <label className="text-zinc-300 block mb-1 font-bold">حالة المباراة الجارية:</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setResolveStatus('scheduled')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                      resolveStatus === 'scheduled'
+                        ? 'bg-blue-500/20 text-blue-400 border-blue-500/50 shadow-md'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800'
+                    }`}
+                  >
+                    📅 قادمة / مجدولة (Scheduled)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResolveStatus('live')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                      resolveStatus === 'live'
+                        ? 'bg-red-500/20 text-red-400 border-red-500/50 shadow-md animate-pulse'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800'
+                    }`}
+                  >
+                    🔴 جارية الآن (Live)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setResolveStatus('finished')}
+                    className={`py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                      resolveStatus === 'finished'
+                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-md'
+                        : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:bg-zinc-800'
+                    }`}
+                  >
+                    🏁 منتهية وتصفية الأرباح (Finished)
+                  </button>
+                </div>
+              </div>
+
+              {/* Active Bets on this Match Stats Banner */}
+              {(() => {
+                const targetMatchBets = allBets.filter(b => b.matchId === selectedMatchForScore && b.status === 'pending');
+                const totalStaked = targetMatchBets.reduce((acc, b) => acc + b.amount, 0);
+                return (
+                  <div className="bg-amber-500/10 border border-amber-500/30 p-3.5 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-300">
+                    <div>
+                      <span className="font-bold block">🎯 إحصائيات الرهانات القائمة على هذا اللقاء:</span>
+                      <span className="text-[11px] text-zinc-400">
+                        {targetMatchBets.length > 0
+                          ? `يوجد ${targetMatchBets.length} رهانات معلقة بقيمة إجمالية ${totalStaked} 🪙 سيتلقى أصحاب التوقعات الفائزة أرباحهم فور تحويل المباراة إلى "منتهية".`
+                          : 'لا توجد رهانات قائمة معلقة حالياً على هذه المباراة.'}
+                      </span>
+                    </div>
+                    {targetMatchBets.length > 0 && (
+                      <span className="bg-amber-500/20 text-amber-300 border border-amber-500/40 px-2.5 py-1 rounded-lg font-black shrink-0">
+                        {targetMatchBets.length} رهانات
+                      </span>
+                    )}
+                  </div>
+                );
+              })()}
 
               <button
                 type="submit"
-                className="w-full rounded-xl bg-amber-500 text-zinc-950 font-bold py-3 text-xs hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/10"
+                className="w-full rounded-xl bg-amber-500 text-zinc-950 font-black py-3.5 text-xs hover:bg-amber-400 transition-colors shadow-lg shadow-amber-500/10 flex items-center justify-center gap-2"
                 id="admin-submit-resolve-score"
               >
-                تحديث أهداف المباراة وحسم أرباح الرهانات 🏆
+                <Check className="h-4 w-4" />
+                <span>حفظ التعديلات وتصفية أرباح المراهنين 🏆</span>
               </button>
             </form>
+          </div>
+
+          {/* Quick All Matches List & Direct Control Panel */}
+          <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 lg:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
+              <div>
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-400" />
+                  <span>جدول جميع المباريات والتحكم السريع في الحالة والتصفية</span>
+                </h3>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  تغيير حالة أية مباراة بنقرة واحدة، تحديث تواريخها، وإخفائها تلقائياً من صفحة المستخدمين فور انتهائها
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-2.5 py-1 rounded-lg font-bold">
+                  {allMatches.filter(m => m.status === 'scheduled').length} قادمة
+                </span>
+                <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2.5 py-1 rounded-lg font-bold">
+                  {allMatches.filter(m => m.status === 'live').length} مباشر
+                </span>
+                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-lg font-bold">
+                  {allMatches.filter(m => m.status === 'finished').length} منتهية
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {allMatches.map(m => {
+                const matchBets = allBets.filter(b => b.matchId === m.id);
+                const pendingBets = matchBets.filter(b => b.status === 'pending');
+                const wonBets = matchBets.filter(b => b.status === 'won');
+
+                return (
+                  <div
+                    key={m.id}
+                    className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+                      m.id === selectedMatchForScore
+                        ? 'bg-amber-500/10 border-amber-500/40'
+                        : 'bg-zinc-900/50 border-zinc-900 hover:border-zinc-800'
+                    }`}
+                  >
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-xs font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          {m.league}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          m.status === 'scheduled'
+                            ? 'bg-blue-500/10 text-blue-400 border-blue-500/30'
+                            : m.status === 'live'
+                            ? 'bg-red-500/20 text-red-400 border-red-500/40 animate-pulse'
+                            : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                        }`}>
+                          {m.status === 'scheduled' ? '📅 مجدولة' : m.status === 'live' ? `🔴 مباشر (${m.minutes || 0}')` : '🏁 منتهية (مخفية من المستخدمين)'}
+                        </span>
+                        <span className="text-[11px] text-zinc-400 font-mono">
+                          🗓️ {m.date} | ⏰ {m.time}
+                        </span>
+                      </div>
+
+                      <div className="text-sm font-black text-white flex items-center gap-3 flex-wrap">
+                        {/* Home Team Goals Quick Control */}
+                        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-emerald-500/30">
+                          <span className="text-xs text-emerald-400 font-bold px-1">{m.teamHome}</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, Math.max(0, (m.scoreHome || 0) - 1), m.scoreAway || 0, m.status, m.date, m.time, m.minutes)}
+                            className="h-6 w-6 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded text-xs transition-all flex items-center justify-center"
+                            title={`إنقاص هدف من ${m.teamHome}`}
+                          >
+                            -
+                          </button>
+                          <span className="text-emerald-400 font-mono font-black text-sm px-1.5">{m.scoreHome ?? 0}</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, (m.scoreHome || 0) + 1, m.scoreAway || 0, m.status, m.date, m.time, m.minutes)}
+                            className="h-6 w-6 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded text-xs transition-all flex items-center justify-center shadow-sm"
+                            title={`إضافة هدف لـ ${m.teamHome}`}
+                          >
+                            +
+                          </button>
+                        </div>
+
+                        <span className="text-zinc-500 font-bold text-xs">مقالبل</span>
+
+                        {/* Away Team Goals Quick Control */}
+                        <div className="flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-blue-500/30">
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, (m.scoreAway || 0) + 1, m.status, m.date, m.time, m.minutes)}
+                            className="h-6 w-6 bg-blue-500 hover:bg-blue-400 text-zinc-950 font-black rounded text-xs transition-all flex items-center justify-center shadow-sm"
+                            title={`إضافة هدف لـ ${m.teamAway}`}
+                          >
+                            +
+                          </button>
+                          <span className="text-blue-400 font-mono font-black text-sm px-1.5">{m.scoreAway ?? 0}</span>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, Math.max(0, (m.scoreAway || 0) - 1), m.status, m.date, m.time, m.minutes)}
+                            className="h-6 w-6 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded text-xs transition-all flex items-center justify-center"
+                            title={`إنقاص هدف من ${m.teamAway}`}
+                          >
+                            -
+                          </button>
+                          <span className="text-xs text-blue-400 font-bold px-1">{m.teamAway}</span>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] text-zinc-400 flex items-center gap-3">
+                        <span>إجمالي الرهانات: <strong className="text-white">{matchBets.length}</strong></span>
+                        {pendingBets.length > 0 && (
+                          <span className="text-amber-400 font-bold">معلقة: {pendingBets.length}</span>
+                        )}
+                        {wonBets.length > 0 && (
+                          <span className="text-emerald-400 font-bold">فائزة ومصفاة: {wonBets.length}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMatchForScore(m.id)}
+                        className="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-bold transition-all"
+                      >
+                        ✏️ اختيار للتعديل
+                      </button>
+
+                      {m.status !== 'scheduled' && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, m.scoreAway || 0, 'scheduled', m.date, m.time, m.minutes)}
+                          className="px-2.5 py-1.5 rounded-lg bg-blue-500/10 text-blue-400 border border-blue-500/20 text-xs font-bold hover:bg-blue-500/20 transition-all"
+                        >
+                          📅 تحويل لمجدولة
+                        </button>
+                      )}
+
+                      {m.status !== 'live' && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, m.scoreAway || 0, 'live', m.date, m.time, m.minutes || 1)}
+                          className="px-2.5 py-1.5 rounded-lg bg-red-500/10 text-red-400 border border-red-500/20 text-xs font-bold hover:bg-red-500/20 transition-all"
+                        >
+                          🔴 بدء بث مباشر
+                        </button>
+                      )}
+
+                      {m.status !== 'finished' && (
+                        <div className="flex items-center gap-1 bg-zinc-950 p-1.5 rounded-xl border border-amber-500/30 flex-wrap">
+                          <span className="text-[10px] text-amber-400 font-black px-1">🏆 تحديد الفائز وتوزيع الأرباح:</span>
+                          <button
+                            type="button"
+                            onClick={() => handleSetWinnerAndSettle(m.id, 'home', 2, 0)}
+                            className="px-2 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500 hover:text-black text-[10px] font-bold transition-all border border-emerald-500/30"
+                            title={`تحديد ${m.teamHome} كفائز وتوزيع الأرباح للمراهنين على المضيف`}
+                          >
+                            🥇 {m.teamHome}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetWinnerAndSettle(m.id, 'draw', 1, 1)}
+                            className="px-2 py-1 rounded-lg bg-amber-500/20 text-amber-300 hover:bg-amber-500 hover:text-black text-[10px] font-bold transition-all border border-amber-500/30"
+                            title="تحديد تعادل الفريقين وتوزيع الأرباح"
+                          >
+                            🤝 تعادل
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSetWinnerAndSettle(m.id, 'away', 0, 2)}
+                            className="px-2 py-1 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500 hover:text-black text-[10px] font-bold transition-all border border-blue-500/30"
+                            title={`تحديد ${m.teamAway} كفائز وتوزيع الأرباح للمراهنين على الضيف`}
+                          >
+                            🥇 {m.teamAway}
+                          </button>
+                        </div>
+                      )}
+
+                      {m.status !== 'finished' && (
+                        <button
+                          type="button"
+                          onClick={() => onUpdateMatchScore(m.id, m.scoreHome || 0, m.scoreAway || 0, 'finished', m.date, m.time, m.minutes)}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 text-xs font-black hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/20 flex items-center gap-1"
+                        >
+                          💰 إنهاء بالنتيجة الحالية
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* TAB: SPORTS CATEGORIES MANAGEMENT */}
+      {adminTab === 'sports-categories' && (
+        <section className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-zinc-950 border border-zinc-900 p-6 rounded-2xl">
+            <div>
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-400" />
+                <span>إدارة تصنيفات الأحداث الرياضية</span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                يمكنك إضافة تصنيفات جديدة (مثل: كرة قدم، كرة سلة، تنس، كرة يد) أو تعديل أسمائها وأيقوناتها وحذفها لتغيير خيارات التصفية على MainPage.
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="bg-zinc-900 text-amber-400 border border-zinc-800 px-3 py-1.5 rounded-xl text-xs font-bold font-mono">
+                {sportsCategories.length} تصنيفات نشطة
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Form to Add New Category */}
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 lg:col-span-1 h-fit">
+              <h4 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
+                <PlusCircle className="h-4 w-4 text-emerald-400" />
+                <span>إضافة تصنيف رياضي جديد</span>
+              </h4>
+
+              {catAddSuccess && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <Check className="h-4 w-4" />
+                  <span>تمت إضافة التصنيف الرياضي بنجاح!</span>
+                </div>
+              )}
+
+              <form onSubmit={handleCreateCategorySubmit} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="text-zinc-400 block mb-1 font-medium">اسم التصنيف (مثال: كرة القدم، الشطرنج):</label>
+                  <input
+                    type="text"
+                    placeholder="مثال: كرة الطائرة الشاطئية"
+                    value={newCatName}
+                    onChange={(e) => setNewCatName(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 font-bold"
+                    required
+                    id="admin-new-cat-name"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 block mb-1 font-medium">الأيقونة / الرمز التعبيري (Emoji):</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      placeholder="⚽"
+                      value={newCatIcon}
+                      onChange={(e) => setNewCatIcon(e.target.value)}
+                      className="w-20 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-center text-lg text-white focus:outline-none focus:border-emerald-500"
+                      required
+                      id="admin-new-cat-icon"
+                    />
+                    <div className="flex gap-1 flex-wrap text-sm">
+                      {['⚽', '🏀', '🎾', '🏐', '🏉', '🏈', '⚾', '🥎', '🏓', '🏸', '🥊', '🎮', '🏎️', '⛳'].map(preset => (
+                        <button
+                          type="button"
+                          key={preset}
+                          onClick={() => setNewCatIcon(preset)}
+                          className="p-1 rounded bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 transition-colors"
+                        >
+                          {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 block mb-1 font-medium">المعرّف الكودي الفريد (ID) - اختياري:</label>
+                  <input
+                    type="text"
+                    placeholder="يتم التوليد تلقائياً إن تركته فارغاً"
+                    value={newCatId}
+                    onChange={(e) => setNewCatId(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-zinc-300 font-mono text-[11px] placeholder-zinc-600 focus:outline-none focus:border-emerald-500"
+                    id="admin-new-cat-id"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-zinc-400 block mb-1 font-medium">وصف مختصر للتصنيف:</label>
+                  <textarea
+                    rows={2}
+                    placeholder="وصف للبطولات التابعة لهذا التصنيف..."
+                    value={newCatDesc}
+                    onChange={(e) => setNewCatDesc(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                    id="admin-new-cat-desc"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full rounded-xl bg-emerald-500 text-zinc-950 font-bold py-2.5 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-1.5"
+                  id="admin-submit-new-cat-btn"
+                >
+                  <PlusCircle className="h-4 w-4" />
+                  <span>إضافة التصنيف الرياضي</span>
+                </button>
+              </form>
+            </div>
+
+            {/* Existing Categories Table & Edit Modal/Inline */}
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 lg:col-span-2">
+              <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+                <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
+                  <Activity className="h-4 w-4 text-amber-400" />
+                  <span>تصنيفات الرياضات الحالية وتعديل المسميات</span>
+                </h4>
+                {catEditSuccess && (
+                  <span className="text-xs text-emerald-400 font-bold bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-lg">
+                    ✓ تم حفظ التعديلات بنجاح
+                  </span>
+                )}
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-zinc-400 text-[11px]">
+                      <th className="py-2.5 px-3">الأيقونة والاسم</th>
+                      <th className="py-2.5 px-3">المعرف الكودي (ID)</th>
+                      <th className="py-2.5 px-3">الوصف</th>
+                      <th className="py-2.5 px-3 text-center">المباريات المرتبطة</th>
+                      <th className="py-2.5 px-3 text-center">الإجراءات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-900">
+                    {sportsCategories.map(cat => {
+                      const matchCount = allMatches.filter(m => m.sport === cat.id).length;
+                      const isEditing = editingCatId === cat.id;
+
+                      if (isEditing) {
+                        return (
+                          <tr key={cat.id} className="bg-amber-500/5">
+                            <td colSpan={5} className="p-4">
+                              <form onSubmit={handleSaveCategoryEdit} className="space-y-3 bg-zinc-900/90 p-4 rounded-xl border border-amber-500/30">
+                                <div className="flex items-center justify-between text-amber-400 font-bold text-xs">
+                                  <span>تعديل تصنيف: {cat.name} ({cat.id})</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingCatId(null)}
+                                    className="text-zinc-500 hover:text-white"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                  <div>
+                                    <label className="text-zinc-400 text-[10px] block mb-1">اسم التصنيف:</label>
+                                    <input
+                                      type="text"
+                                      value={editCatName}
+                                      onChange={(e) => setEditCatName(e.target.value)}
+                                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-white font-bold"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-zinc-400 text-[10px] block mb-1">الأيقونة (Emoji):</label>
+                                    <input
+                                      type="text"
+                                      value={editCatIcon}
+                                      onChange={(e) => setEditCatIcon(e.target.value)}
+                                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-center text-white text-base font-bold"
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="text-zinc-400 text-[10px] block mb-1">الوصف:</label>
+                                    <input
+                                      type="text"
+                                      value={editCatDesc}
+                                      onChange={(e) => setEditCatDesc(e.target.value)}
+                                      className="w-full bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1.5 text-white"
+                                    />
+                                  </div>
+                                </div>
+                                <div className="flex justify-end gap-2 pt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingCatId(null)}
+                                    className="px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 font-bold hover:bg-zinc-700"
+                                  >
+                                    إلغاء
+                                  </button>
+                                  <button
+                                    type="submit"
+                                    className="px-4 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 font-bold hover:bg-emerald-400 flex items-center gap-1"
+                                  >
+                                    <Save className="h-3.5 w-3.5" />
+                                    <span>حفظ التغييرات</span>
+                                  </button>
+                                </div>
+                              </form>
+                            </td>
+                          </tr>
+                        );
+                      }
+
+                      return (
+                        <tr key={cat.id} className="hover:bg-zinc-900/40 transition-colors">
+                          <td className="py-3 px-3 font-bold text-white">
+                            <div className="flex items-center gap-2">
+                              <span className="text-base">{cat.icon || '🏆'}</span>
+                              <span className="text-emerald-400 font-extrabold">{cat.name}</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 font-mono text-[11px] text-zinc-400">
+                            {cat.id}
+                          </td>
+                          <td className="py-3 px-3 text-zinc-400 text-[11px]">
+                            {cat.description || '—'}
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <span className="bg-zinc-900 text-amber-300 px-2.5 py-0.5 rounded-full font-mono font-bold text-[11px] border border-zinc-800">
+                              {matchCount} مباريات
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                              <button
+                                onClick={() => handleStartEditCategory(cat)}
+                                className="bg-zinc-900 hover:bg-zinc-800 text-amber-400 border border-zinc-800 px-2.5 py-1 rounded-lg font-bold text-[11px] flex items-center gap-1 transition-all"
+                                title="تعديل اسم أو أيقونة التصنيف"
+                                id={`edit-cat-${cat.id}`}
+                              >
+                                <Edit3 className="h-3.5 w-3.5" />
+                                <span>تعديل</span>
+                              </button>
+                              {onDeleteSportCategory && (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`هل أنت تأكد من حذف تصنيف "${cat.name}"؟`)) {
+                                      onDeleteSportCategory(cat.id);
+                                    }
+                                  }}
+                                  className="text-zinc-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-zinc-900 transition-colors"
+                                  title="حذف التصنيف"
+                                  id={`delete-cat-${cat.id}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           </div>
         </section>
       )}
@@ -2379,6 +4674,328 @@ export default function AdminPanel({
                 </table>
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* TAB: GUIDE & INSTRUCTIONS MANAGEMENT */}
+      {adminTab === 'guide-management' && (
+        <section className="space-y-6">
+          {/* Header & Main Control Buttons */}
+          <div className="bg-zinc-950 border border-zinc-900 p-6 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <BookOpen className="h-5 w-5 text-emerald-400" />
+                <span>متابعة وتعديل صفحة التعليمات ودليل المبتدئين</span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-1">
+                يمكنك التعديل الكامل على أقسام الدليل، إضافة أو حذف إرشادات الشحن، الرهانات العامة، وطريقة عمل منصة التوقعات.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setAddingNewCategory(true)}
+                className="px-3.5 py-2 rounded-xl bg-zinc-900 border border-zinc-800 hover:border-emerald-500/30 text-white text-xs font-bold transition-all flex items-center gap-1.5"
+                id="add-new-guide-cat-btn"
+              >
+                <Plus className="h-4 w-4 text-emerald-400" />
+                <span>إضافة قسم جديد</span>
+              </button>
+
+              <button
+                onClick={() => handleSaveGuideCategories(editingGuideCategories)}
+                className="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs transition-all shadow-md shadow-emerald-500/10 flex items-center gap-1.5"
+                id="save-guide-changes-btn"
+              >
+                <Save className="h-4 w-4" />
+                <span>حفظ وتثبيت الدليل</span>
+              </button>
+            </div>
+          </div>
+
+          {guideSaveSuccess && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 p-4 rounded-xl text-emerald-400 text-xs font-bold flex items-center gap-2 animate-pulse">
+              <CheckCircle2 className="h-4 w-4" />
+              <span>تم حفظ وتحديث كافة تعليمات إرشادات المبتدئين بنجاح! تظهر الآن مباشرة لكافة المستخدمين.</span>
+            </div>
+          )}
+
+          {/* Form to add new Category */}
+          {addingNewCategory && (
+            <div className="bg-zinc-950 border border-emerald-500/30 p-5 rounded-2xl space-y-4">
+              <h4 className="text-sm font-bold text-white flex items-center justify-between">
+                <span>إضافة قسم تعليمي جديد ➕</span>
+                <button 
+                  onClick={() => setAddingNewCategory(false)}
+                  className="text-zinc-500 hover:text-white"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-400 mb-1">عنوان القسم</label>
+                  <input
+                    type="text"
+                    value={newGuideCatTitle}
+                    onChange={(e) => setNewGuideCatTitle(e.target.value)}
+                    placeholder="مثال: كيفية سحب الأرباح"
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-zinc-400 mb-1">رمز الأيقونة</label>
+                  <select
+                    value={newGuideCatIcon}
+                    onChange={(e) => setNewGuideCatIcon(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="Wallet">محفظة (Wallet)</option>
+                    <option value="Target">هدف/رهان (Target)</option>
+                    <option value="TrendingUp">نمو/أودز (TrendingUp)</option>
+                    <option value="HelpCircle">أسئلة شائعة (HelpCircle)</option>
+                    <option value="Coins">عملات/كوينز (Coins)</option>
+                    <option value="ShieldCheck">أمان/حماية (ShieldCheck)</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-[11px] font-bold text-zinc-400 mb-1">وصف مختصر للقسم</label>
+                  <input
+                    type="text"
+                    value={newGuideCatDesc}
+                    onChange={(e) => setNewGuideCatDesc(e.target.value)}
+                    placeholder="وصف توضيحي للقسم..."
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setAddingNewCategory(false)}
+                  className="px-3 py-1.5 rounded-lg bg-zinc-900 text-zinc-400 text-xs font-semibold"
+                >
+                  إلغاء
+                </button>
+                <button
+                  onClick={handleAddCategory}
+                  className="px-4 py-1.5 rounded-lg bg-emerald-500 text-zinc-950 text-xs font-extrabold"
+                >
+                  إضافة القسم
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Categories & Steps List */}
+          <div className="space-y-6">
+            {editingGuideCategories.map((cat, catIdx) => (
+              <div key={cat.id} className="bg-zinc-950 border border-zinc-900 rounded-2xl p-6 space-y-4">
+                
+                {/* Category Header Controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-zinc-900 pb-4 gap-3">
+                  <div className="flex items-center gap-3 flex-1">
+                    <span className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-black flex items-center justify-center">
+                      {catIdx + 1}
+                    </span>
+                    
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={cat.title}
+                        onChange={(e) => handleUpdateCategoryField(cat.id, 'title', e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-sm font-extrabold text-white focus:outline-none focus:border-emerald-500"
+                      />
+                      <input
+                        type="text"
+                        value={cat.description}
+                        onChange={(e) => handleUpdateCategoryField(cat.id, 'description', e.target.value)}
+                        className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-1.5 text-xs text-zinc-400 focus:outline-none focus:border-emerald-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-end md:self-auto">
+                    <button
+                      onClick={() => setAddingStepForCatId(cat.id)}
+                      className="px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-xl text-xs font-bold hover:bg-emerald-500/20 transition-all flex items-center gap-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>إضافة خطوة</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="p-2 text-zinc-500 hover:text-red-400 transition-colors"
+                      title="حذف هذا القسم بالكامل"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Form to add a new step inside this category */}
+                {addingStepForCatId === cat.id && (
+                  <div className="bg-zinc-900/60 border border-emerald-500/30 p-4 rounded-xl space-y-3">
+                    <h5 className="text-xs font-bold text-emerald-400 flex items-center justify-between">
+                      <span>إضافة خطوة جديدة لـ "{cat.title}"</span>
+                      <button onClick={() => setAddingStepForCatId(null)}>
+                        <X className="h-3.5 w-3.5 text-zinc-500 hover:text-white" />
+                      </button>
+                    </h5>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
+                      <input
+                        type="text"
+                        placeholder="عنوان الخطوة (مثال: أرسل المبلغ عبر فودافون كاش)"
+                        value={newStepTitle}
+                        onChange={(e) => setNewStepTitle(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="وسام جانبي (مثال: الخطوة الأولى)"
+                        value={newStepBadge}
+                        onChange={(e) => setNewStepBadge(e.target.value)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-zinc-300"
+                      />
+                      <textarea
+                        rows={2}
+                        placeholder="محتوى الإرشاد بالتفصيل..."
+                        value={newStepContent}
+                        onChange={(e) => setNewStepContent(e.target.value)}
+                        className="md:col-span-2 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-white"
+                      />
+                      <select
+                        value={newStepActionType}
+                        onChange={(e) => setNewStepActionType(e.target.value as any)}
+                        className="bg-zinc-950 border border-zinc-800 rounded-lg px-2 py-1.5 text-zinc-300"
+                      >
+                        <option value="none">بدون زر اختصار تفاعلي</option>
+                        <option value="deposit">زر فتح نافذة الإيداع 💳</option>
+                        <option value="withdraw">زر فتح نافذة سحب الأرباح 💸</option>
+                        <option value="public_bets">زر الانتقال للرهانات العامة 🎯</option>
+                        <option value="events">زر الانتقال لجدول المباريات ⚽</option>
+                      </select>
+                      {newStepActionType !== 'none' && (
+                        <input
+                          type="text"
+                          placeholder="نص الزر (مثال: افتح نافذة الإيداع الآن)"
+                          value={newStepActionLabel}
+                          onChange={(e) => setNewStepActionLabel(e.target.value)}
+                          className="bg-zinc-950 border border-zinc-800 rounded-lg px-3 py-1.5 text-white"
+                        />
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        onClick={() => setAddingStepForCatId(null)}
+                        className="px-3 py-1 rounded bg-zinc-950 text-zinc-400 text-xs"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        onClick={() => handleAddStepToCategory(cat.id)}
+                        className="px-4 py-1 rounded bg-emerald-500 text-zinc-950 font-bold text-xs"
+                      >
+                        حفظ الخطوة
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Steps List */}
+                <div className="space-y-3">
+                  {cat.steps.map((step, stepIdx) => (
+                    <div key={step.id} className="bg-zinc-900/40 border border-zinc-800/80 p-4 rounded-xl space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                            خطوة {stepIdx + 1}
+                          </span>
+                          <input
+                            type="text"
+                            value={step.title}
+                            onChange={(e) => handleUpdateStepField(cat.id, step.id, 'title', e.target.value)}
+                            className="bg-zinc-950 border border-zinc-800 rounded-lg px-2.5 py-1 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteStep(cat.id, step.id)}
+                          className="text-zinc-500 hover:text-red-400 transition-colors p-1"
+                          title="حذف هذه الخطوة"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      <textarea
+                        rows={2}
+                        value={step.content}
+                        onChange={(e) => handleUpdateStepField(cat.id, step.id, 'content', e.target.value)}
+                        className="w-full bg-zinc-950 border border-zinc-800 rounded-lg p-2.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500"
+                      />
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[10px] text-zinc-500 mb-0.5">وسام التمييز (اختياري)</label>
+                          <input
+                            type="text"
+                            value={step.badgeText || ''}
+                            onChange={(e) => handleUpdateStepField(cat.id, step.id, 'badgeText', e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-zinc-300 text-[11px]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] text-zinc-500 mb-0.5">نوع اختصار العمل</label>
+                          <select
+                            value={step.actionType || 'none'}
+                            onChange={(e) => handleUpdateStepField(cat.id, step.id, 'actionType', e.target.value === 'none' ? undefined : e.target.value)}
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-zinc-300 text-[11px]"
+                          >
+                            <option value="none">بدون زر اختصار</option>
+                            <option value="deposit">زر فتح نافذة الإيداع 💳</option>
+                            <option value="withdraw">زر فتح نافذة سحب الأرباح 💸</option>
+                            <option value="public_bets">زر الانتقال للرهانات العامة 🎯</option>
+                            <option value="events">زر الانتقال لجدول المباريات ⚽</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] text-zinc-500 mb-0.5">عنوان زر الإجراء</label>
+                          <input
+                            type="text"
+                            value={step.actionLabel || ''}
+                            onChange={(e) => handleUpdateStepField(cat.id, step.id, 'actionLabel', e.target.value)}
+                            placeholder="مثال: شحن الحساب الآن"
+                            className="w-full bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-zinc-300 text-[11px]"
+                          />
+                        </div>
+                      </div>
+
+                    </div>
+                  ))}
+                </div>
+
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end pt-4">
+            <button
+              onClick={() => handleSaveGuideCategories(editingGuideCategories)}
+              className="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+            >
+              <Save className="h-4 w-4" />
+              <span>حفظ وتطبيق التغييرات على دليل المبتدئين</span>
+            </button>
           </div>
         </section>
       )}

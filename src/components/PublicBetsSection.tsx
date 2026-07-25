@@ -65,7 +65,7 @@ export default function PublicBetsSection({
     if (currentUser.balance < stake) {
       setErrorMsg(prev => ({
         ...prev,
-        [offerId]: `رصيدك الحالي (${currentUser.balance} 🪙) غير كافٍ. يمكنك شحن رصيدك مجاناً من لوحتك!`
+        [offerId]: `رصيدك الحالي (${currentUser.balance} 🪙) غير كافٍ. يرجى تقديم طلب شحن رصيد من المحفظة أولاً.`
       }));
       return;
     }

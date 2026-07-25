@@ -1,22 +1,26 @@
 import React, { useState } from 'react';
 import { Match } from '../types';
-import { Flame, Crown, Sparkles, Trophy, ArrowLeft, Zap, ShieldCheck, Clock, PlayCircle } from 'lucide-react';
+import { Flame, Crown, Sparkles, Trophy, ArrowLeft, Zap, ShieldCheck, Clock, PlayCircle, Bell } from 'lucide-react';
 
 interface FeaturedMatchesSectionProps {
   matches: Match[];
   onSelectMatch: (match: Match) => void;
   onPlaceQuickBet: (match: Match, outcome: 'home' | 'draw' | 'away') => void;
   currentUser?: any;
+  reminders?: string[];
+  onToggleReminder?: (match: Match) => void;
 }
 
 export default function FeaturedMatchesSection({
   matches,
   onSelectMatch,
   onPlaceQuickBet,
-  currentUser
+  currentUser,
+  reminders = [],
+  onToggleReminder
 }: FeaturedMatchesSectionProps) {
-  // Filter matches that are featured or have a featuredTag
-  const featuredMatches = matches.filter(m => m.isFeatured || Boolean(m.featuredTag));
+  // Filter matches that are featured or have a featuredTag, excluding finished matches
+  const featuredMatches = matches.filter(m => (m.isFeatured || Boolean(m.featuredTag)) && m.status !== 'finished');
 
   const [activeFilterTag, setActiveFilterTag] = useState<string>('all');
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number>(0);
@@ -99,8 +103,46 @@ export default function FeaturedMatchesSection({
 
       {/* Featured Match Showcase Card */}
       {activeMatch && (
-        <div className="relative z-10 bg-zinc-900/60 border border-amber-500/20 rounded-2xl p-6 sm:p-8 backdrop-blur-md space-y-6 shadow-xl hover:border-amber-500/40 transition-all">
+        <div className="relative z-10 bg-zinc-900/60 border border-amber-500/20 rounded-2xl p-6 sm:p-8 backdrop-blur-md space-y-6 shadow-xl hover:border-amber-500/40 transition-all overflow-hidden">
           
+          {/* Match Image / Banner if uploaded by Admin */}
+          {activeMatch.matchImage && (
+            <div className="relative w-full h-44 sm:h-56 rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl mb-4 group">
+              <img 
+                src={activeMatch.matchImage} 
+                alt={`${activeMatch.teamHome} vs ${activeMatch.teamAway}`} 
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
+              <div className="absolute bottom-3 right-4 left-4 flex items-center justify-between flex-wrap gap-2">
+                <span className="bg-amber-500/90 text-black font-black text-xs px-3 py-1 rounded-xl backdrop-blur-md shadow-lg flex items-center gap-1.5">
+                  <Flame className="h-3.5 w-3.5" />
+                  <span>غلاف المباراة الرسمي</span>
+                </span>
+                <span className="text-xs text-amber-300 font-bold bg-black/60 px-3 py-1 rounded-xl backdrop-blur-md border border-amber-500/30">
+                  {activeMatch.teamHome} ⚡ {activeMatch.teamAway}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Promotional Betting Announcement (إذا تم إنشاؤه بواسطة الأدمن) */}
+          {activeMatch.adTitle && (
+            <div className="bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-amber-500/20 p-4 rounded-2xl border border-amber-500/40 shadow-xl space-y-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="bg-amber-500 text-black font-black text-[10px] sm:text-xs px-3 py-0.5 rounded-full shadow-md flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>{activeMatch.adBadge || 'إعلان رهان مميز 📣'}</span>
+                </span>
+                <span className="text-[11px] text-amber-300 font-bold">فرصة حصريّة للمراهنين 🔥</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-white">{activeMatch.adTitle}</h3>
+              {activeMatch.adDescription && (
+                <p className="text-xs text-zinc-300 leading-relaxed">{activeMatch.adDescription}</p>
+              )}
+            </div>
+          )}
+
           {/* Top Info Bar inside Card */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-4">
             <div className="flex items-center gap-2">
@@ -120,6 +162,26 @@ export default function FeaturedMatchesSection({
 
             {/* Status / Time Badge */}
             <div className="flex items-center gap-2">
+              {onToggleReminder && activeMatch && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleReminder(activeMatch);
+                  }}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-sm ${
+                    reminders.includes(activeMatch.id)
+                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-500/10 ring-1 ring-amber-500/30 font-black'
+                      : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-amber-500/10 hover:text-amber-300 hover:border-amber-500/30'
+                  }`}
+                  title="جدولة إشعار منبثق قبل بدء المباراة بـ 15 دقيقة"
+                  id={`featured-reminder-btn-${activeMatch.id}`}
+                >
+                  <Bell className={`h-3.5 w-3.5 ${reminders.includes(activeMatch.id) ? 'fill-amber-400 text-amber-400 animate-bounce' : 'text-amber-400'}`} />
+                  <span>{reminders.includes(activeMatch.id) ? 'تنبيه مفعّل (-15د) ⏰' : 'تنبيه (-15د) 🔔'}</span>
+                </button>
+              )}
+
               {activeMatch.status === 'live' ? (
                 <span className="flex items-center gap-1.5 bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-black px-3 py-1 rounded-full animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />

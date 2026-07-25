@@ -108,7 +108,7 @@ const translations: Record<Language, Translations> = {
     homeWin: 'فوز (المضيف)',
     draw: 'تعادل',
     awayWin: 'فوز / خسارة (الضيف)',
-    placeBet: 'تأكيد الرهان الافتراضي',
+    placeBet: 'تأكيد الرهان',
     betAmount: 'مبلغ الرهان (كوينز)',
     fixedStake: 'قيمة ثابتة مخصصة من الإدارة',
     expectedPayout: 'العائد المتوقع',

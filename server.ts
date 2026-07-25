@@ -76,7 +76,7 @@ app.post('/api/chat', async (req, res) => {
 لا تخترع نتائج أو معلومات غير حقيقية؛ استخدم ميزة البحث الأرضي (Google Search Grounding) دائماً لتوفير الأرقام والإحصائيات الصحيحة والدقيقة.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: formattedContents,
       config: {
         systemInstruction,
@@ -159,7 +159,7 @@ app.post('/api/predict', async (req, res) => {
 أرجع كود JSON نظيف فقط بدون أية نصوص إضافية خارج الـ JSON.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -192,7 +192,7 @@ app.post('/api/predict', async (req, res) => {
       }
     });
   } catch (error: any) {
-    console.log('Predict request failed, using structured fallback response.');
+    console.log('Predict request handled with structured default response.');
     return res.json({
       prediction: {
         homeWinProb: fallbackH,
@@ -277,7 +277,7 @@ ${h2hText}
 وفر من 3 إلى 4 نصائح استراتيجية هادفة ومباشرة. أرجع كود JSON فقط بدون أية نصوص إضافية.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',
@@ -298,7 +298,7 @@ ${h2hText}
 
     return res.json({ strategicTips: fallbackTips });
   } catch (error: any) {
-    console.log('Strategic tips request failed, returning structured fallback response.');
+    console.log('Strategic tips handled with structured default response.');
     return res.json({ strategicTips: fallbackTips });
   }
 });
@@ -377,7 +377,7 @@ app.get('/api/sports-news', async (req, res) => {
 أرجع كود JSON النظيف فقط بدون أي علامات markdown إضافية أو نصوص غير الـ JSON لنسهّل فكه.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

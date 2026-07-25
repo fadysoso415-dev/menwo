@@ -1,5 +1,189 @@
-import React, { useState, useEffect } from 'react';
-import { User, Bet, Notification, DepositRequest, WithdrawalRequest, Match } from '../types';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, Bet, Notification, DepositRequest, WithdrawalRequest, Match, GuideCategory } from '../types';
+
+interface GlassBalanceCardProps {
+  balance: number;
+  onOpenCashDepositModal?: () => void;
+  onOpenWithdrawModal?: () => void;
+  depositRequests: DepositRequest[];
+  withdrawalRequests: WithdrawalRequest[];
+  userId: string;
+}
+
+function GlassBalanceCard({
+  balance,
+  onOpenCashDepositModal,
+  onOpenWithdrawModal,
+  depositRequests,
+  withdrawalRequests,
+  userId
+}: GlassBalanceCardProps) {
+  const [displayValue, setDisplayValue] = useState<number>(balance);
+  const [diffBadge, setDiffBadge] = useState<{ amount: number; type: 'up' | 'down' } | null>(null);
+  const prevBalanceRef = useRef<number>(balance);
+  const animRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prev = prevBalanceRef.current;
+    if (prev !== balance) {
+      const diff = balance - prev;
+      if (diff !== 0) {
+        setDiffBadge({
+          amount: Math.abs(diff),
+          type: diff > 0 ? 'up' : 'down'
+        });
+
+        // Hide floating diff badge after 3.5 seconds
+        const timer = setTimeout(() => {
+          setDiffBadge(null);
+        }, 3500);
+
+        // Smoothly animate counter from prev balance to new balance
+        const startTime = performance.now();
+        const duration = 1000; // ms
+
+        const step = (now: number) => {
+          const elapsed = now - startTime;
+          const progress = Math.min(elapsed / duration, 1);
+          // Ease out quadratic calculation
+          const easeProgress = progress * (2 - progress);
+          const currentVal = Math.round(prev + (balance - prev) * easeProgress);
+
+          setDisplayValue(currentVal);
+
+          if (progress < 1) {
+            animRef.current = requestAnimationFrame(step);
+          } else {
+            setDisplayValue(balance);
+          }
+        };
+
+        if (animRef.current) cancelAnimationFrame(animRef.current);
+        animRef.current = requestAnimationFrame(step);
+
+        prevBalanceRef.current = balance;
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setDisplayValue(balance);
+    }
+  }, [balance]);
+
+  const pendingDeposits = depositRequests.filter(r => r.userId === userId && r.status === 'pending');
+  const pendingWithdrawals = withdrawalRequests.filter(r => r.userId === userId && r.status === 'pending');
+
+  return (
+    <div className="relative rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-white/10 via-zinc-950/90 to-zinc-950 p-6 backdrop-blur-xl shadow-2xl shadow-emerald-500/10 flex flex-col justify-between overflow-hidden group">
+      
+      {/* Glassmorphism background ambient lights */}
+      <div className="absolute -top-16 -right-16 h-48 w-48 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none group-hover:bg-emerald-500/30 transition-all duration-700" />
+      <div className="absolute -bottom-16 -left-16 h-48 w-48 rounded-full bg-amber-500/20 blur-3xl pointer-events-none group-hover:bg-amber-500/30 transition-all duration-700" />
+      
+      {/* Top Header */}
+      <div className="relative z-10 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-amber-400/15 border border-amber-400/30 text-amber-400 backdrop-blur-md shadow-md">
+              <Coins className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-white tracking-wide">المحفظة والرصيد المتاح</h3>
+              <p className="text-[10px] text-zinc-400 font-medium">حساب الأرباح والكوينز المباشر</p>
+            </div>
+          </div>
+
+          <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-black backdrop-blur-md flex items-center gap-1.5 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
+            <span>تحديث حقيقي ⚡</span>
+          </span>
+        </div>
+
+        {/* Central Glassmorphism Box with Animated Counter */}
+        <div className="relative rounded-2xl border border-white/20 bg-gradient-to-br from-white/15 via-white/5 to-transparent p-5 text-center shadow-inner backdrop-blur-md space-y-2 overflow-hidden">
+          
+          {/* Animated Diff Badge when balance changes */}
+          {diffBadge && (
+            <div 
+              className={`absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full border text-xs font-black shadow-xl flex items-center gap-1.5 animate-bounce z-20 ${
+                diffBadge.type === 'up'
+                  ? 'bg-emerald-500 text-zinc-950 border-emerald-300 shadow-emerald-500/40'
+                  : 'bg-red-500 text-white border-red-300 shadow-red-500/40'
+              }`}
+            >
+              <span>{diffBadge.type === 'up' ? '📈 +' : '📉 -'}</span>
+              <span>{diffBadge.amount.toLocaleString()} كوينز</span>
+            </div>
+          )}
+
+          <span className="text-[11px] text-zinc-300 font-extrabold block tracking-wider uppercase">الرصيد الكلي في الحساب</span>
+
+          {/* Large Animated Counter Number */}
+          <div className="flex items-center justify-center gap-2 py-1">
+            <span className="text-4xl sm:text-5xl font-black font-mono tracking-tight bg-gradient-to-r from-amber-300 via-amber-400 to-amber-200 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(245,158,11,0.4)]">
+              {displayValue.toLocaleString()}
+            </span>
+            <span className="text-2xl sm:text-3xl font-black text-amber-400">🪙</span>
+          </div>
+
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-amber-300 text-[11px] font-bold backdrop-blur-md">
+            <span>سعر الصرف المباشر:</span>
+            <span className="text-white font-black">1 كوين = 1 جنيه مصري 🇪🇬</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Cash Actions & Status */}
+      <div className="relative z-10 pt-4 border-t border-white/10 mt-4 space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          {onOpenCashDepositModal && (
+            <button
+              type="button"
+              onClick={onOpenCashDepositModal}
+              className="w-full bg-gradient-to-r from-amber-400 via-amber-500 to-amber-600 hover:from-amber-300 hover:to-amber-500 text-zinc-950 font-black py-3 px-3 rounded-xl shadow-lg shadow-amber-500/20 hover:shadow-amber-500/30 border border-amber-300/40 flex items-center justify-center gap-1.5 text-xs transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+              id="glass-open-cash-deposit-btn"
+            >
+              <Wallet className="h-4 w-4 shrink-0" />
+              <span>إيداع وشراء كاش 📲</span>
+            </button>
+          )}
+
+          {onOpenWithdrawModal && (
+            <button
+              type="button"
+              onClick={onOpenWithdrawModal}
+              className="w-full bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-600 hover:from-emerald-300 hover:to-emerald-500 text-zinc-950 font-black py-3 px-3 rounded-xl shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/30 border border-emerald-300/40 flex items-center justify-center gap-1.5 text-xs transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+              id="glass-open-withdraw-btn"
+            >
+              <ArrowUpRight className="h-4 w-4 shrink-0" />
+              <span>سحب الأرباح 💸</span>
+            </button>
+          )}
+        </div>
+
+        {/* Pending Deposit Status Notice */}
+        {pendingDeposits.length > 0 && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 p-2.5 rounded-xl text-[11px] font-bold flex items-center justify-between backdrop-blur-md">
+            <span>⏳ لديك طلب شحن قيد المراجعة والإيداع</span>
+            <button onClick={onOpenCashDepositModal} className="underline text-amber-400 hover:text-white">
+              متابعة
+            </button>
+          </div>
+        )}
+
+        {/* Pending Withdrawal Status Notice */}
+        {pendingWithdrawals.length > 0 && (
+          <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 p-2.5 rounded-xl text-[11px] font-bold flex items-center justify-between backdrop-blur-md">
+            <span>⏳ لديك طلب سحب قيد التحويل</span>
+            <button onClick={onOpenWithdrawModal} className="underline text-emerald-400 hover:text-white">
+              التفاصيل
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+import BeginnerGuide from './BeginnerGuide';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   PieChart as RechartsPieChart, 
@@ -36,7 +220,11 @@ import {
   Flame,
   Sparkles,
   Trophy,
-  Percent
+  Percent,
+  BookOpen,
+  HelpCircle,
+  ExternalLink,
+  AlertTriangle
 } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -54,6 +242,10 @@ interface UserDashboardProps {
   depositRequests?: DepositRequest[];
   onOpenWithdrawModal?: () => void;
   withdrawalRequests?: WithdrawalRequest[];
+  guideCategories?: GuideCategory[];
+  onOpenAdminGuideEdit?: () => void;
+  onNavigateTab?: (tab: string) => void;
+  onCancelBet?: (betId: string) => void;
 }
 
 export default function UserDashboard({
@@ -70,7 +262,11 @@ export default function UserDashboard({
   onOpenCashDepositModal,
   depositRequests = [],
   onOpenWithdrawModal,
-  withdrawalRequests = []
+  withdrawalRequests = [],
+  guideCategories = [],
+  onOpenAdminGuideEdit,
+  onNavigateTab,
+  onCancelBet
 }: UserDashboardProps) {
   const { t, dir } = useLanguage();
   const [profileName, setProfileName] = useState(currentUser.name);
@@ -81,6 +277,8 @@ export default function UserDashboard({
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highestAmount' | 'highestPayout' | 'highestOdds'>('newest');
   const [depositAmount, setDepositAmount] = useState<number>(500);
   const [chartType, setChartType] = useState<'outcome' | 'status'>('outcome');
+  const [activeSection, setActiveSection] = useState<'dashboard' | 'guide'>('dashboard');
+  const [betToCancelConfirm, setBetToCancelConfirm] = useState<Bet | null>(null);
 
   // User Statistics calculations
   const userBets = bets.filter(b => b.userId === currentUser.id);
@@ -228,8 +426,89 @@ export default function UserDashboard({
   const isFiltersActive = betFilter !== 'all' || searchQuery.trim() !== '' || sortBy !== 'newest';
 
   return (
-    <div className="space-y-8 py-6" dir={dir}>
+    <div className="space-y-6 py-6" dir={dir}>
       
+      {/* Dashboard Top Navigation & Section Switcher */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-950 p-3 rounded-2xl border border-zinc-900 shadow-md">
+        <div className="flex items-center gap-2 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800 w-full sm:w-auto">
+          <button
+            onClick={() => setActiveSection('dashboard')}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              activeSection === 'dashboard'
+                ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+            id="dashboard-section-overview-btn"
+          >
+            <UserIcon className="h-4 w-4" />
+            <span>لوحة التحكم والإحصائيات</span>
+          </button>
+          
+          <button
+            onClick={() => setActiveSection('guide')}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+              activeSection === 'guide'
+                ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                : 'text-zinc-400 hover:text-white'
+            }`}
+            id="dashboard-section-guide-btn"
+          >
+            <BookOpen className="h-4 w-4" />
+            <span>دليل المبتدئين والتعليمات</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold">
+              جديد 💡
+            </span>
+          </button>
+        </div>
+
+        {/* User Balance Quick Badge */}
+        <div className="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-900 w-full sm:w-auto justify-between sm:justify-end">
+          <span className="text-xs text-zinc-400 font-medium">الرصيد المتاح:</span>
+          <span className="text-sm font-black text-amber-400 flex items-center gap-1">
+            <Coins className="h-4 w-4 text-amber-400" />
+            <span>{currentUser.balance.toLocaleString()} كوينز</span>
+          </span>
+        </div>
+      </div>
+
+      {/* Beginner Guide Banner Alert when in Overview mode */}
+      {activeSection === 'dashboard' && (
+        <div className="bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-950 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 flex-shrink-0">
+              <BookOpen className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span>جديد في منصة مينوو للتوقعات؟</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold">إرشادات سريعة</span>
+              </p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">
+                تعرف على خطوات شحن المحفظة، المشاركة في الرهانات العامة، وطريقة احتساب معاملات الأودز والعوائد المكتسبة.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setActiveSection('guide')}
+            className="w-full sm:w-auto px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 flex-shrink-0"
+          >
+            <span>استكشف دليل المبتدئين 📖</span>
+          </button>
+        </div>
+      )}
+
+      {/* Render Beginner Guide if 'guide' tab is active */}
+      {activeSection === 'guide' ? (
+        <BeginnerGuide
+          guideCategories={guideCategories}
+          onOpenCashDepositModal={onOpenCashDepositModal}
+          onOpenWithdrawModal={onOpenWithdrawModal}
+          onNavigateTab={onNavigateTab}
+          isAdmin={currentUser.isAdmin}
+          onOpenAdminGuideEdit={onOpenAdminGuideEdit}
+        />
+      ) : (
+        <>
       {/* 1. Header & Profile customization */}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
@@ -306,86 +585,15 @@ export default function UserDashboard({
           </div>
         </div>
 
-        {/* Balance controls & Virtual Recharge */}
-        <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
-              <Coins className="h-4.5 w-4.5 text-amber-400" />
-              <span>إدارة المحفظة والرصيد الافتراضي</span>
-            </h3>
-
-            <div className="bg-zinc-900/50 rounded-xl p-4 border border-zinc-900 text-center space-y-1.5">
-              <span className="text-xs text-zinc-400 font-medium">رصيدك الافتراضي المتاح</span>
-              <div className="text-3xl font-black text-amber-400 tracking-tight">
-                {currentUser.balance.toLocaleString()} <span className="text-lg">🪙 كوينز</span>
-              </div>
-              <div className="inline-block bg-amber-500/10 border border-amber-500/20 text-amber-300 text-[11px] font-bold px-3 py-1 rounded-full">
-                سعر الشحن والسحب: 1 كوين = 1 جنيه مصري 🇪🇬
-              </div>
-            </div>
-          </div>
-
-          {/* Cash Wallet Purchase & Withdrawal Controls */}
-          <div className="pt-4 border-t border-zinc-900 mt-4 space-y-3">
-            
-            {/* Cash Action Buttons Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {/* Cash Deposit Button */}
-              {onOpenCashDepositModal && (
-                <button
-                  type="button"
-                  onClick={onOpenCashDepositModal}
-                  className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-zinc-950 font-black py-3 px-3 rounded-xl shadow-lg shadow-amber-500/10 flex items-center justify-center gap-1.5 text-xs transition-all cursor-pointer"
-                  id="open-cash-deposit-modal-btn"
-                >
-                  <Wallet className="h-4 w-4 shrink-0" />
-                  <span>شراء كوينز كاش 📲</span>
-                </button>
-              )}
-
-              {/* Cash Withdrawal Button */}
-              {onOpenWithdrawModal && (
-                <button
-                  type="button"
-                  onClick={onOpenWithdrawModal}
-                  className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-zinc-950 font-black py-3 px-3 rounded-xl shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-1.5 text-xs transition-all cursor-pointer"
-                  id="open-withdraw-modal-btn"
-                >
-                  <ArrowUpRight className="h-4 w-4 shrink-0" />
-                  <span>سحب الأرباح كاش 💸</span>
-                </button>
-              )}
-            </div>
-
-            {/* Pending Deposit Status Notice */}
-            {depositRequests.filter(r => r.userId === currentUser.id && r.status === 'pending').length > 0 && (
-              <div className="bg-amber-500/10 border border-amber-500/20 text-amber-300 p-2.5 rounded-lg text-[11px] font-bold flex items-center justify-between">
-                <span>⏳ لديك طلب شحن قيد المراجعة والإيداع من قبل الإدارة</span>
-                <button
-                  onClick={onOpenCashDepositModal}
-                  className="underline text-amber-400 hover:text-white"
-                >
-                  متابعة
-                </button>
-              </div>
-            )}
-
-            {/* Pending Withdrawal Status Notice */}
-            {withdrawalRequests.filter(r => r.userId === currentUser.id && r.status === 'pending').length > 0 && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-2.5 rounded-lg text-[11px] font-bold flex items-center justify-between">
-                <span>⏳ لديك طلب سحب أرباح قيد المراجعة والتحويل من قبل الإدارة</span>
-                <button
-                  onClick={onOpenWithdrawModal}
-                  className="underline text-emerald-400 hover:text-white"
-                >
-                  التفاصيل
-                </button>
-              </div>
-            )}
-
-
-          </div>
-        </div>
+        {/* Glassmorphism Balance Card with Animated Counter */}
+        <GlassBalanceCard
+          balance={currentUser.balance}
+          onOpenCashDepositModal={onOpenCashDepositModal}
+          onOpenWithdrawModal={onOpenWithdrawModal}
+          depositRequests={depositRequests}
+          withdrawalRequests={withdrawalRequests}
+          userId={currentUser.id}
+        />
 
 
         {/* Interactive Stats Grid */}
@@ -422,7 +630,7 @@ export default function UserDashboard({
           <div className="rounded-xl bg-zinc-900/20 border border-zinc-900/50 p-3 flex items-center gap-2">
             <Check className="h-5 w-5 text-emerald-400 flex-shrink-0" />
             <span className="text-[10px] text-zinc-400 leading-normal">
-              كل الرهانات تصفى فورياً عند محاكاة اللعب. تذكر دائماً أن هذا اللعب افتراضي وخالٍ تماماً من القمار الحقيقي.
+              يتم تسوية وتصفية الرهانات بدقة بناءً على النتائج والإحصائيات الرسمية للفعاليات والمباريات.
             </span>
           </div>
         </div>
@@ -919,6 +1127,7 @@ export default function UserDashboard({
                   <th className="py-3 px-4 text-center">الربح المتوقع / المحقق</th>
                   <th className="py-3 px-4 text-center">النتيجة الفعلية</th>
                   <th className="py-3 px-4 text-center">الحالة</th>
+                  <th className="py-3 px-4 text-center">الإجراءات</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-900/60 text-zinc-300">
@@ -953,8 +1162,24 @@ export default function UserDashboard({
                             ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
                             : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse'
                         }`}>
-                          {bet.status === 'won' ? 'فائز 🟢' : bet.status === 'lost' ? 'خاسر 🔴' : 'قيد الانتظار ⏳'}
+                          {bet.status === 'won' ? 'فائز 🟢' : bet.status === 'lost' ? 'خاسر 🔴' : 'موافق عليه تلقائياً ⚡ (بانتظار النتيجة)'}
                         </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center">
+                        {bet.status === 'pending' ? (
+                          <button
+                            type="button"
+                            onClick={() => setBetToCancelConfirm(bet)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 text-[11px] font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
+                            title="إلغاء هذا الرهان المعلق واسترجاع الكوينز"
+                            id={`cancel-bet-btn-${bet.id}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5 shrink-0" />
+                            <span>إلغاء الرهان</span>
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-zinc-600 font-semibold">مكتمل</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1041,6 +1266,105 @@ export default function UserDashboard({
           </div>
         )}
       </section>
+
+      </>
+      )}
+
+      {/* Confirmation Modal for cancelling/deleting a pending bet */}
+      {betToCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in" dir="rtl">
+          <div className="relative w-full max-w-md rounded-3xl border border-zinc-800 bg-zinc-950 p-6 shadow-2xl space-y-5 overflow-hidden">
+            
+            {/* Decorative background ambient glows */}
+            <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-amber-500/10 blur-2xl pointer-events-none" />
+            <div className="absolute -bottom-12 -left-12 h-36 w-36 rounded-full bg-red-500/10 blur-2xl pointer-events-none" />
+
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-900 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400">
+                  <AlertTriangle className="h-6 w-6 animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white">تأكيد إلغاء الرهان المعلق</h3>
+                  <p className="text-[11px] text-zinc-400">تأكيد الإجراء لمنع الأخطاء غير المقصودة</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setBetToCancelConfirm(null)}
+                className="p-1.5 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                id="close-cancel-bet-modal"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Bet Details Box */}
+            <div className="bg-zinc-900/60 border border-zinc-800 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400 font-medium">المباراة:</span>
+                <span className="font-bold text-white">{betToCancelConfirm.teamHome} × {betToCancelConfirm.teamAway}</span>
+              </div>
+
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-zinc-400 font-medium">التوقع المختار:</span>
+                <span className="font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+                  {betToCancelConfirm.selectedOutcome === 'home' 
+                    ? `فوز ${betToCancelConfirm.teamHome}` 
+                    : betToCancelConfirm.selectedOutcome === 'away' 
+                    ? `فوز ${betToCancelConfirm.teamAway}` 
+                    : 'التعادل'} (معامل x{betToCancelConfirm.odds.toFixed(2)})
+                </span>
+              </div>
+
+              <div className="flex justify-between items-center text-xs border-t border-zinc-800/80 pt-2.5">
+                <span className="text-zinc-400 font-medium">المبلغ المستثمر:</span>
+                <span className="font-black text-amber-400 text-sm">{betToCancelConfirm.amount.toLocaleString()} 🪙 كوينز</span>
+              </div>
+            </div>
+
+            {/* Explanatory Notice */}
+            <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-300 space-y-1">
+              <p className="font-bold flex items-center gap-1.5">
+                <Coins className="h-4 w-4 shrink-0 text-amber-400" />
+                <span>استرداد الكوينز إلى حسابك:</span>
+              </p>
+              <p className="text-[11px] text-zinc-300 leading-relaxed">
+                عند إلغاء الرهان المعلق، سيتم إزالته فوراً وإعادة مبلغ <strong className="text-amber-400">{betToCancelConfirm.amount.toLocaleString()} كوينز</strong> بالكامل إلى محفظتك المتاحة.
+              </p>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onCancelBet) {
+                    onCancelBet(betToCancelConfirm.id);
+                  }
+                  setBetToCancelConfirm(null);
+                }}
+                className="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white font-black py-3 px-4 rounded-xl shadow-lg shadow-red-500/20 border border-red-400/30 flex items-center justify-center gap-1.5 text-xs transition-all cursor-pointer"
+                id="confirm-cancel-bet-btn"
+              >
+                <Trash2 className="h-4 w-4 shrink-0" />
+                <span>نعم، إلغاء الرهان</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBetToCancelConfirm(null)}
+                className="w-full bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white font-bold py-3 px-4 rounded-xl border border-zinc-800 flex items-center justify-center gap-1 text-xs transition-all cursor-pointer"
+                id="dismiss-cancel-bet-btn"
+              >
+                <span>تراجع / إغلاق</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );

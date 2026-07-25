@@ -88,7 +88,16 @@ interface EventsPageProps {
   onSelectMatch: (match: Match) => void;
   currentUser: User | null;
   onPlaceBet: (matchId: string, outcome: 'home' | 'draw' | 'away', amount: number) => void;
-  onSimulateMatchFinished: (matchId: string, scoreHome: number, scoreAway: number, stats: any) => void;
+  onSimulateMatchFinished: (
+    matchId: string, 
+    scoreHome: number, 
+    scoreAway: number, 
+    status?: 'scheduled' | 'live' | 'finished',
+    date?: string,
+    time?: string,
+    minutes?: number,
+    stats?: any
+  ) => void;
   onOpenAuth: () => void;
   activeBets: Bet[];
   publicBetOffers?: PublicBetOffer[];
@@ -168,6 +177,7 @@ export default function EventsPage({
   }, [simEvents]);
 
   const filteredMatches = matches.filter(match => {
+    if (match.status === 'finished') return false;
     if (sportFilter === 'all') return true;
     return match.sport === sportFilter;
   });
@@ -194,12 +204,12 @@ export default function EventsPage({
     }
 
     if (currentUser.balance < effectiveAmount) {
-      setBetErrorMsg('رصيدك غير كافٍ لإتمام هذا الرهان الافتراضي. يرجى شحن الرصيد مجاناً من لوحتك.');
+      setBetErrorMsg(`رصيدك المالي (${currentUser.balance} 🪙) غير كافٍ لإتمام الرهان بمبلغ ${effectiveAmount} 🪙. يرجى تقديم طلب شحن رصيد من المحفظة أولاً.`);
       return;
     }
 
     onPlaceBet(selectedMatch.id, betOutcome, effectiveAmount);
-    setBetSuccessMsg('تم تسجيل الرهان الافتراضي بنجاح! سيتم تسوية الرهان فوراً عند انتهاء المباراة.');
+    setBetSuccessMsg('تم تسجيل الرهان بنجاح! سيتم تسوية الرهان عند انتهاء المباراة.');
     setTimeout(() => setBetSuccessMsg(''), 4000);
   };
 
@@ -331,7 +341,7 @@ export default function EventsPage({
           foulsHome: 8 + Math.floor(Math.random() * 8),
           foulsAway: 8 + Math.floor(Math.random() * 8)
         };
-        onSimulateMatchFinished(selectedMatch.id, currentHome, currentAway, finalStats);
+        onSimulateMatchFinished(selectedMatch.id, currentHome, currentAway, 'finished', undefined, undefined, 90, finalStats);
         return;
       }
 
@@ -495,7 +505,14 @@ export default function EventsPage({
                 </div>
 
                 <div className="mt-3 pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[10px] text-zinc-500">
-                  <span>معامل الفوز: {match.oddsHome.toFixed(1)} - {match.oddsDraw.toFixed(1)} - {match.oddsAway.toFixed(1)}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span>الأودز: {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsHome * match.featuredBetMultiplier : match.oddsHome).toFixed(1)} - {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsDraw * match.featuredBetMultiplier : match.oddsDraw).toFixed(1)} - {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsAway * match.featuredBetMultiplier : match.oddsAway).toFixed(1)}</span>
+                    {match.isFeaturedBet && match.featuredBetMultiplier && match.featuredBetMultiplier > 1 && (
+                      <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded text-[9px] font-black">
+                        🔥 مضاعف x{match.featuredBetMultiplier}
+                      </span>
+                    )}
+                  </div>
                   <span className="text-emerald-400 font-bold">عرض التفاصيل 📊</span>
                 </div>
               </div>
@@ -618,7 +635,7 @@ export default function EventsPage({
                 <form onSubmit={handlePlaceBetSubmit} className="space-y-4">
                   <h3 className="text-sm font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
                     <Coins className="h-4 w-4 text-emerald-400" />
-                    <span>بطاقة الرهان الافتراضي (Sim Slip)</span>
+                    <span>بطاقة الرهان (Betting Slip)</span>
                   </h3>
 
                   {betSuccessMsg && (
@@ -639,6 +656,26 @@ export default function EventsPage({
                     </div>
                   ) : (
                     <>
+                      {/* Featured Bet Special Banner */}
+                      {selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 && (
+                        <div className="rounded-xl border border-purple-500/40 bg-gradient-to-r from-purple-950/80 via-zinc-950 to-purple-950/80 p-3 text-xs text-purple-300 flex items-center justify-between shadow-lg shadow-purple-500/10 animate-pulse">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-purple-400" />
+                            <div>
+                              <div className="font-black text-white text-xs">
+                                {selectedMatch.featuredBetLabel || `🔥 رهان مميز - مضاعفة الأرباح x${selectedMatch.featuredBetMultiplier}`}
+                              </div>
+                              <div className="text-[10px] text-purple-300/80 font-medium">
+                                مضاعفة مخصصة من الأدمن ترفع قيمة الربح النهائي!
+                              </div>
+                            </div>
+                          </div>
+                          <span className="px-2.5 py-1 rounded-full bg-purple-500 text-white font-black text-xs shadow-md">
+                            x{selectedMatch.featuredBetMultiplier} مضاعف
+                          </span>
+                        </div>
+                      )}
+
                       {/* Pick outcome */}
                       <div>
                         <div className="flex justify-between items-center mb-1.5">
@@ -661,7 +698,16 @@ export default function EventsPage({
                             <span className="text-xs truncate max-w-full">
                               {selectedMatch.customLabelHome || `فوز (${selectedMatch.teamHome})`}
                             </span>
-                            <span className="block text-[10px] font-mono mt-0.5 opacity-80">{selectedMatch.oddsHome.toFixed(2)}</span>
+                            <div className="flex items-center justify-center gap-1 font-mono text-[10px] mt-0.5 opacity-90">
+                              <span>
+                                {((selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 ? selectedMatch.oddsHome * selectedMatch.featuredBetMultiplier : selectedMatch.oddsHome)).toFixed(2)}
+                              </span>
+                              {selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 && (
+                                <span className="text-[9px] bg-purple-500/30 text-purple-200 px-1 rounded font-black">
+                                  🔥x{selectedMatch.featuredBetMultiplier}
+                                </span>
+                              )}
+                            </div>
                           </button>
 
                           {/* Draw / Outcome X */}
@@ -679,7 +725,16 @@ export default function EventsPage({
                             <span className="text-xs truncate max-w-full">
                               {selectedMatch.customLabelDraw || 'تعادل'}
                             </span>
-                            <span className="block text-[10px] font-mono mt-0.5 opacity-80">{selectedMatch.oddsDraw.toFixed(2)}</span>
+                            <div className="flex items-center justify-center gap-1 font-mono text-[10px] mt-0.5 opacity-90">
+                              <span>
+                                {((selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 ? selectedMatch.oddsDraw * selectedMatch.featuredBetMultiplier : selectedMatch.oddsDraw)).toFixed(2)}
+                              </span>
+                              {selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 && (
+                                <span className="text-[9px] bg-purple-500/30 text-purple-200 px-1 rounded font-black">
+                                  🔥x{selectedMatch.featuredBetMultiplier}
+                                </span>
+                              )}
+                            </div>
                           </button>
 
                           {/* Away Win / Outcome 2 */}
@@ -697,7 +752,16 @@ export default function EventsPage({
                             <span className="text-xs truncate max-w-full">
                               {selectedMatch.customLabelAway || `خسارة (${selectedMatch.teamAway})`}
                             </span>
-                            <span className="block text-[10px] font-mono mt-0.5 opacity-80">{selectedMatch.oddsAway.toFixed(2)}</span>
+                            <div className="flex items-center justify-center gap-1 font-mono text-[10px] mt-0.5 opacity-90">
+                              <span>
+                                {((selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 ? selectedMatch.oddsAway * selectedMatch.featuredBetMultiplier : selectedMatch.oddsAway)).toFixed(2)}
+                              </span>
+                              {selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 && (
+                                <span className="text-[9px] bg-purple-500/30 text-purple-200 px-1 rounded font-black">
+                                  🔥x{selectedMatch.featuredBetMultiplier}
+                                </span>
+                              )}
+                            </div>
                           </button>
                         </div>
                       </div>
@@ -726,7 +790,7 @@ export default function EventsPage({
                             type="number"
                             value={betAmount}
                             onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 0))}
-                            className="w-full rounded-lg border border-zinc-900 bg-zinc-900/50 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                            className="w-full rounded-lg border border-zinc-900 bg-zinc-900/50 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none font-bold"
                             id="bet-amount-input"
                           />
                         )}
@@ -741,17 +805,23 @@ export default function EventsPage({
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-zinc-500">معامل الاحتمال المختار:</span>
-                          <span className="font-bold text-white">
-                            {betOutcome === 'home' ? selectedMatch.oddsHome.toFixed(2) : betOutcome === 'away' ? selectedMatch.oddsAway.toFixed(2) : selectedMatch.oddsDraw.toFixed(2)}
+                          <span className="text-zinc-500">معامل الاحتمال النهائي (Odds):</span>
+                          <span className="font-bold text-white flex items-center gap-1">
+                            {((betOutcome === 'home' ? selectedMatch.oddsHome : betOutcome === 'away' ? selectedMatch.oddsAway : selectedMatch.oddsDraw) * (selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 ? selectedMatch.featuredBetMultiplier : 1)).toFixed(2)}
+                            {selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 && (
+                              <span className="text-[9px] text-purple-400 font-black">
+                                (مضاعف x{selectedMatch.featuredBetMultiplier})
+                              </span>
+                            )}
                           </span>
                         </div>
                         <div className="flex justify-between border-t border-zinc-900/60 pt-1.5 font-bold">
-                          <span className="text-emerald-400">الربح الصافي المتوقع:</span>
-                          <span className="text-amber-400">
+                          <span className="text-emerald-400">الربح الصافي المتوقع عند الفوز:</span>
+                          <span className="text-amber-400 font-black text-sm">
                             {Math.round(
                               (selectedMatch.fixedStakeAmount && selectedMatch.fixedStakeAmount > 0 ? selectedMatch.fixedStakeAmount : betAmount) * 
-                              (betOutcome === 'home' ? selectedMatch.oddsHome : betOutcome === 'away' ? selectedMatch.oddsAway : selectedMatch.oddsDraw)
+                              (betOutcome === 'home' ? selectedMatch.oddsHome : betOutcome === 'away' ? selectedMatch.oddsAway : selectedMatch.oddsDraw) *
+                              (selectedMatch.isFeaturedBet && selectedMatch.featuredBetMultiplier && selectedMatch.featuredBetMultiplier > 1 ? selectedMatch.featuredBetMultiplier : 1)
                             )} 🪙
                           </span>
                         </div>
@@ -762,7 +832,7 @@ export default function EventsPage({
                         className="w-full rounded-xl bg-emerald-500 py-3 text-xs font-bold text-zinc-950 hover:bg-emerald-400 transition-colors shadow-lg shadow-emerald-500/10"
                         id="place-bet-btn"
                       >
-                        {currentUser ? 'تثبيت الرهان الافتراضي' : 'سجل دخولك لوضع رهانات افتراضية'}
+                        {currentUser ? 'تأكيد وتثبيت الرهان' : 'سجل دخولك لوضع رهاناتك'}
                       </button>
                     </>
                   )}

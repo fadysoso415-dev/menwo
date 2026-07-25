@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { User, Match, Bet, Notification, ChatMessage, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem } from './types';
+import { User, Match, Bet, Notification, ChatMessage, DepositRequest, PublicBetOffer, WithdrawalRequest, LeagueStandingItem, SportCategory, GuideCategory } from './types';
 import { 
   DEFAULT_USERS, 
   INITIAL_MATCHES, 
   INITIAL_BETS,
   INITIAL_PUBLIC_BETS,
-  INITIAL_LEAGUE_STANDINGS
+  INITIAL_LEAGUE_STANDINGS,
+  INITIAL_SPORTS_CATEGORIES,
+  INITIAL_GUIDE_CATEGORIES
 } from './data/defaultData';
 
 // Component Imports
@@ -37,6 +39,8 @@ export default function App() {
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [publicBetOffers, setPublicBetOffers] = useState<PublicBetOffer[]>([]);
   const [leagueStandings, setLeagueStandings] = useState<LeagueStandingItem[]>([]);
+  const [sportsCategories, setSportsCategories] = useState<SportCategory[]>([]);
+  const [guideCategories, setGuideCategories] = useState<GuideCategory[]>([]);
   
   // Cash Wallet & Deposit / Withdrawal Requests states
   const [cashWalletNumber, setCashWalletNumber] = useState<string>('01012345678');
@@ -93,8 +97,8 @@ export default function App() {
         {
           id: 'notif-1',
           userId: 'user-1',
-          title: '🎁 هدية ترحيبية بالرصيد!',
-          message: 'مرحباً بك في منصة مينوو! تمت إضافة 10 كوينز افتراضية ترحيبية إلى محفظتك لبدء اللعب ومحاكاة المباريات.',
+          title: '👋 مرحباً بك في منصة مينوو!',
+          message: 'أهلاً بك في المنصة! يمكنك الآن شحن محفظتك، والمشاركة في التحديات، وتوقع نتائج مبارياتك المفضلة.',
           read: false,
           type: 'system',
           createdAt: new Date().toISOString()
@@ -165,7 +169,52 @@ export default function App() {
       setLeagueStandings(INITIAL_LEAGUE_STANDINGS);
       localStorage.setItem('stad_league_standings', JSON.stringify(INITIAL_LEAGUE_STANDINGS));
     }
+
+    const savedSportsCats = localStorage.getItem('stad_sports_categories');
+    if (savedSportsCats) {
+      setSportsCategories(JSON.parse(savedSportsCats));
+    } else {
+      setSportsCategories(INITIAL_SPORTS_CATEGORIES);
+      localStorage.setItem('stad_sports_categories', JSON.stringify(INITIAL_SPORTS_CATEGORIES));
+    }
+
+    const savedGuide = localStorage.getItem('stad_guide_categories');
+    if (savedGuide) {
+      setGuideCategories(JSON.parse(savedGuide));
+    } else {
+      setGuideCategories(INITIAL_GUIDE_CATEGORIES);
+      localStorage.setItem('stad_guide_categories', JSON.stringify(INITIAL_GUIDE_CATEGORIES));
+    }
   }, []);
+
+  // Handler for Beginner Guide Management
+  const handleUpdateGuideCategories = (newCategories: GuideCategory[]) => {
+    setGuideCategories(newCategories);
+    localStorage.setItem('stad_guide_categories', JSON.stringify(newCategories));
+    triggerNotification('📖 دليل المبتدئين والتعليمات', 'تم تحديث صفحة التعليمات ودليل المبتدئين بنجاح!', 'system');
+  };
+
+  // Handlers for Sports Categories Management
+  const handleAddSportCategory = (newCat: SportCategory) => {
+    const updated = [...sportsCategories, newCat];
+    setSportsCategories(updated);
+    localStorage.setItem('stad_sports_categories', JSON.stringify(updated));
+    triggerNotification('🏆 تصنيفات الرياضات', `تمت إضافة تصنيف الرياضة "${newCat.name}" بنجاح`, 'system');
+  };
+
+  const handleUpdateSportCategory = (catId: string, updatedFields: Partial<SportCategory>) => {
+    const updated = sportsCategories.map(c => c.id === catId ? { ...c, ...updatedFields } : c);
+    setSportsCategories(updated);
+    localStorage.setItem('stad_sports_categories', JSON.stringify(updated));
+    triggerNotification('🏆 تصنيفات الرياضات', `تم تحديث تصنيف الرياضة بنجاح`, 'system');
+  };
+
+  const handleDeleteSportCategory = (catId: string) => {
+    const updated = sportsCategories.filter(c => c.id !== catId);
+    setSportsCategories(updated);
+    localStorage.setItem('stad_sports_categories', JSON.stringify(updated));
+    triggerNotification('🏆 تصنيفات الرياضات', `تم حذف تصنيف الرياضة بنجاح`, 'system');
+  };
 
   // Handler to Update League Standings from Admin Panel
   const handleUpdateLeagueStandings = (updatedStandings: LeagueStandingItem[]) => {
@@ -573,14 +622,14 @@ export default function App() {
       balance: currentUser.balance + amount
     };
     updateCurrentUserAndState(updated);
-    triggerNotification('🪙 شحن رصيد افتراضي ناجح', `تم بنجاح إضافة ${amount} كوينز افتراضية إلى محفظتك لأغراض التوقع والمحاكاة.`, 'system');
+    triggerNotification('🪙 تم شحن الرصيد بنجاح', `تم بنجاح إضافة ${amount} كوينز إلى محفظتك.`, 'system');
   };
 
   const handleClaimDailyReward = () => {
     if (!currentUser) return;
     const currentClaims = currentUser.dailyClaimsCount || 0;
     if (currentClaims >= 7) {
-      triggerNotification('⚠️ تنبيه المكافأة اليومية', 'لقد استوفيت الحد الأقصى للمكافأة الترحيبية اليومية (7 أيام فقط).', 'system');
+      triggerNotification('⚠️ تنبيه المكافأة اليومية', 'لقد استوفيت الحد الأقصى للمكافأة اليومية (7 أيام فقط).', 'system');
       return;
     }
     const newCount = currentClaims + 1;
@@ -592,8 +641,8 @@ export default function App() {
     };
     updateCurrentUserAndState(updated);
     triggerNotification(
-      '🎁 مكافأة حضور يومي مجانية',
-      `تمت إضافة 10 كوينز افتراضية بنجاح إلى محفظتك! (تمت المطالبة باليوم ${newCount} من 7 أيام)`,
+      '🎁 مكافأة حضور يومي',
+      `تمت إضافة 10 كوينز بنجاح إلى محفظتك! (تمت المطالبة باليوم ${newCount} من 7 أيام)`,
       'system'
     );
   };
@@ -602,10 +651,27 @@ export default function App() {
   const handlePlaceBet = (matchId: string, outcome: 'home' | 'draw' | 'away', amount: number) => {
     if (!currentUser) return;
 
+    if (amount <= 0) {
+      triggerNotification('⚠️ خطأ في المبلغ', 'يرجى إدخال قيمة رهان صحيحة أكبر من صفر.', 'system');
+      return;
+    }
+
+    // STRICT BALANCE CHECK PREVENTING TRANSACTIONS WITHOUT SUFFICIENT BALANCE
+    if (currentUser.balance < amount) {
+      triggerNotification(
+        '🔴 رصيد غير كافٍ',
+        `عذراً، رصيدك الحقيقي (${currentUser.balance} 🪙) غير كافٍ لإجراء رهان بقيمة ${amount} 🪙. يرجى تقديم طلب شحن رصيد من المحفظة أولاً.`,
+        'system'
+      );
+      return;
+    }
+
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
 
-    const odds = outcome === 'home' ? match.oddsHome : outcome === 'away' ? match.oddsAway : match.oddsDraw;
+    const baseOdds = outcome === 'home' ? match.oddsHome : outcome === 'away' ? match.oddsAway : match.oddsDraw;
+    const multiplierFactor = (match.isFeaturedBet && match.featuredBetMultiplier && match.featuredBetMultiplier > 1) ? match.featuredBetMultiplier : 1;
+    const odds = Number((baseOdds * multiplierFactor).toFixed(2));
 
     const newBet: Bet = {
       id: `bet-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
@@ -616,6 +682,9 @@ export default function App() {
       selectedOutcome: outcome,
       amount,
       odds,
+      baseOdds,
+      featuredMultiplierApplied: multiplierFactor,
+      isFeaturedBet: match.isFeaturedBet,
       status: 'pending',
       payout: 0,
       placedAt: new Date().toISOString()
@@ -635,8 +704,8 @@ export default function App() {
     });
 
     triggerNotification(
-      '💸 تم تثبيت توقعك بنجاح', 
-      `رهانك بقيمة ${amount} كوينز افتراضية على مباراة (${match.teamHome} × ${match.teamAway}) قد تم تسجيله! معامل الفوز المتوقع: ${odds.toFixed(2)}.`, 
+      '⚡ تمت الموافقة التلقائية على رهانك بنجاح', 
+      `تمت الموافقة التلقائية وتثبيت رهانك بقيمة ${amount} كوينز على مباراة (${match.teamHome} × ${match.teamAway}) فوراً! معامل الأرباح: ${odds.toFixed(2)}.`, 
       'bet'
     );
   };
@@ -647,25 +716,46 @@ export default function App() {
       setIsAuthOpen(true);
       return;
     }
+
+    if (currentUser.balance < 100) {
+      triggerNotification(
+        '🔴 رصيد غير كافٍ',
+        'عذراً، رصيدك الحقيقي غير كافٍ لإجراء الرهان السريع (100 كوينز). يرجى تقديم طلب شحن من المحفظة أولاً.',
+        'system'
+      );
+      return;
+    }
+
     handlePlaceBet(match.id, outcome, 100); // quick 100 bet
   };
 
-  // 2. SIMULATE MATCH RESOLUTION ENGINE (تصفية وتسوية الرهانات)
-  const handleSimulateMatchFinished = (matchId: string, scoreHome: number, scoreAway: number, stats: any) => {
-    // 1. Update Match Score, status and stats in state & storage
+  // 2. SIMULATE MATCH RESOLUTION & ADMIN MATCH ENGINE (تحديث حالة وتاريخ المباراة وتصفية تسوية الرهانات)
+  const handleSimulateMatchFinished = (
+    matchId: string, 
+    scoreHome: number, 
+    scoreAway: number, 
+    status?: 'scheduled' | 'live' | 'finished',
+    date?: string,
+    time?: string,
+    minutes?: number,
+    stats?: any
+  ) => {
     let matchRef: Match | null = null;
+    const targetStatus = status || 'finished';
+
+    // 1. Update Match Score, status, date, time, minutes and stats in state & storage
     setMatches(prev => {
       const next = prev.map(m => {
         if (m.id === matchId) {
           matchRef = {
             ...m,
-            status: 'finished',
+            status: targetStatus,
             scoreHome,
             scoreAway,
-            stats: {
-              ...m.stats,
-              ...stats
-            }
+            date: date !== undefined && date !== '' ? date : m.date,
+            time: time !== undefined && time !== '' ? time : m.time,
+            minutes: minutes !== undefined ? minutes : (targetStatus === 'live' ? (m.minutes || 1) : m.minutes),
+            stats: stats ? { ...m.stats, ...stats } : m.stats
           };
           return matchRef;
         }
@@ -678,31 +768,33 @@ export default function App() {
       return next;
     });
 
-    // We must find the actual outcome of the match
+    // If targetStatus is not 'finished', we don't settle bets yet
+    if (targetStatus !== 'finished') {
+      return;
+    }
+
+    // Target status IS 'finished': SETTLE ALL BETS & PAYOUTS FOR ALL USERS
     let finalOutcome: 'home' | 'draw' | 'away' = 'draw';
     if (scoreHome > scoreAway) finalOutcome = 'home';
     else if (scoreAway > scoreHome) finalOutcome = 'away';
 
     const matchName = matchRef ? `(${matchRef.teamHome} × ${matchRef.teamAway})` : 'المباراة الرياضية';
 
-    // 2. Resolve ALL bets associated with this match in state & storage
-    setBets(prev => {
-      let coinsPayoutSum = 0;
-      let userWonCount = 0;
-      let userLostCount = 0;
+    const userPayoutsMap: Record<string, number> = {};
+    const userWonBetsCount: Record<string, number> = {};
+    const userLostBetsCount: Record<string, number> = {};
 
+    setBets(prev => {
       const next = prev.map(bet => {
         if (bet.matchId === matchId && bet.status === 'pending') {
           const didWin = bet.selectedOutcome === finalOutcome;
           const payout = didWin ? Math.round(bet.amount * bet.odds) : 0;
           
-          if (bet.userId === currentUser?.id) {
-            if (didWin) {
-              coinsPayoutSum += payout;
-              userWonCount++;
-            } else {
-              userLostCount++;
-            }
+          if (didWin) {
+            userPayoutsMap[bet.userId] = (userPayoutsMap[bet.userId] || 0) + payout;
+            userWonBetsCount[bet.userId] = (userWonBetsCount[bet.userId] || 0) + 1;
+          } else {
+            userLostBetsCount[bet.userId] = (userLostBetsCount[bet.userId] || 0) + 1;
           }
 
           return {
@@ -716,29 +808,60 @@ export default function App() {
       });
 
       localStorage.setItem('stad_bets', JSON.stringify(next));
+      return next;
+    });
 
-      // 3. Update User Balance if they won coins
-      if (currentUser) {
-        if (coinsPayoutSum > 0) {
-          const updated = {
-            ...currentUser,
-            balance: currentUser.balance + coinsPayoutSum
+    // Update ALL users balance in allUsers state & localStorage
+    setAllUsers(prev => {
+      const next = prev.map(u => {
+        const addedCoins = userPayoutsMap[u.id] || 0;
+        if (addedCoins > 0) {
+          return {
+            ...u,
+            balance: u.balance + addedCoins
           };
-          updateCurrentUserAndState(updated);
-          triggerNotification(
-            '🏆 مبارك! فوز توقع رائع', 
-            `لقد ربحت ${coinsPayoutSum} كوينز افتراضية بعد انتهاء مباراة ${matchName} بنتيجة ${scoreHome}-${scoreAway}!`, 
-            'bet'
-          );
-        } else if (userLostCount > 0) {
-          triggerNotification(
-            '💔 حظاً أوفر في التوقع التالي', 
-            `انتهت مباراة ${matchName} بنتيجة ${scoreHome}-${scoreAway}. لم يحالفك الحظ في توقعك المرة، جرب تحليلات الذكاء الاصطناعي مستقبلاً!`, 
-            'bet'
-          );
         }
-      }
+        return u;
+      });
+      localStorage.setItem('stad_users', JSON.stringify(next));
+      return next;
+    });
 
+    // Update active currentUser if affected
+    if (currentUser && userPayoutsMap[currentUser.id]) {
+      const addedCoins = userPayoutsMap[currentUser.id];
+      const updatedCurr = {
+        ...currentUser,
+        balance: currentUser.balance + addedCoins
+      };
+      setCurrentUser(updatedCurr);
+      localStorage.setItem('stad_active_user', JSON.stringify(updatedCurr));
+
+      triggerNotification(
+        '🏆 مبارك! تم تصفية أرباح الرهان',
+        `لقد تم إضافة ${addedCoins} كوينز لمحفظتك بعد انتهاء مباراة ${matchName} بنتيجة ${scoreHome}-${scoreAway}!`,
+        'bet'
+      );
+    } else if (currentUser && userLostBetsCount[currentUser.id]) {
+      triggerNotification(
+        '💔 حظاً أوفر في التوقع التالي',
+        `انتهت مباراة ${matchName} بنتيجة ${scoreHome}-${scoreAway}. لم يحالفك الحظ في توقعك هذه المرة.`,
+        'bet'
+      );
+    }
+
+    // Settle public bet offers associated with this match
+    setPublicBetOffers(prev => {
+      const next = prev.map(pOffer => {
+        if (pOffer.matchId === matchId && pOffer.status === 'active') {
+          return {
+            ...pOffer,
+            status: 'resolved'
+          } as PublicBetOffer;
+        }
+        return pOffer;
+      });
+      localStorage.setItem('stad_public_bets', JSON.stringify(next));
       return next;
     });
   };
@@ -780,7 +903,21 @@ export default function App() {
     customLabelAway?: string,
     fixedStakeAmount?: number,
     isFeatured?: boolean,
-    featuredTag?: string
+    featuredTag?: string,
+    oddsHome?: number,
+    oddsDraw?: number,
+    oddsAway?: number,
+    isFeaturedBet?: boolean,
+    featuredBetMultiplier?: number,
+    featuredBetLabel?: string,
+    matchImage?: string,
+    adTitle?: string,
+    adDescription?: string,
+    adBadge?: string,
+    isAdFeatured?: boolean,
+    isBettingClosed?: boolean,
+    bettingStatus?: 'open' | 'closed' | 'suspended',
+    bettingNote?: string
   ) => {
     setMatches(prev => {
       const next = prev.map(m => {
@@ -792,7 +929,21 @@ export default function App() {
             customLabelAway,
             fixedStakeAmount,
             isFeatured,
-            featuredTag
+            featuredTag,
+            oddsHome: oddsHome !== undefined ? oddsHome : m.oddsHome,
+            oddsDraw: oddsDraw !== undefined ? oddsDraw : m.oddsDraw,
+            oddsAway: oddsAway !== undefined ? oddsAway : m.oddsAway,
+            isFeaturedBet: isFeaturedBet !== undefined ? isFeaturedBet : m.isFeaturedBet,
+            featuredBetMultiplier: featuredBetMultiplier !== undefined ? featuredBetMultiplier : m.featuredBetMultiplier,
+            featuredBetLabel: featuredBetLabel !== undefined ? featuredBetLabel : m.featuredBetLabel,
+            matchImage: matchImage !== undefined ? matchImage : m.matchImage,
+            adTitle: adTitle !== undefined ? adTitle : m.adTitle,
+            adDescription: adDescription !== undefined ? adDescription : m.adDescription,
+            adBadge: adBadge !== undefined ? adBadge : m.adBadge,
+            isAdFeatured: isAdFeatured !== undefined ? isAdFeatured : m.isAdFeatured,
+            isBettingClosed: isBettingClosed !== undefined ? isBettingClosed : m.isBettingClosed,
+            bettingStatus: bettingStatus !== undefined ? bettingStatus : m.bettingStatus,
+            bettingNote: bettingNote !== undefined ? bettingNote : m.bettingNote
           };
           if (selectedMatch?.id === matchId) {
             setSelectedMatch(updated);
@@ -930,14 +1081,20 @@ export default function App() {
   };
 
   const handleAdminDeleteBet = (betId: string) => {
+    handleCancelBet(betId);
+  };
+
+  const handleCancelBet = (betId: string) => {
     setBets(prev => {
-      const betToDelete = prev.find(b => b.id === betId);
-      if (betToDelete && betToDelete.status === 'pending') {
-        // Refund pending bet coins to user
+      const betToCancel = prev.find(b => b.id === betId);
+      if (!betToCancel) return prev;
+
+      // Refund pending bet coins to user
+      if (betToCancel.status === 'pending') {
         setAllUsers(uList => {
           const uNext = uList.map(u => {
-            if (u.id === betToDelete.userId) {
-              const updated = { ...u, balance: u.balance + betToDelete.amount };
+            if (u.id === betToCancel.userId) {
+              const updated = { ...u, balance: u.balance + betToCancel.amount };
               if (currentUser?.id === u.id) {
                 setCurrentUser(updated);
                 localStorage.setItem('stad_active_user', JSON.stringify(updated));
@@ -949,6 +1106,12 @@ export default function App() {
           localStorage.setItem('stad_users', JSON.stringify(uNext));
           return uNext;
         });
+
+        triggerNotification(
+          '🔄 تم إلغاء الرهان المعلق بنجاح',
+          `تم إلغاء توقعك المعلق على مباراة (${betToCancel.teamHome} × ${betToCancel.teamAway}) وإعادة ${betToCancel.amount.toLocaleString()} 🪙 كوينز إلى محفظتك.`,
+          'bet'
+        );
       }
 
       const next = prev.filter(b => b.id !== betId);
@@ -978,8 +1141,12 @@ export default function App() {
       return;
     }
 
-    if (currentUser.balance < stakeAmount) {
-      alert('رصيدك الافتراضي غير كافٍ لهذا الرهان! يرجى شحن الكوينز أو طلب هدايا.');
+    if (currentUser.balance < stakeAmount || stakeAmount <= 0) {
+      triggerNotification(
+        '🔴 رصيد غير كافٍ',
+        `عذراً، رصيدك المالي (${currentUser.balance} 🪙) غير كافٍ للاشتراك بالرهان بمبلغ ${stakeAmount} 🪙. يرجى تقديم طلب شحن رصيد أولاً.`,
+        'system'
+      );
       return;
     }
 
@@ -1037,8 +1204,8 @@ export default function App() {
     });
 
     triggerNotification(
-      '🎯 تم الاشتراك بالرهان العام بنجاح',
-      `تم تسجيل رهانك بمبلغ ${stakeAmount} 🪙 في تحدي "${offer.title}". خيارك: ${outcomeLabel} (معامل x${offer.odds}).`,
+      '⚡ تمت الموافقة التلقائية والاشتراك بالرهان العام',
+      `تمت الموافقة التلقائية وتثبيت رهانك بمبلغ ${stakeAmount} 🪙 في تحدي "${offer.title}". الخيار: ${outcomeLabel} (معامل x${offer.odds}).`,
       'bet'
     );
   };
@@ -1230,6 +1397,9 @@ export default function App() {
             onPlaceQuickBet={handlePlaceQuickBet}
             currentUser={currentUser}
             leagueStandings={leagueStandings}
+            sportsCategories={sportsCategories}
+            onTriggerToast={triggerToast}
+            onTriggerNotification={triggerNotification}
           />
         )}
 
@@ -1265,6 +1435,10 @@ export default function App() {
             depositRequests={depositRequests}
             onOpenWithdrawModal={() => setIsWithdrawOpen(true)}
             withdrawalRequests={withdrawalRequests}
+            guideCategories={guideCategories}
+            onOpenAdminGuideEdit={() => setActiveTab('admin')}
+            onNavigateTab={handleTabSelect}
+            onCancelBet={handleCancelBet}
           />
         )}
 
@@ -1300,6 +1474,12 @@ export default function App() {
             leagueStandings={leagueStandings}
             onUpdateLeagueStandings={handleUpdateLeagueStandings}
             onClearDemoData={handleClearDemoData}
+            sportsCategories={sportsCategories}
+            onAddSportCategory={handleAddSportCategory}
+            onUpdateSportCategory={handleUpdateSportCategory}
+            onDeleteSportCategory={handleDeleteSportCategory}
+            guideCategories={guideCategories}
+            onUpdateGuideCategories={handleUpdateGuideCategories}
           />
         )}
 
@@ -1352,10 +1532,10 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 space-y-3">
           <div className="flex justify-center gap-2 items-center text-zinc-400 font-bold">
             <Trophy className="h-4 w-4 text-emerald-400" />
-            <span>منصة مينوو AI الافتراضية © 2026</span>
+            <span>منصة مينوو الرياضية © 2026</span>
           </div>
           <p className="max-w-md mx-auto leading-relaxed">
-            جميع البيانات، الأخبار، الإحصائيات، الرهانات، والأرصدة الظاهرة في هذا التطبيق هي محاكاة افتراضية لأغراض التسلية وتجربة دمج الذكاء الاصطناعي الأرضي. لا وجود لأي معاملات مالية حقيقية.
+            منصة مينوو الرياضية المتكاملة لتوقع النتائج والمنافسات وتحديات الرياضة الرسمية. جميع الحقوق محفوظة © 2026.
           </p>
         </div>
       </footer>

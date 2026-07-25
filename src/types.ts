@@ -55,9 +55,16 @@ export interface StrategicTipsData {
   tips: StrategicTipItem[];
 }
 
+export interface SportCategory {
+  id: string;
+  name: string;
+  icon?: string;
+  description?: string;
+}
+
 export interface Match {
   id: string;
-  sport: 'football' | 'basketball' | 'tennis';
+  sport: string;
   teamHome: string;
   teamAway: string;
   logoHome: string;
@@ -79,7 +86,18 @@ export interface Match {
   fixedStakeAmount?: number;
   isFeatured?: boolean;
   featuredTag?: string;
+  isFeaturedBet?: boolean;
+  featuredBetMultiplier?: number;
+  featuredBetLabel?: string;
   headToHead?: HeadToHeadData;
+  matchImage?: string;
+  adTitle?: string;
+  adDescription?: string;
+  adBadge?: string;
+  isAdFeatured?: boolean;
+  isBettingClosed?: boolean;
+  bettingStatus?: 'open' | 'closed' | 'suspended';
+  bettingNote?: string;
 }
 
 export interface Bet {
@@ -91,6 +109,9 @@ export interface Bet {
   selectedOutcome: 'home' | 'draw' | 'away';
   amount: number;
   odds: number;
+  baseOdds?: number;
+  featuredMultiplierApplied?: number;
+  isFeaturedBet?: boolean;
   status: 'pending' | 'won' | 'lost';
   payout: number;
   placedAt: string;
@@ -185,5 +206,23 @@ export interface LeagueStandingItem {
   form?: string[]; // e.g. ['W', 'W', 'D', 'W', 'L']
   isSecuredLeader?: boolean;
   securityNote?: string;
+}
+
+export interface GuideStep {
+  id: string;
+  title: string;
+  content: string;
+  icon?: string;
+  badgeText?: string;
+  actionType?: 'deposit' | 'public_bets' | 'events' | 'withdraw' | 'none';
+  actionLabel?: string;
+}
+
+export interface GuideCategory {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  steps: GuideStep[];
 }
 
