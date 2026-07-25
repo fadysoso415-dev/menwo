@@ -1,68 +1,18 @@
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
+npm install firebase
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
 
-    // Helper functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyD7vfU7WaKH2ncruoqSV4SpD9QK-RwLHME",
+  authDomain: "tidy-phosphene-098sv.firebaseapp.com",
+  projectId: "tidy-phosphene-098sv",
+  storageBucket: "tidy-phosphene-098sv.firebasestorage.app",
+  messagingSenderId: "270912060182",
+  appId: "1:270912060182:web:bd4bbf4df7668d48802e37"
+};
 
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-
-    // Default deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
-    }
-
-    // Users collection
-    match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if false;
-    }
-
-    // Matches collection
-    match /matches/{matchId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    // Bets collection
-    match /bets/{betId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    // Deposit Requests
-    match /depositRequests/{requestId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    // Withdrawal Requests
-    match /withdrawalRequests/{requestId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn();
-      allow delete: if isSignedIn();
-    }
-
-    // Public Bet Offers
-    match /publicBetOffers/{offerId} {
-      allow read: if true;
-      allow write: if isSignedIn();
-    }
-
-    // Connection test document
-    match /_connection_test/{docId} {
-      allow read, write: if true;
-    }
-  }
-}
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
