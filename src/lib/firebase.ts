@@ -10,7 +10,17 @@ export const db = (firebaseConfig.firestoreDatabaseId && firebaseConfig.firestor
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId) 
   : getFirestore(app);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+
+export async function signInWithGoogle() {
+  try {
+    const googleProvider = new GoogleAuthProvider();
+    const result = await signInWithPopup(auth, googleProvider);
+    return result.user;
+  } catch (error) {
+    console.error("Google sign in error:", error);
+    throw error;
+  }
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -70,16 +80,6 @@ async function testConnection() {
 }
 
 testConnection();
-
-export async function signInWithGoogle() {
-  try {
-    const result = await signInWithPopup(auth, googleProvider);
-    return result.user;
-  } catch (error) {
-    console.error("Google sign in error:", error);
-    throw error;
-  }
-}
 
 export async function logoutUser() {
   try {

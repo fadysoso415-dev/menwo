@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { User, Bet, Notification, DepositRequest, WithdrawalRequest, Match, GuideCategory } from '../types';
+import UserActiveBetsList from './UserActiveBetsList';
 
 interface GlassBalanceCardProps {
   balance: number;
@@ -191,7 +192,16 @@ import {
   Cell, 
   ResponsiveContainer, 
   Tooltip as RechartsTooltip, 
-  Legend 
+  Legend,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  BarChart,
+  Bar,
+  ReferenceLine,
+  ComposedChart
 } from 'recharts';
 import { 
   Coins, 
@@ -225,9 +235,95 @@ import {
   HelpCircle,
   ExternalLink,
   AlertTriangle,
-  ArrowRight,
-  ArrowLeft
+  ChevronRight,
+  ChevronLeft,
+  LogOut,
+  Lock,
+  Eye,
+  EyeOff
 } from 'lucide-react';
+
+function CustomWeeklyTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-zinc-950/95 border border-emerald-500/40 p-3.5 rounded-2xl shadow-2xl text-right dir-rtl backdrop-blur-md space-y-2 min-w-[210px] z-50">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+          <span className="text-xs font-black text-white flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+            <span>{data.dayLabel}</span>
+          </span>
+          <span className="text-[10px] text-zinc-500 font-mono">{data.fullDateStr}</span>
+        </div>
+
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-zinc-400 font-medium">الربح/الخسارة اليومية:</span>
+            <span className={`font-black ${data.dailyProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {data.dailyProfit >= 0 ? `+${data.dailyProfit}` : data.dailyProfit} 🪙
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center bg-zinc-900/80 p-1.5 rounded-lg border border-zinc-800">
+            <span className="text-zinc-300 font-bold">التراكمي للأسبوع:</span>
+            <span className={`font-black ${data.cumulativeProfit >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+              {data.cumulativeProfit >= 0 ? `+${data.cumulativeProfit}` : data.cumulativeProfit} 🪙
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1 text-[10px] pt-1 text-zinc-400 border-t border-zinc-800/80">
+            <div>الرهانات: {data.wonCount + data.lostCount + data.pendingCount}</div>
+            <div>المبلغ: {data.stakedAmount} 🪙</div>
+            <div className="text-emerald-400 font-bold">فوز: {data.wonCount}</div>
+            <div className="text-red-400 font-bold">خسارة: {data.lostCount}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
+
+function CustomMonthlyTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-zinc-950/95 border border-amber-500/40 p-3.5 rounded-2xl shadow-2xl text-right dir-rtl backdrop-blur-md space-y-2 min-w-[220px] z-50">
+        <div className="flex items-center justify-between border-b border-zinc-800 pb-1.5">
+          <span className="text-xs font-black text-white flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-amber-400" />
+            <span>اليوم: {data.dayLabel}</span>
+          </span>
+          <span className="text-[10px] text-zinc-500 font-mono">{data.fullDateStr}</span>
+        </div>
+
+        <div className="space-y-1.5 text-xs">
+          <div className="flex justify-between items-center">
+            <span className="text-zinc-400 font-medium">الربح/الخسارة اليومية:</span>
+            <span className={`font-black ${data.dailyProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {data.dailyProfit >= 0 ? `+${data.dailyProfit}` : data.dailyProfit} 🪙
+            </span>
+          </div>
+
+          <div className="flex justify-between items-center bg-zinc-900/80 p-1.5 rounded-lg border border-zinc-800">
+            <span className="text-zinc-300 font-bold">التراكمي للشهر:</span>
+            <span className={`font-black ${data.cumulativeProfit >= 0 ? 'text-amber-400' : 'text-red-400'}`}>
+              {data.cumulativeProfit >= 0 ? `+${data.cumulativeProfit}` : data.cumulativeProfit} 🪙
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-1 text-[10px] pt-1 text-zinc-400 border-t border-zinc-800/80">
+            <div>الرهانات: {data.wonCount + data.lostCount + data.pendingCount}</div>
+            <div>السيولة: {data.stakedAmount} 🪙</div>
+            <div className="text-emerald-400 font-bold">فوز: {data.wonCount}</div>
+            <div className="text-red-400 font-bold">خسارة: {data.lostCount}</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return null;
+}
 
 interface UserDashboardProps {
   currentUser: User;
@@ -248,6 +344,7 @@ interface UserDashboardProps {
   onOpenAdminGuideEdit?: () => void;
   onNavigateTab?: (tab: string) => void;
   onCancelBet?: (betId: string) => void;
+  onLogout?: () => void;
 }
 
 export default function UserDashboard({
@@ -268,17 +365,24 @@ export default function UserDashboard({
   guideCategories = [],
   onOpenAdminGuideEdit,
   onNavigateTab,
-  onCancelBet
+  onCancelBet,
+  onLogout
 }: UserDashboardProps) {
   const { t, dir } = useLanguage();
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileEmail, setProfileEmail] = useState(currentUser.email);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [showEditSuccess, setShowEditSuccess] = useState(false);
   const [betFilter, setBetFilter] = useState<'all' | 'pending' | 'won' | 'lost'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'highestAmount' | 'highestPayout' | 'highestOdds'>('newest');
   const [depositAmount, setDepositAmount] = useState<number>(500);
   const [chartType, setChartType] = useState<'outcome' | 'status'>('outcome');
+  const [weeklyChartViewMode, setWeeklyChartViewMode] = useState<'composed' | 'area' | 'bar'>('composed');
+  const [monthlyChartViewMode, setMonthlyChartViewMode] = useState<'composed' | 'area' | 'bar'>('composed');
   const [activeSection, setActiveSection] = useState<'dashboard' | 'guide'>('dashboard');
   const [betToCancelConfirm, setBetToCancelConfirm] = useState<Bet | null>(null);
 
@@ -290,6 +394,178 @@ export default function UserDashboard({
   const totalPayout = userBets.reduce((acc, b) => acc + (b.status === 'won' ? b.payout : 0), 0);
   const totalInvested = userBets.reduce((acc, b) => acc + b.amount, 0);
   const netProfit = totalPayout - totalInvested;
+
+  // Weekly Profit & Loss Recharts Data Calculation (past 7 days)
+  const getWeeklyProfitLossData = () => {
+    const days: Array<{
+      dayLabel: string;
+      fullDateStr: string;
+      dailyProfit: number;
+      cumulativeProfit: number;
+      stakedAmount: number;
+      wonPayout: number;
+      wonCount: number;
+      lostCount: number;
+      pendingCount: number;
+    }> = [];
+
+    const now = new Date();
+    let runningCumulative = 0;
+
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKeyStr = `${year}-${month}-${day}`;
+
+      const dayName = d.toLocaleDateString('ar-EG', { weekday: 'short' });
+      const dayFormatted = `${dayName} ${d.getDate()}/${d.getMonth() + 1}`;
+
+      const dayBets = userBets.filter(b => {
+        if (!b.placedAt) return false;
+        const bDate = new Date(b.placedAt);
+        return (
+          bDate.getFullYear() === d.getFullYear() &&
+          bDate.getMonth() === d.getMonth() &&
+          bDate.getDate() === d.getDate()
+        );
+      });
+
+      let dailyStaked = 0;
+      let dailyPayout = 0;
+      let dailyProfit = 0;
+      let wonCount = 0;
+      let lostCount = 0;
+      let pendingCount = 0;
+
+      dayBets.forEach(b => {
+        dailyStaked += b.amount;
+        if (b.status === 'won') {
+          wonCount++;
+          dailyPayout += b.payout;
+          dailyProfit += (b.payout - b.amount);
+        } else if (b.status === 'lost') {
+          lostCount++;
+          dailyProfit -= b.amount;
+        } else if (b.status === 'pending') {
+          pendingCount++;
+        }
+      });
+
+      runningCumulative += dailyProfit;
+
+      days.push({
+        dayLabel: dayFormatted,
+        fullDateStr: dateKeyStr,
+        dailyProfit,
+        cumulativeProfit: runningCumulative,
+        stakedAmount: dailyStaked,
+        wonPayout: dailyPayout,
+        wonCount,
+        lostCount,
+        pendingCount
+      });
+    }
+
+    return days;
+  };
+
+  const weeklyChartData = getWeeklyProfitLossData();
+  const weeklyTotalNetProfit = weeklyChartData.reduce((acc, d) => acc + d.dailyProfit, 0);
+  const weeklyTotalStaked = weeklyChartData.reduce((acc, d) => acc + d.stakedAmount, 0);
+  const weeklyWonBets = weeklyChartData.reduce((acc, d) => acc + d.wonCount, 0);
+  const weeklyLostBets = weeklyChartData.reduce((acc, d) => acc + d.lostCount, 0);
+  const hasWeeklyBets = weeklyChartData.some(d => d.wonCount > 0 || d.lostCount > 0 || d.pendingCount > 0);
+  const bestDay = [...weeklyChartData].sort((a, b) => b.dailyProfit - a.dailyProfit)[0];
+
+  // Monthly Profit & Loss Recharts Data Calculation (past 30 days)
+  const getMonthlyProfitLossData = () => {
+    const days: Array<{
+      dayLabel: string;
+      fullDateStr: string;
+      dailyProfit: number;
+      cumulativeProfit: number;
+      stakedAmount: number;
+      wonPayout: number;
+      wonCount: number;
+      lostCount: number;
+      pendingCount: number;
+    }> = [];
+
+    const now = new Date();
+    let runningCumulative = 0;
+
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now);
+      d.setDate(d.getDate() - i);
+      
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const dateKeyStr = `${year}-${month}-${day}`;
+
+      const dayFormatted = `${d.getDate()}/${d.getMonth() + 1}`;
+
+      const dayBets = userBets.filter(b => {
+        if (!b.placedAt) return false;
+        const bDate = new Date(b.placedAt);
+        return (
+          bDate.getFullYear() === d.getFullYear() &&
+          bDate.getMonth() === d.getMonth() &&
+          bDate.getDate() === d.getDate()
+        );
+      });
+
+      let dailyStaked = 0;
+      let dailyPayout = 0;
+      let dailyProfit = 0;
+      let wonCount = 0;
+      let lostCount = 0;
+      let pendingCount = 0;
+
+      dayBets.forEach(b => {
+        dailyStaked += b.amount;
+        if (b.status === 'won') {
+          wonCount++;
+          dailyPayout += b.payout;
+          dailyProfit += (b.payout - b.amount);
+        } else if (b.status === 'lost') {
+          lostCount++;
+          dailyProfit -= b.amount;
+        } else if (b.status === 'pending') {
+          pendingCount++;
+        }
+      });
+
+      runningCumulative += dailyProfit;
+
+      days.push({
+        dayLabel: dayFormatted,
+        fullDateStr: dateKeyStr,
+        dailyProfit,
+        cumulativeProfit: runningCumulative,
+        stakedAmount: dailyStaked,
+        wonPayout: dailyPayout,
+        wonCount,
+        lostCount,
+        pendingCount
+      });
+    }
+
+    return days;
+  };
+
+  const monthlyChartData = getMonthlyProfitLossData();
+  const monthlyTotalNetProfit = monthlyChartData.reduce((acc, d) => acc + d.dailyProfit, 0);
+  const monthlyTotalStaked = monthlyChartData.reduce((acc, d) => acc + d.stakedAmount, 0);
+  const monthlyWonBets = monthlyChartData.reduce((acc, d) => acc + d.wonCount, 0);
+  const monthlyLostBets = monthlyChartData.reduce((acc, d) => acc + d.lostCount, 0);
+  const hasMonthlyBets = monthlyChartData.some(d => d.wonCount > 0 || d.lostCount > 0 || d.pendingCount > 0);
+  const monthlyBestDay = [...monthlyChartData].sort((a, b) => b.dailyProfit - a.dailyProfit)[0];
+  const monthlyRoi = monthlyTotalStaked > 0 ? ((monthlyTotalNetProfit / monthlyTotalStaked) * 100).toFixed(1) : '0.0';
 
   // Recharts Pie Chart Datasets
   // 1. Distribution by Selected Outcome (نوع التوقع الخياري: فوز المضيف / التعادل / فوز الضيف)
@@ -317,7 +593,7 @@ export default function UserDashboard({
   const activePieData = chartType === 'outcome' ? outcomePieData : statusPieData;
 
   // Community Predictions Logic for Active Matches
-  const activeCommunityMatches = matches && matches.length > 0 ? matches : [];
+  const activeCommunityMatches = matches ? matches.filter(m => m.status !== 'finished') : [];
   const [selectedMatchId, setSelectedMatchId] = useState<string>(activeCommunityMatches[0]?.id || '');
 
   useEffect(() => {
@@ -365,12 +641,30 @@ export default function UserDashboard({
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onUpdateProfile({
+    setPasswordError('');
+
+    if (newPassword || confirmPassword) {
+      if (newPassword.length < 6) {
+        setPasswordError('كلمة المرور يجب أن لا تقل عن 6 أحرف');
+        return;
+      }
+      if (newPassword !== confirmPassword) {
+        setPasswordError('كلمتا المرور غير متطابقتين');
+        return;
+      }
+    }
+
+    const updatedUser: User = {
       ...currentUser,
       name: profileName,
       email: profileEmail,
-    });
+      ...(newPassword ? { password: newPassword } : {})
+    };
+
+    onUpdateProfile(updatedUser);
     setShowEditSuccess(true);
+    setNewPassword('');
+    setConfirmPassword('');
     setTimeout(() => setShowEditSuccess(false), 3000);
   };
 
@@ -508,7 +802,7 @@ export default function UserDashboard({
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
               id="guide-back-to-dash-btn"
             >
-              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
               <span>الرجوع للوحة التحكم الإحصائية</span>
             </button>
             <span className="text-xs text-zinc-400 font-semibold">دليل التعليمات والإرشادات</span>
@@ -530,9 +824,23 @@ export default function UserDashboard({
         {/* Profile Card & Settings */}
         <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 flex flex-col justify-between">
           <div className="space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
-              <UserIcon className="h-4.5 w-4.5 text-emerald-400" />
-              <span>الملف الشخصي والبيانات</span>
+            <h3 className="text-base font-bold text-white flex items-center justify-between border-b border-zinc-900 pb-3">
+              <div className="flex items-center gap-1.5">
+                <UserIcon className="h-4.5 w-4.5 text-emerald-400" />
+                <span>الملف الشخصي والبيانات</span>
+              </div>
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer active:scale-95"
+                  id="dash-header-logout-btn"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  <span>خروج</span>
+                </button>
+              )}
             </h3>
 
             <div className="flex items-center gap-4 py-2">
@@ -569,6 +877,7 @@ export default function UserDashboard({
                   onChange={(e) => setProfileName(e.target.value)}
                   className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                   id="profile-name-input"
+                  required
                 />
               </div>
               <div>
@@ -579,24 +888,92 @@ export default function UserDashboard({
                   onChange={(e) => setProfileEmail(e.target.value)}
                   className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
                   id="profile-email-input"
+                  required
                 />
               </div>
 
+              {/* Password change fields */}
+              <div className="pt-2 border-t border-zinc-900 space-y-2.5">
+                <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-bold">
+                  <Lock className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>تغيير كلمة المرور (اختياري)</span>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">كلمة المرور الجديدة</label>
+                  <div className="relative">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      value={newPassword}
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        if (passwordError) setPasswordError('');
+                      }}
+                      placeholder="أدخل كلمة المرور الجديدة (6 أحرف على الأقل)"
+                      className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none pl-9"
+                      id="profile-new-password-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors p-1"
+                      title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                    >
+                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">تأكيد كلمة المرور الجديدة</label>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={confirmPassword}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      if (passwordError) setPasswordError('');
+                    }}
+                    placeholder="أعد كتابة كلمة المرور الجديدة"
+                    className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+                    id="profile-confirm-password-input"
+                  />
+                </div>
+              </div>
+
+              {passwordError && (
+                <p className="text-xs text-red-400 font-bold flex items-center gap-1 bg-red-500/10 border border-red-500/20 p-2 rounded-lg">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{passwordError}</span>
+                </p>
+              )}
+
               {showEditSuccess && (
-                <p className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                  <Check className="h-3.5 w-3.5" />
-                  <span>تم حفظ البيانات الشخصية بنجاح!</span>
+                <p className="text-xs text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">
+                  <Check className="h-3.5 w-3.5 shrink-0" />
+                  <span>تم حفظ البيانات وتحديث معلومات الحساب بنجاح!</span>
                 </p>
               )}
 
               <button 
                 type="submit" 
-                className="w-full rounded-lg bg-zinc-900 border border-zinc-800 text-xs font-bold text-zinc-200 py-2 hover:bg-zinc-800 hover:text-white transition-colors"
+                className="w-full rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-bold text-emerald-400 py-2.5 transition-all cursor-pointer active:scale-98"
                 id="save-profile-btn"
               >
                 تحديث معلومات الحساب
               </button>
             </form>
+
+            {onLogout && (
+              <button
+                type="button"
+                onClick={onLogout}
+                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs transition-all cursor-pointer active:scale-98 shadow-sm"
+                id="dashboard-full-logout-btn"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>تسجيل الخروج من الحساب</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1019,209 +1396,431 @@ export default function UserDashboard({
 
       </div>
 
-      {/* 2. Previous Bets Log (الرهانات السابقة) */}
-      <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">
+      {/* Section 1.6: Weekly Profit & Loss Evolution Recharts Chart (تطور أرباح وخسائر الأسبوع الماضي) */}
+      <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-5 shadow-2xl relative overflow-hidden" id="weekly-profit-loss-chart-section">
+        
+        {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-zinc-900 pb-4 gap-4">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
-              <Clock className="h-5 w-5 text-emerald-400" />
-              <span>سجل الرهانات والمحاكاة السابقة</span>
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">تتبع نتائج جميع توقعاتك، فلترها حسب النتيجة، وابحث بأسماء الفرق</p>
-          </div>
-
-          {/* Quick Metrics Bar for Active Filter */}
-          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-zinc-400">
-            <span className="bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800 flex items-center gap-1">
-              <Filter className="h-3 w-3 text-emerald-400" />
-              <span>العدد: <strong className="text-white">{filteredBets.length}</strong></span>
-            </span>
-            <span className="bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
-              استثمار: <strong className="text-amber-400">{filteredTotalInvested.toLocaleString()} 🪙</strong>
-            </span>
-            <span className="bg-zinc-900 px-2.5 py-1 rounded-lg border border-zinc-800">
-              مسترجع: <strong className="text-emerald-400">{filteredTotalPayout.toLocaleString()} 🪙</strong>
-            </span>
-          </div>
-        </div>
-
-        {/* Filter and Search Controls Bar */}
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-zinc-900/40 p-3 rounded-xl border border-zinc-900">
-          
-          {/* Search Box */}
-          <div className="md:col-span-5 relative">
-            <Search className="h-4 w-4 text-zinc-500 absolute right-3 top-2.5" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="ابحث باسم الفريق أو النتيجة أو التوقع..."
-              className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pr-9 pl-8 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              id="search-bets-input"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute left-2.5 top-2.5 text-zinc-500 hover:text-white"
-                title="مسح البحث"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Status Tabs */}
-          <div className="md:col-span-4 flex items-center gap-1 bg-zinc-950 p-1 rounded-lg border border-zinc-800 overflow-x-auto">
-            {[
-              { id: 'all', label: 'الكل' },
-              { id: 'pending', label: 'قيد الانتظار' },
-              { id: 'won', label: 'فائز 🟢' },
-              { id: 'lost', label: 'خاسر 🔴' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setBetFilter(tab.id as any)}
-                className={`flex-1 min-w-[65px] px-2 py-1 rounded text-[11px] font-semibold transition-all text-center whitespace-nowrap ${
-                  betFilter === tab.id 
-                    ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold' 
-                    : 'text-zinc-400 hover:text-white'
-                }`}
-                id={`bet-filter-${tab.id}`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Sort By Dropdown & Reset */}
-          <div className="md:col-span-3 flex items-center gap-2">
-            <div className="relative flex-1">
-              <ArrowUpDown className="h-3.5 w-3.5 text-zinc-500 absolute right-2.5 top-2.5 pointer-events-none" />
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pr-8 pl-2 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500 appearance-none cursor-pointer"
-                id="sort-bets-select"
-              >
-                <option value="newest">التاريخ: الأحدث أولاً</option>
-                <option value="oldest">التاريخ: الأقدم أولاً</option>
-                <option value="highestAmount">المبلغ: الأعلى أولاً</option>
-                <option value="highestPayout">العائد: الأعلى أولاً</option>
-                <option value="highestOdds">الاحتمال: الأعلى أولاً</option>
-              </select>
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 border border-emerald-500/30 text-emerald-400 shadow-lg shadow-emerald-500/10">
+              <BarChart3 className="h-6 w-6 animate-pulse" />
             </div>
-
-            {isFiltersActive && (
-              <button
-                onClick={() => {
-                  setBetFilter('all');
-                  setSearchQuery('');
-                  setSortBy('newest');
-                }}
-                className="p-1.5 rounded-lg bg-zinc-950 border border-zinc-800 text-zinc-400 hover:text-amber-400 hover:border-amber-500/30 transition-colors flex items-center gap-1 text-xs"
-                title="إعادة ضبط الفلاتر"
-                id="reset-bets-filters-btn"
-              >
-                <RotateCcw className="h-3.5 w-3.5" />
-              </button>
-            )}
+            <div>
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <span>تطور أرباح وخسائر الأسبوع الماضي</span>
+                <span className="text-[10px] font-black text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Recharts 📊
+                </span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5 font-medium">
+                رسم بياني تفاعلي يوضح المنحنى الزمني اليومي والأرباح التراكمية لرهاناتك خلال آخر 7 أيام
+              </p>
+            </div>
           </div>
 
+          {/* View Mode Switcher */}
+          <div className="flex items-center gap-1.5 bg-zinc-900/90 p-1.5 rounded-xl border border-zinc-800 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setWeeklyChartViewMode('composed')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                weeklyChartViewMode === 'composed'
+                  ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="weekly-chart-composed-btn"
+            >
+              شامل (بارات + مساحة)
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeeklyChartViewMode('area')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                weeklyChartViewMode === 'area'
+                  ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="weekly-chart-area-btn"
+            >
+              المساحة التراكمية
+            </button>
+            <button
+              type="button"
+              onClick={() => setWeeklyChartViewMode('bar')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                weeklyChartViewMode === 'bar'
+                  ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="weekly-chart-bar-btn"
+            >
+              الربح اليومي (بارات)
+            </button>
+          </div>
         </div>
 
-        {/* Bets list/table */}
-        {filteredBets.length > 0 ? (
-          <div className="overflow-x-auto rounded-xl border border-zinc-900">
-            <table className="w-full text-right border-collapse text-xs">
-              <thead>
-                <tr className="bg-zinc-900/60 border-b border-zinc-900 text-zinc-400 font-medium">
-                  <th className="py-3 px-4">تفاصيل المباراة</th>
-                  <th className="py-3 px-4">الرهان المختار</th>
-                  <th className="py-3 px-4 text-center">المبلغ المستثمر</th>
-                  <th className="py-3 px-4 text-center">الاحتمالات (Odds)</th>
-                  <th className="py-3 px-4 text-center">الربح المتوقع / المحقق</th>
-                  <th className="py-3 px-4 text-center">النتيجة الفعلية</th>
-                  <th className="py-3 px-4 text-center">الحالة</th>
-                  <th className="py-3 px-4 text-center">الإجراءات</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-900/60 text-zinc-300">
-                {filteredBets.map(bet => {
-                  return (
-                    <tr key={bet.id} className="hover:bg-zinc-900/30 transition-colors">
-                      <td className="py-3.5 px-4 font-bold text-white">
-                        {bet.teamHome} <span className="text-zinc-600 px-1">×</span> {bet.teamAway}
-                      </td>
-                      <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-300 text-[11px] font-semibold">
-                          {bet.selectedOutcome === 'home' ? `فوز ${bet.teamHome}` : bet.selectedOutcome === 'away' ? `فوز ${bet.teamAway}` : 'التعادل'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-semibold text-zinc-300">
-                        {bet.amount.toLocaleString()} 🪙
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-bold text-zinc-400">
-                        {bet.odds.toFixed(2)}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-semibold text-amber-400">
-                        {bet.status === 'won' ? `${bet.payout.toLocaleString()} 🪙` : bet.status === 'pending' ? `${Math.round(bet.amount * bet.odds).toLocaleString()} 🪙` : '0 🪙'}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-mono font-bold text-zinc-200">
-                        {bet.matchScore || '-- : --'}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                          bet.status === 'won' 
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                            : bet.status === 'lost' 
-                            ? 'bg-red-500/10 text-red-400 border border-red-500/20' 
-                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse'
-                        }`}>
-                          {bet.status === 'won' ? 'فائز 🟢' : bet.status === 'lost' ? 'خاسر 🔴' : 'موافق عليه تلقائياً ⚡ (بانتظار النتيجة)'}
-                        </span>
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        {bet.status === 'pending' ? (
-                          <button
-                            type="button"
-                            onClick={() => setBetToCancelConfirm(bet)}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 text-[11px] font-bold transition-all cursor-pointer hover:scale-105 active:scale-95 shadow-sm"
-                            title="إلغاء هذا الرهان المعلق واسترجاع الكوينز"
-                            id={`cancel-bet-btn-${bet.id}`}
-                          >
-                            <Trash2 className="h-3.5 w-3.5 shrink-0" />
-                            <span>إلغاء الرهان</span>
-                          </button>
-                        ) : (
-                          <span className="text-[10px] text-zinc-600 font-semibold">مكتمل</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Quick Metrics Bar */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">صافي أرباح الأسبوع</span>
+            <span className={`text-lg font-black ${weeklyTotalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {weeklyTotalNetProfit >= 0 ? `+${weeklyTotalNetProfit}` : weeklyTotalNetProfit} 🪙
+            </span>
           </div>
-        ) : (
-          <div className="text-center py-12 bg-zinc-900/20 rounded-xl border border-zinc-900 text-zinc-500 text-sm space-y-2">
-            <Filter className="h-8 w-8 text-zinc-700 mx-auto" />
-            <p className="text-zinc-400 font-semibold">لا توجد رهانات سابقة مطابقة للتصفية أو البحث الحالي.</p>
-            {isFiltersActive && (
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">أفضل يوم أرباح</span>
+            <span className="text-xs font-black text-amber-400 block truncate">
+              {bestDay && bestDay.dailyProfit > 0 ? `${bestDay.dayLabel} (+${bestDay.dailyProfit}🪙)` : 'لا توجد أرباح'}
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">سيولة رهانات الأسبوع</span>
+            <span className="text-lg font-black text-white">{weeklyTotalStaked} 🪙</span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">نتائج صفقات الأسبوع</span>
+            <span className="text-xs font-black text-emerald-400 flex items-center justify-center gap-1">
+              <span>{weeklyWonBets} فوز</span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-red-400">{weeklyLostBets} خسارة</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Notice if no bets placed in past 7 days */}
+        {!hasWeeklyBets && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 p-3 rounded-xl text-xs font-semibold flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span>لم تقم بوضع رهانات خلال السبعة أيام الماضية. يظهر الرسم البياني خط الأساس الصفري للنشاط اليومي.</span>
+            </div>
+            {onNavigateTab && (
               <button
-                onClick={() => {
-                  setBetFilter('all');
-                  setSearchQuery('');
-                  setSortBy('newest');
-                }}
-                className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:underline mt-2 font-bold"
+                type="button"
+                onClick={() => onNavigateTab('events')}
+                className="px-3 py-1 bg-amber-500 text-zinc-950 font-black rounded-lg text-[11px] shrink-0 hover:bg-amber-400 transition-all cursor-pointer"
               >
-                <RotateCcw className="h-3.5 w-3.5" />
-                <span>إلغاء البحث وإظهار كافة الرهانات</span>
+                تصفح المباريات والرهانات ⚽
               </button>
             )}
           </div>
         )}
+
+        {/* Recharts Chart Canvas Container */}
+        <div className="h-72 w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            {weeklyChartViewMode === 'area' ? (
+              <AreaChart data={weeklyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="areaProfitGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.5}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomWeeklyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Area
+                  type="monotone"
+                  dataKey="cumulativeProfit"
+                  name="التراكمي"
+                  stroke="#10b981"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#areaProfitGrad)"
+                />
+              </AreaChart>
+            ) : weeklyChartViewMode === 'bar' ? (
+              <BarChart data={weeklyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomWeeklyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Bar dataKey="dailyProfit" name="الربح اليومي" radius={[6, 6, 0, 0]} maxBarSize={36}>
+                  {weeklyChartData.map((entry, index) => (
+                    <Cell key={`bar-cell-${index}`} fill={entry.dailyProfit >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <ComposedChart data={weeklyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="composedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={11} tickLine={false} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomWeeklyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Bar dataKey="dailyProfit" name="الربح اليومي" radius={[6, 6, 0, 0]} maxBarSize={28}>
+                  {weeklyChartData.map((entry, index) => (
+                    <Cell key={`composed-cell-${index}`} fill={entry.dailyProfit >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+                <Area
+                  type="monotone"
+                  dataKey="cumulativeProfit"
+                  name="التراكمي"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#composedGrad)"
+                />
+              </ComposedChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart Legend Footer */}
+        <div className="flex flex-wrap items-center justify-between border-t border-zinc-900 pt-3 text-[11px] text-zinc-400 gap-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+              <span className="text-emerald-400">أرباح يومية (+🪙)</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" />
+              <span className="text-red-400">خسائر يومية (-🪙)</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+              <span className="text-amber-400">المسار التراكمي للأسبوع</span>
+            </span>
+          </div>
+
+          <span className="text-zinc-500 text-[10px]">
+            يتم تحديث البيانات وإعادة الحساب تلقائياً مع كل رهان جديد ⚡
+          </span>
+        </div>
+
       </section>
+
+      {/* Section 1.7: Monthly Profit & Loss Evolution Recharts Chart (تاريخ أرباح وخسائر الشهر الماضي - 30 يوماً) */}
+      <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-5 shadow-2xl relative overflow-hidden" id="monthly-profit-loss-chart-section">
+        
+        {/* Top Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-zinc-900 pb-4 gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 border border-amber-500/30 text-amber-400 shadow-lg shadow-amber-500/10">
+              <Calendar className="h-6 w-6 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <span>تاريخ أرباح وخسائر الشهر الماضي (30 يوماً)</span>
+                <span className="text-[10px] font-black text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Sparkles className="h-3 w-3" /> Recharts 📊
+                </span>
+              </h3>
+              <p className="text-xs text-zinc-400 mt-0.5 font-medium">
+                سجل بياني تفاعلي شامل يوضح الأداء المالي اليومي وتطور الأرباح والخسائر التراكمية خلال آخر 30 يوماً
+              </p>
+            </div>
+          </div>
+
+          {/* View Mode Switcher */}
+          <div className="flex items-center gap-1.5 bg-zinc-900/90 p-1.5 rounded-xl border border-zinc-800 self-start md:self-auto">
+            <button
+              type="button"
+              onClick={() => setMonthlyChartViewMode('composed')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                monthlyChartViewMode === 'composed'
+                  ? 'bg-amber-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="monthly-chart-composed-btn"
+            >
+              شامل (بارات + مساحة)
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthlyChartViewMode('area')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                monthlyChartViewMode === 'area'
+                  ? 'bg-amber-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="monthly-chart-area-btn"
+            >
+              المساحة التراكمية
+            </button>
+            <button
+              type="button"
+              onClick={() => setMonthlyChartViewMode('bar')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                monthlyChartViewMode === 'bar'
+                  ? 'bg-amber-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+              id="monthly-chart-bar-btn"
+            >
+              الربح اليومي (بارات)
+            </button>
+          </div>
+        </div>
+
+        {/* Quick Metrics Bar for Month */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">صافي أرباح الشهر</span>
+            <span className={`text-lg font-black ${monthlyTotalNetProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {monthlyTotalNetProfit >= 0 ? `+${monthlyTotalNetProfit}` : monthlyTotalNetProfit} 🪙
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">عائد الاستثمار (ROI)</span>
+            <span className={`text-lg font-black ${Number(monthlyRoi) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+              {Number(monthlyRoi) >= 0 ? `+${monthlyRoi}%` : `${monthlyRoi}%`}
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">أفضل يوم في الشهر</span>
+            <span className="text-xs font-black text-amber-400 block truncate">
+              {monthlyBestDay && monthlyBestDay.dailyProfit > 0 ? `${monthlyBestDay.dayLabel} (+${monthlyBestDay.dailyProfit}🪙)` : 'لا توجد أرباح'}
+            </span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">سيولة الرهانات الشهري</span>
+            <span className="text-lg font-black text-white">{monthlyTotalStaked} 🪙</span>
+          </div>
+
+          <div className="bg-zinc-900/50 p-3 rounded-xl border border-zinc-900 text-center col-span-2 sm:col-span-1">
+            <span className="text-[10px] text-zinc-500 font-bold block mb-0.5">صفقات الشهر</span>
+            <span className="text-xs font-black text-emerald-400 flex items-center justify-center gap-1">
+              <span>{monthlyWonBets} فوز</span>
+              <span className="text-zinc-600">/</span>
+              <span className="text-red-400">{monthlyLostBets} خسارة</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Notice if no bets placed in past 30 days */}
+        {!hasMonthlyBets && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 p-3 rounded-xl text-xs font-semibold flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+              <span>لم تسجل أي نشاط رهان خلال الثلاثين يوماً الماضية. يعرض الرسم الخط الصفري المرجعي.</span>
+            </div>
+            {onNavigateTab && (
+              <button
+                type="button"
+                onClick={() => onNavigateTab('events')}
+                className="px-3 py-1 bg-amber-500 text-zinc-950 font-black rounded-lg text-[11px] shrink-0 hover:bg-amber-400 transition-all cursor-pointer"
+              >
+                المباريات والرهانات ⚽
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Recharts Chart Canvas Container */}
+        <div className="h-72 w-full pt-2">
+          <ResponsiveContainer width="100%" height="100%">
+            {monthlyChartViewMode === 'area' ? (
+              <AreaChart data={monthlyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="monthlyAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.5}/>
+                    <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={10} tickLine={false} interval={2} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomMonthlyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Area
+                  type="monotone"
+                  dataKey="cumulativeProfit"
+                  name="التراكمي الشهري"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  fillOpacity={1}
+                  fill="url(#monthlyAreaGrad)"
+                />
+              </AreaChart>
+            ) : monthlyChartViewMode === 'bar' ? (
+              <BarChart data={monthlyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={10} tickLine={false} interval={2} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomMonthlyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Bar dataKey="dailyProfit" name="الربح اليومي" radius={[4, 4, 0, 0]} maxBarSize={16}>
+                  {monthlyChartData.map((entry, index) => (
+                    <Cell key={`mbar-cell-${index}`} fill={entry.dailyProfit >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <ComposedChart data={monthlyChartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="monthlyComposedGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" vertical={false} />
+                <XAxis dataKey="dayLabel" stroke="#a1a1aa" fontSize={10} tickLine={false} interval={2} />
+                <YAxis stroke="#a1a1aa" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}🪙`} />
+                <RechartsTooltip content={<CustomMonthlyTooltip />} />
+                <ReferenceLine y={0} stroke="#52525b" strokeDasharray="3 3" />
+                <Bar dataKey="dailyProfit" name="الربح اليومي" radius={[4, 4, 0, 0]} maxBarSize={14}>
+                  {monthlyChartData.map((entry, index) => (
+                    <Cell key={`mcomposed-cell-${index}`} fill={entry.dailyProfit >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+                <Area
+                  type="monotone"
+                  dataKey="cumulativeProfit"
+                  name="التراكمي الشهري"
+                  stroke="#f59e0b"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#monthlyComposedGrad)"
+                />
+              </ComposedChart>
+            )}
+          </ResponsiveContainer>
+        </div>
+
+        {/* Chart Legend Footer */}
+        <div className="flex flex-wrap items-center justify-between border-t border-zinc-900 pt-3 text-[11px] text-zinc-400 gap-2">
+          <div className="flex items-center gap-4 flex-wrap">
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-sm bg-emerald-500 inline-block" />
+              <span className="text-emerald-400">أرباح يومية (+🪙)</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-sm bg-red-500 inline-block" />
+              <span className="text-red-400">خسائر يومية (-🪙)</span>
+            </span>
+            <span className="flex items-center gap-1.5 font-bold">
+              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block" />
+              <span className="text-amber-400">المسار التراكمي للشهر الماضي (30 يوماً)</span>
+            </span>
+          </div>
+
+          <span className="text-zinc-500 text-[10px]">
+            يتم تحديث رسم الأداء الشهري تلقائياً مع كل تغير في نتائج الرهانات ⚡
+          </span>
+        </div>
+
+      </section>
+
+      {/* 2. Active Bets List Component */}
+      <UserActiveBetsList bets={bets} currentUser={currentUser} matches={matches} />
 
       {/* 3. Notifications Feed */}
       <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">
@@ -1246,9 +1845,9 @@ export default function UserDashboard({
 
         {notifications.length > 0 ? (
           <div className="space-y-3">
-            {notifications.map(notif => (
+            {notifications.map((notif, idx) => (
               <div 
-                key={notif.id}
+                key={`${notif.id}-${idx}`}
                 onClick={() => onMarkNotificationRead(notif.id)}
                 className={`rounded-xl p-4 border transition-all flex justify-between items-start cursor-pointer ${
                   notif.read 

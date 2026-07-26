@@ -12,6 +12,31 @@ import { db, handleFirestoreError, OperationType } from './firebase';
 import { Match, Bet, User, PublicBetOffer } from '../types';
 
 /**
+ * Recursively removes properties with `undefined` values from an object or array,
+ * preventing Firestore `setDoc`/`updateDoc` failures.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data
+      .filter(item => item !== undefined)
+      .map(item => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object' && data.constructor === Object) {
+    const cleaned: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(data)) {
+      if (val !== undefined) {
+        cleaned[key] = sanitizeForFirestore(val);
+      }
+    }
+    return cleaned as T;
+  }
+  return data;
+}
+
+/**
  * Real-time Subscription for Matches in Firestore
  */
 export function subscribeToMatches(
@@ -38,7 +63,7 @@ export function subscribeToMatches(
 export async function saveMatchToFirestore(match: Match) {
   try {
     const matchRef = doc(db, 'matches', match.id);
-    await setDoc(matchRef, match, { merge: true });
+    await setDoc(matchRef, sanitizeForFirestore(match), { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `matches/${match.id}`);
   }
@@ -50,7 +75,7 @@ export async function saveMatchToFirestore(match: Match) {
 export async function updateMatchInFirestore(matchId: string, updates: Partial<Match>) {
   try {
     const matchRef = doc(db, 'matches', matchId);
-    await updateDoc(matchRef, updates as Record<string, unknown>);
+    await updateDoc(matchRef, sanitizeForFirestore(updates) as Record<string, unknown>);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `matches/${matchId}`);
   }
@@ -66,7 +91,7 @@ export async function seedMatchesIfEmpty(initialMatches: Match[]) {
       const batch = writeBatch(db);
       initialMatches.forEach(m => {
         const ref = doc(db, 'matches', m.id);
-        batch.set(ref, m);
+        batch.set(ref, sanitizeForFirestore(m));
       });
       await batch.commit();
     }
@@ -103,7 +128,7 @@ export function subscribeToBets(
 export async function saveBetToFirestore(bet: Bet) {
   try {
     const betRef = doc(db, 'bets', bet.id);
-    await setDoc(betRef, bet);
+    await setDoc(betRef, sanitizeForFirestore(bet));
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, `bets/${bet.id}`);
   }
@@ -115,7 +140,7 @@ export async function saveBetToFirestore(bet: Bet) {
 export async function updateBetInFirestore(betId: string, updates: Partial<Bet>) {
   try {
     const betRef = doc(db, 'bets', betId);
-    await updateDoc(betRef, updates as Record<string, unknown>);
+    await updateDoc(betRef, sanitizeForFirestore(updates) as Record<string, unknown>);
   } catch (error) {
     handleFirestoreError(error, OperationType.UPDATE, `bets/${betId}`);
   }
@@ -143,7 +168,7 @@ export async function seedBetsIfEmpty(initialBets: Bet[]) {
       const batch = writeBatch(db);
       initialBets.forEach(b => {
         const ref = doc(db, 'bets', b.id);
-        batch.set(ref, b);
+        batch.set(ref, sanitizeForFirestore(b));
       });
       await batch.commit();
     }
@@ -158,7 +183,7 @@ export async function seedBetsIfEmpty(initialBets: Bet[]) {
 export async function saveUserToFirestore(user: User) {
   try {
     const userRef = doc(db, 'users', user.id);
-    await setDoc(userRef, user, { merge: true });
+    await setDoc(userRef, sanitizeForFirestore(user), { merge: true });
   } catch (error) {
     console.warn("User save warning:", error);
   }
@@ -198,7 +223,7 @@ export function subscribeToPublicBets(onSuccess: (offers: PublicBetOffer[]) => v
 export async function savePublicBetToFirestore(offer: PublicBetOffer) {
   try {
     const ref = doc(db, 'publicBetOffers', offer.id);
-    await setDoc(ref, offer, { merge: true });
+    await setDoc(ref, sanitizeForFirestore(offer), { merge: true });
   } catch (error) {
     console.warn("Public bet save warning:", error);
   }

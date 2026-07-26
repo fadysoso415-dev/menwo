@@ -25,8 +25,9 @@ import {
   Award,
   CheckCircle2,
   BrainCircuit,
-  ArrowRight,
-  ArrowLeft
+  ChevronRight,
+  ChevronLeft,
+  Zap
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -90,7 +91,7 @@ interface EventsPageProps {
   onSelectMatch: (match: Match) => void;
   currentUser: User | null;
   onPlaceBet: (matchId: string, outcome: 'home' | 'draw' | 'away', amount: number) => void;
-  onSimulateMatchFinished: (
+  onSimulateMatchFinished?: (
     matchId: string, 
     scoreHome: number, 
     scoreAway: number, 
@@ -128,6 +129,34 @@ export default function EventsPage({
   const [betErrorMsg, setBetErrorMsg] = useState('');
   const [statsViewTab, setStatsViewTab] = useState<'charts' | 'traditional'>('charts');
 
+  // Quick On-Card Betting States
+  const [quickBetMatchId, setQuickBetMatchId] = useState<string | null>(null);
+  const [quickBetOutcome, setQuickBetOutcome] = useState<'home' | 'draw' | 'away'>('home');
+  const [quickBetStake, setQuickBetStake] = useState<number>(100);
+
+  const handleQuickCardBet = (e: React.MouseEvent, match: Match, outcome: 'home' | 'draw' | 'away') => {
+    e.stopPropagation();
+    if (!currentUser) {
+      onOpenAuth();
+      return;
+    }
+    setQuickBetMatchId(match.id);
+    setQuickBetOutcome(outcome);
+    setQuickBetStake(match.fixedStakeAmount || 100);
+  };
+
+  const handleConfirmQuickCardBet = (e: React.MouseEvent, match: Match) => {
+    e.stopPropagation();
+    if (!currentUser) {
+      onOpenAuth();
+      return;
+    }
+    const stake = (match.fixedStakeAmount && match.fixedStakeAmount > 0) ? match.fixedStakeAmount : quickBetStake;
+    if (stake <= 0) return;
+    onPlaceBet(match.id, quickBetOutcome, stake);
+    setQuickBetMatchId(null);
+  };
+
   // AI Prediction States
   const [aiPrediction, setAiPrediction] = useState<AiPredictionData | null>(null);
   const [loadingAi, setLoadingAi] = useState(false);
@@ -138,22 +167,11 @@ export default function EventsPage({
   const [loadingTips, setLoadingTips] = useState(false);
   const [tipsError, setTipsError] = useState('');
 
-  // Live Match Simulation States
-  const [simulating, setSimulating] = useState(false);
-  const [simMinute, setSimMinute] = useState(0);
-  const [simScoreHome, setSimScoreHome] = useState(0);
-  const [simScoreAway, setSimScoreAway] = useState(0);
-  const [simEvents, setSimEvents] = useState<string[]>([]);
-  const [simStats, setSimStats] = useState<any>(null);
-
-  const eventsEndRef = useRef<HTMLDivElement>(null);
-
-  // Set initial selected match if none is selected
-  useEffect(() => {
-    if (!selectedMatch && matches.length > 0) {
-      onSelectMatch(matches[0]);
-    }
-  }, [matches, selectedMatch, onSelectMatch]);
+  const filteredMatches = matches.filter(match => {
+    if (match.status === 'finished') return false;
+    if (sportFilter === 'all') return true;
+    return match.sport === sportFilter;
+  });
 
   // Reset states when selected match changes
   useEffect(() => {
@@ -163,26 +181,19 @@ export default function EventsPage({
     setTipsError('');
     setBetSuccessMsg('');
     setBetErrorMsg('');
-    setSimulating(false);
-    setSimEvents([]);
 
     if (selectedMatch?.fixedStakeAmount && selectedMatch.fixedStakeAmount > 0) {
       setBetAmount(selectedMatch.fixedStakeAmount);
     }
   }, [selectedMatch]);
 
-  // Auto-scroll simulation events console
+  // Set initial selected match or replace if selected match is finished
   useEffect(() => {
-    if (eventsEndRef.current) {
-      eventsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    const activeMatches = matches.filter(m => m.status !== 'finished');
+    if ((!selectedMatch || selectedMatch.status === 'finished') && activeMatches.length > 0) {
+      onSelectMatch(activeMatches[0]);
     }
-  }, [simEvents]);
-
-  const filteredMatches = matches.filter(match => {
-    if (match.status === 'finished') return false;
-    if (sportFilter === 'all') return true;
-    return match.sport === sportFilter;
-  });
+  }, [matches, selectedMatch, onSelectMatch]);
 
   const handlePlaceBetSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -300,91 +311,6 @@ export default function EventsPage({
     } finally {
       setLoadingTips(false);
     }
-  };
-
-  // 2. Interactive Real-Time Match Simulation Engine
-  const startMatchSimulation = () => {
-    if (!selectedMatch) return;
-    setSimulating(true);
-    setSimMinute(0);
-    setSimScoreHome(0);
-    setSimScoreAway(0);
-    setSimEvents(['🚀 انطلاق المباراة وصافرة البداية ترن في أرجاء الملعب!']);
-
-    let currentHome = 0;
-    let currentAway = 0;
-    let currentMinute = 0;
-
-    const gameEvents = [
-      { min: 10, prob: 0.3, homeEv: '⚽ هدف رائع للمضيف بعد تمريرة حاسمة مبهرة!', awayEv: '⚽ هدف أول للضيف يسكت جماهير الملعب!' },
-      { min: 25, prob: 0.25, homeEv: '🟨 بطاقة صفراء لمدافع المضيف بعد تدخل خشن لمنع هجمة مرتدة.', awayEv: '🟨 بطاقة صفراء للاعب وسط الفريق الضيف.' },
-      { min: 38, prob: 0.2, homeEv: '🔥 هجمة خطيرة للمضيف تصطدم بالعارضة وتحبس الأنفاس!', awayEv: '🔥 انفراد تام للفريق الضيف لكن الحارس يتألق بإنقاذ تاريخي!' },
-      { min: 45, prob: 1.0, homeEv: '⏳ نهاية الشوط الأول بتبادل هجومي حاد وسيطرة نسبية.', awayEv: '⏳ صافرة الشوط الأول تُنهي المعركة التكتيكية مؤقتاً.' },
-      { min: 58, prob: 0.3, homeEv: '⚽ جول! رأسية متقنة تمنح أصحاب الأرض الأفضلية الكاسحة!', awayEv: '⚽ جول! تسديدة صاروخية بعيدة المدى تعلن تقدم الضيف!' },
-      { min: 72, prob: 0.2, homeEv: '🟥 بطاقة حمراء مباشرة للاعب المضيف بعد مراجعة الـ VAR لتهور خشن!', awayEv: '🟥 بطاقة حمراء للاعب الضيف بداعي سلوك غير رياضي!' },
-      { min: 85, prob: 0.4, homeEv: '⚽ هدف قاتل في الدقائق الأخيرة يثير جنون الجماهير في المدرجات!', awayEv: '⚽ هدف قاتل للضيوف يقلب الطاولة بالكامل في وقت حرج!' },
-      { min: 90, prob: 1.0, homeEv: '🏁 صافرة النهاية تعلن انتهاء المباراة الملحمية وصراع العمالقة!', awayEv: '🏁 صافرة النهاية تسدل الستار على مواجهة تكتيكية رفيعة المستوى!' }
-    ];
-
-    const interval = setInterval(() => {
-      currentMinute += 10;
-      if (currentMinute > 90) {
-        clearInterval(interval);
-        setSimulating(false);
-
-        // Save simulated result
-        const finalStats = {
-          possessionHome: 40 + Math.floor(Math.random() * 20),
-          possessionAway: 100 - (40 + Math.floor(Math.random() * 20)),
-          shotsHome: 5 + Math.floor(Math.random() * 12),
-          shotsAway: 5 + Math.floor(Math.random() * 12),
-          cornersHome: Math.floor(Math.random() * 8),
-          cornersAway: Math.floor(Math.random() * 8),
-          foulsHome: 8 + Math.floor(Math.random() * 8),
-          foulsAway: 8 + Math.floor(Math.random() * 8)
-        };
-        onSimulateMatchFinished(selectedMatch.id, currentHome, currentAway, 'finished', undefined, undefined, 90, finalStats);
-        return;
-      }
-
-      setSimMinute(currentMinute);
-
-      // Trigger probability-based events
-      const potentialEvent = gameEvents.find(e => e.min === currentMinute);
-      if (potentialEvent && Math.random() < potentialEvent.prob) {
-        const isHomeEvent = Math.random() > 0.5;
-        if (isHomeEvent) {
-          if (potentialEvent.homeEv.includes('⚽')) {
-            currentHome += 1;
-            setSimScoreHome(currentHome);
-            if (onScoreChangeToast && selectedMatch) {
-              onScoreChangeToast(selectedMatch, currentHome, currentAway, selectedMatch.teamHome);
-            }
-          }
-          setSimEvents(prev => [...prev, `⏱️ دقيقة ${currentMinute}': ${potentialEvent.homeEv}`]);
-        } else {
-          if (potentialEvent.awayEv.includes('⚽')) {
-            currentAway += 1;
-            setSimScoreAway(currentAway);
-            if (onScoreChangeToast && selectedMatch) {
-              onScoreChangeToast(selectedMatch, currentHome, currentAway, selectedMatch.teamAway);
-            }
-          }
-          setSimEvents(prev => [...prev, `⏱️ دقيقة ${currentMinute}': ${potentialEvent.awayEv}`]);
-        }
-      } else {
-        // Normal progression logs
-        const passiveLogs = [
-          `صراع قوي للسيطرة على وسط الملعب وهجمات متبادلة.`,
-          `ضغط هجومي متواصل وتراجع دفاعي منظم من الفريقين.`,
-          `تمريرات بينية جميلة في الخلف لمحاولة فك الثغرات.`,
-          `ركنيات متبادلة وتألق من دفاع كلا الطرفين.`
-        ];
-        const randomLog = passiveLogs[Math.floor(Math.random() * passiveLogs.length)];
-        setSimEvents(prev => [...prev, `⏱️ دقيقة ${currentMinute}': ${randomLog}`]);
-      }
-
-    }, 1200); // 1.2s per 10 mins makes complete game simulation last ~11s
   };
 
   const getSportBadge = (sport: string) => {
@@ -506,16 +432,145 @@ export default function EventsPage({
                   )}
                 </div>
 
-                <div className="mt-3 pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[10px] text-zinc-500">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span>الأودز: {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsHome * match.featuredBetMultiplier : match.oddsHome).toFixed(1)} - {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsDraw * match.featuredBetMultiplier : match.oddsDraw).toFixed(1)} - {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsAway * match.featuredBetMultiplier : match.oddsAway).toFixed(1)}</span>
-                    {match.isFeaturedBet && match.featuredBetMultiplier && match.featuredBetMultiplier > 1 && (
-                      <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded text-[9px] font-black">
-                        🔥 مضاعف x{match.featuredBetMultiplier}
+                {/* Interactive Odds Buttons for Quick On-Card Betting */}
+                {match.status !== 'finished' && !match.isBettingClosed && (
+                  <div className="mt-3 pt-2.5 border-t border-zinc-900/80 space-y-2" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between text-[10px] text-zinc-400">
+                      <span className="font-bold flex items-center gap-1 text-emerald-400">
+                        <Zap className="h-3 w-3" />
+                        <span>رهان سريع مباشر من الكارت:</span>
                       </span>
+                      {match.isFeaturedBet && match.featuredBetMultiplier && match.featuredBetMultiplier > 1 && (
+                        <span className="bg-purple-500/20 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded text-[9px] font-black">
+                          🔥 مضاعف x{match.featuredBetMultiplier}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* 1 X 2 Odds Buttons */}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {/* Home (1) */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickCardBet(e, match, 'home')}
+                        className={`py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer active:scale-95 ${
+                          quickBetMatchId === match.id && quickBetOutcome === 'home'
+                            ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow-md'
+                            : 'bg-zinc-900/90 text-zinc-200 border-zinc-800 hover:border-emerald-500/50 hover:bg-emerald-500/10'
+                        }`}
+                        title={`مراهنة سريعة على فوز ${match.teamHome}`}
+                        id={`quick-bet-home-${match.id}`}
+                      >
+                        <div className="text-[10px] font-bold truncate">1 (مضيف)</div>
+                        <div className="text-xs font-black font-mono text-emerald-400">
+                          {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsHome * match.featuredBetMultiplier : match.oddsHome).toFixed(2)}x
+                        </div>
+                      </button>
+
+                      {/* Draw (X) */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickCardBet(e, match, 'draw')}
+                        className={`py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer active:scale-95 ${
+                          quickBetMatchId === match.id && quickBetOutcome === 'draw'
+                            ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black shadow-md'
+                            : 'bg-zinc-900/90 text-zinc-200 border-zinc-800 hover:border-amber-500/50 hover:bg-amber-500/10'
+                        }`}
+                        title="مراهنة سريعة على التعادل"
+                        id={`quick-bet-draw-${match.id}`}
+                      >
+                        <div className="text-[10px] font-bold truncate">X (تعادل)</div>
+                        <div className="text-xs font-black font-mono text-amber-400">
+                          {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsDraw * match.featuredBetMultiplier : match.oddsDraw).toFixed(2)}x
+                        </div>
+                      </button>
+
+                      {/* Away (2) */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleQuickCardBet(e, match, 'away')}
+                        className={`py-1.5 px-2 rounded-xl text-center border transition-all cursor-pointer active:scale-95 ${
+                          quickBetMatchId === match.id && quickBetOutcome === 'away'
+                            ? 'bg-blue-500 text-zinc-950 border-blue-400 font-black shadow-md'
+                            : 'bg-zinc-900/90 text-zinc-200 border-zinc-800 hover:border-blue-500/50 hover:bg-blue-500/10'
+                        }`}
+                        title={`مراهنة سريعة على فوز ${match.teamAway}`}
+                        id={`quick-bet-away-${match.id}`}
+                      >
+                        <div className="text-[10px] font-bold truncate">2 (ضيف)</div>
+                        <div className="text-xs font-black font-mono text-blue-400">
+                          {(match.isFeaturedBet && match.featuredBetMultiplier ? match.oddsAway * match.featuredBetMultiplier : match.oddsAway).toFixed(2)}x
+                        </div>
+                      </button>
+                    </div>
+
+                    {/* Quick Stake Selector Panel inside card when an outcome is clicked */}
+                    {quickBetMatchId === match.id && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()} 
+                        className="mt-2 p-2.5 rounded-xl bg-zinc-900 border border-emerald-500/40 shadow-lg space-y-2 text-right"
+                      >
+                        <div className="flex items-center justify-between text-[11px] font-extrabold text-amber-400">
+                          <span>توقعك: {quickBetOutcome === 'home' ? `فوز ${match.teamHome}` : quickBetOutcome === 'away' ? `فوز ${match.teamAway}` : 'التعادل'}</span>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); setQuickBetMatchId(null); }} 
+                            className="text-[10px] text-zinc-400 hover:text-white px-1"
+                          >
+                            إغلاق ✕
+                          </button>
+                        </div>
+
+                        {match.fixedStakeAmount ? (
+                          <div className="text-xs text-amber-300 font-bold bg-amber-500/10 p-1.5 rounded text-center border border-amber-500/20">
+                            مبلغ الرهان المعتمد لهذه المباراة: {match.fixedStakeAmount} 🪙
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1">
+                              {[50, 100, 250, 500].map((preset) => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); setQuickBetStake(preset); }}
+                                  className={`flex-1 text-[10px] font-extrabold py-1 rounded border transition-all ${
+                                    quickBetStake === preset
+                                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black'
+                                      : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-emerald-500/40'
+                                  }`}
+                                >
+                                  +{preset}🪙
+                                </button>
+                              ))}
+                            </div>
+                            <input
+                              type="number"
+                              value={Number.isNaN(quickBetStake) ? '' : quickBetStake}
+                              onChange={(e) => setQuickBetStake(Math.max(1, parseInt(e.target.value) || 0))}
+                              className="w-full text-xs font-bold text-white bg-zinc-950 border border-zinc-800 rounded px-2 py-1 text-center focus:border-emerald-500 focus:outline-none"
+                              placeholder="المبلغ بالكوينز"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={(e) => handleConfirmQuickCardBet(e, match)}
+                          className="w-full py-2 px-3 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs shadow-md transition-all active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
+                          id={`confirm-card-quick-bet-btn-${match.id}`}
+                        >
+                          <Zap className="h-3.5 w-3.5" />
+                          <span>تأكيد الرهان بقيمة {match.fixedStakeAmount || quickBetStake} 🪙</span>
+                        </button>
+                      </div>
                     )}
                   </div>
-                  <span className="text-emerald-400 font-bold">عرض التفاصيل 📊</span>
+                )}
+
+                <div className="mt-2 pt-2 border-t border-zinc-900/60 flex justify-between items-center text-[10px] text-zinc-500">
+                  <span className="text-zinc-400 font-semibold">{match.league}</span>
+                  <span className="text-emerald-400 font-bold hover:underline">عرض الإحصائيات والتفاصيل 📊</span>
                 </div>
               </div>
             );
@@ -534,7 +589,7 @@ export default function EventsPage({
                 className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
                 id="events-back-to-list-btn"
               >
-                {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+                {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
                 <span>الرجوع إلى قائمة المباريات</span>
               </button>
               <span className="text-xs text-zinc-400 font-semibold truncate max-w-[150px] sm:max-w-none">
@@ -567,13 +622,13 @@ export default function EventsPage({
                     </div>
                   ) : (
                     <div className="flex justify-center items-center gap-4 text-4xl font-black text-white tracking-tight">
-                      <span>{simulating ? simScoreHome : selectedMatch.scoreHome}</span>
+                      <span>{selectedMatch.scoreHome}</span>
                       <span className="text-zinc-600">:</span>
-                      <span>{simulating ? simScoreAway : selectedMatch.scoreAway}</span>
+                      <span>{selectedMatch.scoreAway}</span>
                     </div>
                   )}
                   <p className="text-[10px] text-zinc-500 font-semibold uppercase tracking-wider">
-                    {simulating ? `محاكاة الشوط ${simMinute <= 45 ? 'الأول' : 'الثاني'}` : selectedMatch.status === 'live' ? `مباشر دقيقة ${selectedMatch.minutes}'` : selectedMatch.status === 'finished' ? 'انتهت كاملة' : 'غداً'}
+                    {selectedMatch.status === 'live' ? `مباشر دقيقة ${selectedMatch.minutes}'` : selectedMatch.status === 'finished' ? 'انتهت كاملة' : 'مباراة قادمة'}
                   </p>
                 </div>
 
@@ -585,63 +640,7 @@ export default function EventsPage({
                 </div>
               </div>
 
-              {/* Simulation Log (Active during match simulation) */}
-              {simulating && (
-                <div className="mt-6 rounded-xl bg-zinc-900 border border-zinc-800 p-4">
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                    <span className="text-xs font-bold text-emerald-400">محاكي مينوو المباشر: {simMinute}' دقيقة</span>
-                  </div>
-                  <div className="space-y-1.5 max-h-[140px] overflow-y-auto text-xs text-zinc-300 border-r-2 border-emerald-500/20 pr-3">
-                    {simEvents.map((ev, i) => (
-                      <p key={i} className="animate-fade-in">{ev}</p>
-                    ))}
-                    <div ref={eventsEndRef} />
-                  </div>
-                </div>
-              )}
 
-              {/* Match Action Buttons */}
-              <div className="mt-5 pt-4 border-t border-zinc-900 flex flex-wrap gap-3">
-                {selectedMatch.status !== 'finished' && !simulating && (
-                  <button
-                    onClick={startMatchSimulation}
-                    className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-xs font-bold text-zinc-950 py-3 hover:from-emerald-400 hover:to-teal-400 transition-all shadow-lg shadow-emerald-500/10 flex items-center justify-center gap-1.5"
-                    id="trigger-simulation-btn"
-                  >
-                    <Play className="h-4.5 w-4.5 text-zinc-950 fill-zinc-950" />
-                    <span>محاكاة اللعب وإنهاء اللقاء فورا ⚡</span>
-                  </button>
-                )}
-
-                <button
-                  onClick={fetchPrediction}
-                  disabled={loadingAi}
-                  className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-3 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-all flex items-center gap-2 justify-center shadow-lg shadow-emerald-500/5 active:scale-95"
-                  id="generate-prediction-btn"
-                >
-                  {loadingAi ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-emerald-400" />
-                  ) : (
-                    <Sparkles className="h-4 w-4 text-emerald-400 animate-pulse" />
-                  )}
-                  <span>توقع وتحليل الذكاء الاصطناعي (Gemini AI) ✨</span>
-                </button>
-
-                <button
-                  onClick={fetchStrategicTips}
-                  disabled={loadingTips}
-                  className="rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-4 py-3 text-xs font-bold text-amber-400 hover:text-amber-300 transition-all flex items-center gap-2 justify-center shadow-lg shadow-amber-500/5 active:scale-95"
-                  id="generate-strategic-tips-btn"
-                >
-                  {loadingTips ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-amber-400" />
-                  ) : (
-                    <Lightbulb className="h-4 w-4 text-amber-400" />
-                  )}
-                  <span>نصائح استراتيجية (Gemini AI) 💡</span>
-                </button>
-              </div>
             </div>
 
             {/* B. Two Column widgets: Betting slip vs Stats */}
@@ -667,7 +666,39 @@ export default function EventsPage({
                     </div>
                   )}
 
-                  {selectedMatch.status === 'finished' ? (
+                  {currentUser && activeBets.some(b => b.userId === currentUser.id && b.matchId === selectedMatch.id) ? (
+                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-400 font-black text-xs">
+                        <Lock className="h-4 w-4 shrink-0" />
+                        <span>لديك رهان نشط مسجل مسبقاً لهذه المباراة</span>
+                      </div>
+                      <p className="text-[11px] text-zinc-300 leading-relaxed font-medium">
+                        يسمح النظام باشتراك رهان واحد فقط لكل مباراة لكل لاعب لضمان التكافؤ والعدالة. الرهانات نهائية ولا يمكن تعديلها أو إلغاؤها بعد الاشتراك.
+                      </p>
+                      {(() => {
+                        const existingBet = activeBets.find(b => b.userId === currentUser.id && b.matchId === selectedMatch.id);
+                        if (!existingBet) return null;
+                        return (
+                          <div className="bg-zinc-950/80 rounded-xl p-3 border border-amber-500/20 text-xs font-mono space-y-1.5">
+                            <div className="flex justify-between text-zinc-300">
+                              <span>التوقع المختار:</span>
+                              <span className="font-bold text-emerald-400">
+                                {existingBet.selectedOutcome === 'home' ? `فوز ${existingBet.teamHome}` : existingBet.selectedOutcome === 'away' ? `فوز ${existingBet.teamAway}` : 'التعادل'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-zinc-300">
+                              <span>المبلغ المستثمر:</span>
+                              <span className="font-bold text-amber-400">{existingBet.amount.toLocaleString()} 🪙</span>
+                            </div>
+                            <div className="flex justify-between text-zinc-300">
+                              <span>المعامل النهائي:</span>
+                              <span className="font-bold text-white">x{existingBet.odds.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  ) : selectedMatch.status === 'finished' ? (
                     <div className="text-center py-6 text-zinc-500 text-xs">
                       المباراة منتهية بالفعل، لا يمكن قبول رهانات جديدة عليها.
                     </div>
@@ -806,7 +837,7 @@ export default function EventsPage({
                           <div className="space-y-2">
                             <input
                               type="number"
-                              value={betAmount}
+                              value={Number.isNaN(betAmount) ? '' : betAmount}
                               onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 0))}
                               className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none font-bold shadow-inner"
                               id="bet-amount-input"
@@ -1122,209 +1153,12 @@ export default function EventsPage({
 
             </div>
 
-            {/* C. AI Match Predictor Response Pane */}
-            {(loadingAi || aiPrediction || aiError) && (
+            {/* Head-to-Head Section */}
+            {selectedMatch.headToHead && (
               <div 
                 className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 shadow-2xl relative overflow-hidden space-y-6"
-                id="ai-prediction-pane"
+                id="head-to-head-pane"
               >
-                <div className="flex items-center justify-between border-b border-zinc-900 pb-4">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-5 w-5 text-emerald-400 animate-pulse" />
-                    <div>
-                      <h3 className="text-base font-bold text-white">توقع وتحليل الذكاء الاصطناعي (Gemini AI)</h3>
-                      <p className="text-xs text-zinc-500">نسب احتمالية الفوز والتحليل الفني المعمق للمباراة</p>
-                    </div>
-                  </div>
-
-                  {aiPrediction?.confidence && (
-                    <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
-                      درجة الثقة: {aiPrediction.confidence}
-                    </span>
-                  )}
-                </div>
-
-                {loadingAi && (
-                  <div className="flex flex-col items-center justify-center py-12 text-zinc-400 text-xs gap-3">
-                    <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-                    <span className="font-semibold text-zinc-300">جاري تحليل إحصائيات المباراة وتوقع النسب باستخدام Gemini...</span>
-                    <span className="text-zinc-500 text-[11px]">مقارنة الأداء، المواجهات المباشرة ومحرك البحث الرياضي Google Grounding</span>
-                  </div>
-                )}
-
-                {aiError && (
-                  <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-xs text-red-400">
-                    {aiError}
-                  </div>
-                )}
-
-                {aiPrediction && (
-                  <div className="space-y-6">
-                    {/* 1. Win Probabilities Distribution Section */}
-                    <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-900 space-y-3">
-                      <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
-                        <span className="flex items-center gap-1">
-                          <Activity className="h-4 w-4 text-emerald-400" />
-                          <span>توزيع احتمالية فوز كل فريق:</span>
-                        </span>
-                        <span className="text-zinc-500 font-mono text-[11px]">مجموع الاحتمالات = 100%</span>
-                      </div>
-
-                      {/* Team Cards with Percentages */}
-                      <div className="grid grid-cols-3 gap-2 text-center py-1">
-                        {/* Home Team Prob */}
-                        <div className="bg-zinc-950 p-3 rounded-xl border border-emerald-500/30 space-y-1">
-                          <div className="text-xs font-bold text-zinc-300 truncate">{selectedMatch.teamHome}</div>
-                          <div className="text-2xl font-black text-emerald-400">{aiPrediction.homeWinProb}%</div>
-                          <div className="text-[10px] text-emerald-500/80 font-semibold">فوز المضيف</div>
-                        </div>
-
-                        {/* Draw Prob (if applicable) */}
-                        {aiPrediction.drawProb > 0 ? (
-                          <div className="bg-zinc-950 p-3 rounded-xl border border-amber-500/30 space-y-1">
-                            <div className="text-xs font-bold text-zinc-300">التعادل</div>
-                            <div className="text-2xl font-black text-amber-400">{aiPrediction.drawProb}%</div>
-                            <div className="text-[10px] text-amber-500/80 font-semibold">تعادل الفريقين</div>
-                          </div>
-                        ) : (
-                          <div className="bg-zinc-950 p-3 rounded-xl border border-zinc-800 space-y-1 opacity-50">
-                            <div className="text-xs font-bold text-zinc-400">التعادل</div>
-                            <div className="text-lg font-bold text-zinc-500">غير متاح</div>
-                            <div className="text-[10px] text-zinc-600">رياضة حسم</div>
-                          </div>
-                        )}
-
-                        {/* Away Team Prob */}
-                        <div className="bg-zinc-950 p-3 rounded-xl border border-blue-500/30 space-y-1">
-                          <div className="text-xs font-bold text-zinc-300 truncate">{selectedMatch.teamAway}</div>
-                          <div className="text-2xl font-black text-blue-400">{aiPrediction.awayWinProb}%</div>
-                          <div className="text-[10px] text-blue-500/80 font-semibold">فوز الضيف</div>
-                        </div>
-                      </div>
-
-                      {/* Segmented Progress Bar */}
-                      <div className="space-y-1">
-                        <div className="h-3.5 w-full bg-zinc-950 rounded-full overflow-hidden flex border border-zinc-800 p-0.5">
-                          <div 
-                            style={{ width: `${aiPrediction.homeWinProb}%` }} 
-                            className="bg-emerald-500 h-full rounded-r-full transition-all duration-700"
-                            title={`${selectedMatch.teamHome}: ${aiPrediction.homeWinProb}%`}
-                          />
-                          {aiPrediction.drawProb > 0 && (
-                            <div 
-                              style={{ width: `${aiPrediction.drawProb}%` }} 
-                              className="bg-amber-400 h-full transition-all duration-700"
-                              title={`التعادل: ${aiPrediction.drawProb}%`}
-                            />
-                          )}
-                          <div 
-                            style={{ width: `${aiPrediction.awayWinProb}%` }} 
-                            className="bg-blue-500 h-full rounded-l-full transition-all duration-700"
-                            title={`${selectedMatch.teamAway}: ${aiPrediction.awayWinProb}%`}
-                          />
-                        </div>
-
-                        <div className="flex justify-between text-[10px] font-bold text-zinc-500 px-1 pt-0.5">
-                          <span className="text-emerald-400">{selectedMatch.teamHome} ({aiPrediction.homeWinProb}%)</span>
-                          {aiPrediction.drawProb > 0 && <span className="text-amber-400">التعادل ({aiPrediction.drawProb}%)</span>}
-                          <span className="text-blue-400">{selectedMatch.teamAway} ({aiPrediction.awayWinProb}%)</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2. Key Highlights Badges */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {aiPrediction.predictedScore && (
-                        <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-850 flex items-center justify-between">
-                          <span className="text-xs text-zinc-400 font-medium">النتيجة المتوقعة بالذكاء الاصطناعي:</span>
-                          <span className="text-base font-black text-white bg-zinc-950 px-3 py-1 rounded-lg border border-zinc-800 font-mono">
-                            {aiPrediction.predictedScore}
-                          </span>
-                        </div>
-                      )}
-
-                      {aiPrediction.recommendedBet && (
-                        <div className="bg-zinc-900/60 p-3 rounded-xl border border-zinc-850 flex items-center justify-between">
-                          <span className="text-xs text-zinc-400 font-medium">التوصية المرفقة للرهان:</span>
-                          <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-lg border border-emerald-500/20">
-                            {aiPrediction.recommendedBet}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* 3. Key Decision Factors */}
-                    {aiPrediction.keyFactors && aiPrediction.keyFactors.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                          <Flame className="h-4 w-4 text-amber-400" />
-                          <span>أهم عوامل الحسم الفنية:</span>
-                        </h4>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {aiPrediction.keyFactors.map((factor, idx) => (
-                            <div key={idx} className="bg-zinc-900/30 border border-zinc-900 rounded-lg p-2.5 text-xs text-zinc-300 flex items-start gap-2">
-                              <span className="text-emerald-400 font-bold">•</span>
-                              <span>{factor}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* 4. Detailed Analysis Text */}
-                    {aiPrediction.detailedAnalysis && (
-                      <div className="pt-2 border-t border-zinc-900 space-y-2">
-                        <h4 className="text-xs font-bold text-zinc-300">التحليل الفني والمعمق:</h4>
-                        <div className="text-xs text-zinc-300 leading-relaxed whitespace-pre-line bg-zinc-900/20 p-4 rounded-xl border border-zinc-900/80">
-                          {aiPrediction.detailedAnalysis}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-            {/* Strategic Tips & Head-to-Head Section */}
-            <div 
-              className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 shadow-2xl relative overflow-hidden space-y-6"
-              id="strategic-tips-pane"
-            >
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-zinc-900 pb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400">
-                    <Lightbulb className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-white flex items-center gap-2">
-                      <span>نصائح استراتيجية مستخرجة بالذكاء الاصطناعي</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 font-semibold">Gemini AI</span>
-                    </h3>
-                    <p className="text-xs text-zinc-500">تحليل الأداء التاريخي والسجل المباشر للحصول على توجيهات رهان دقيقة</p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={fetchStrategicTips}
-                  disabled={loadingTips}
-                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-bold transition-all flex items-center justify-center gap-2"
-                  id="fetch-strategic-tips-action"
-                >
-                  {loadingTips ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>جاري جلب النصائح...</span>
-                    </>
-                  ) : (
-                    <>
-                      <BrainCircuit className="h-4 w-4" />
-                      <span>{strategicTips ? 'تحديث النصائح الاستراتيجية' : 'استخراج النصائح الاستراتيجية'}</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              {/* Head To Head History Summary Bar */}
-              {selectedMatch.headToHead && (
                 <div className="bg-zinc-900/40 rounded-xl p-4 border border-zinc-900 space-y-3">
                   <div className="flex items-center justify-between text-xs font-bold text-zinc-300">
                     <span className="flex items-center gap-1.5">
@@ -1363,113 +1197,12 @@ export default function EventsPage({
                     </div>
                   )}
                 </div>
-              )}
-
-              {loadingTips && (
-                <div className="flex flex-col items-center justify-center py-10 text-zinc-400 text-xs gap-3 bg-zinc-900/20 rounded-xl border border-zinc-900">
-                  <Loader2 className="h-8 w-8 animate-spin text-amber-400" />
-                  <span className="font-semibold text-zinc-300">جاري تحليل تاريخ مباريات الفريقين واستخراج النصائح الاستراتيجية بـ Gemini AI...</span>
-                  <span className="text-zinc-500 text-[11px]">مقارنة إحصائيات المواجهات المباشرة، نسب الأهداف واستراتيجيات الرهان الذكي</span>
-                </div>
-              )}
-
-              {tipsError && (
-                <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-4 text-xs text-red-400">
-                  {tipsError}
-                </div>
-              )}
-
-              {strategicTips && !loadingTips && (
-                <div className="space-y-4">
-                  {/* Overview & Key Insight */}
-                  <div className="bg-gradient-to-r from-amber-500/10 via-zinc-900/40 to-zinc-900/40 p-4 rounded-xl border border-amber-500/20 space-y-2">
-                    <div className="flex items-center gap-2 text-amber-400 text-xs font-bold">
-                      <Compass className="h-4 w-4" />
-                      <span>الملخص والرؤية التكتيكية العامة:</span>
-                    </div>
-                    <p className="text-xs text-zinc-300 leading-relaxed">{strategicTips.summary}</p>
-                    {strategicTips.keyInsight && (
-                      <div className="text-xs text-amber-300 font-semibold pt-2 border-t border-amber-500/10 flex items-center gap-1.5">
-                        <Lightbulb className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                        <span>{strategicTips.keyInsight}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Historical Fact Banner */}
-                  {strategicTips.historicalFact && (
-                    <div className="bg-zinc-900/60 p-3.5 rounded-xl border border-zinc-800 flex items-center gap-3">
-                      <Award className="h-5 w-5 text-amber-400 shrink-0" />
-                      <div className="text-xs">
-                        <span className="font-bold text-amber-300 block">حقيقة رقمية من المواجهات المباشرة:</span>
-                        <span className="text-zinc-300">{strategicTips.historicalFact}</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tips Cards List */}
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-bold text-zinc-200 flex items-center gap-2">
-                      <Target className="h-4 w-4 text-amber-400" />
-                      <span>النصائح الاستراتيجية المقترحة للرهان:</span>
-                    </h4>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {strategicTips.tips.map((tip, idx) => (
-                        <div 
-                          key={idx} 
-                          className="bg-zinc-900/50 hover:bg-zinc-900 border border-zinc-850 hover:border-amber-500/30 p-4 rounded-xl transition-all space-y-2.5 flex flex-col justify-between"
-                        >
-                          <div className="space-y-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <h5 className="text-xs font-bold text-white flex items-center gap-1.5">
-                                <CheckCircle2 className="h-4 w-4 text-amber-400 shrink-0" />
-                                <span>{tip.title}</span>
-                              </h5>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${
-                                tip.riskLevel === 'منخفضة' || tip.riskLevel === 'Low'
-                                  ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                                  : tip.riskLevel === 'عالية' || tip.riskLevel === 'High'
-                                  ? 'bg-red-500/10 text-red-400 border-red-500/20'
-                                  : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                              }`}>
-                                مخاطرة: {tip.riskLevel}
-                              </span>
-                            </div>
-
-                            <p className="text-xs text-zinc-400 leading-relaxed">{tip.description}</p>
-                          </div>
-
-                          <div className="pt-2 border-t border-zinc-900 flex items-center justify-between gap-2 text-[11px]">
-                            <span className="text-zinc-500 flex items-center gap-1 truncate">
-                              <TrendingUp className="h-3.5 w-3.5 text-amber-400 shrink-0" />
-                              <span className="font-semibold text-zinc-400 truncate">{tip.statBasis}</span>
-                            </span>
-
-                            {tip.suggestedOutcome && (
-                              <button
-                                onClick={() => {
-                                  setBetOutcome(tip.suggestedOutcome!);
-                                  const el = document.getElementById('bet-placement-section');
-                                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                                }}
-                                className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 underline underline-offset-2 shrink-0"
-                              >
-                                اختر بالرهان ↵
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-12 text-center text-zinc-500 text-sm">
-            يرجى اختيار مباراة من القائمة لعرض تفاصيلها والإحصائيات وتوقعات الذكاء الاصطناعي.
+            يرجى اختيار مباراة من القائمة لعرض تفاصيلها والإحصائيات.
           </div>
         )}
       </div>

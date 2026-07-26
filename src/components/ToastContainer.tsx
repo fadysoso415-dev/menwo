@@ -44,18 +44,21 @@ export default function ToastContainer({ toasts, onDismiss }: ToastContainerProp
   useEffect(() => {
     if (toasts.length > 0 && soundEnabled) {
       try {
-        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
-        osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5 note
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.3);
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (typeof AudioCtxClass === 'function') {
+          const audioCtx = new AudioCtxClass();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+          osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5 note
+          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start();
+          osc.stop(audioCtx.currentTime + 0.3);
+        }
       } catch (e) {
         // AudioContext browser restrictions handled silently
       }
@@ -70,7 +73,7 @@ export default function ToastContainer({ toasts, onDismiss }: ToastContainerProp
       dir="rtl"
       id="toast-notifications-container"
     >
-      {toasts.map((toast) => {
+      {toasts.map((toast, index) => {
         const { matchInfo } = toast;
 
         // Calculate if current user outcome is currently matching the current score
@@ -89,7 +92,7 @@ export default function ToastContainer({ toasts, onDismiss }: ToastContainerProp
 
         return (
           <div
-            key={toast.id}
+            key={`${toast.id}-${index}`}
             className="pointer-events-auto relative overflow-hidden bg-zinc-950/95 border-2 border-emerald-500/50 shadow-2xl rounded-2xl p-4 backdrop-blur-xl transition-all transform hover:scale-[1.02] duration-300 animate-in fade-in slide-in-from-top-5"
             style={{
               boxShadow: isUserWinning 

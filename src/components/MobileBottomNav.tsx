@@ -7,10 +7,11 @@ import {
   User as UserIcon, 
   MessageSquare, 
   ShieldAlert, 
-  ArrowRight, 
-  ArrowLeft,
+  ChevronRight, 
+  ChevronLeft,
   Flame,
-  LogIn
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 interface MobileBottomNavProps {
@@ -20,7 +21,8 @@ interface MobileBottomNavProps {
   canGoBack?: boolean;
   onGoBack?: () => void;
   onOpenAuth: () => void;
-  onToggleChat: () => void;
+  onLogout?: () => void;
+  onToggleChat?: () => void;
   isChatOpen?: boolean;
 }
 
@@ -31,6 +33,7 @@ export default function MobileBottomNav({
   canGoBack = false,
   onGoBack,
   onOpenAuth,
+  onLogout,
   onToggleChat,
   isChatOpen = false
 }: MobileBottomNavProps) {
@@ -82,51 +85,51 @@ export default function MobileBottomNav({
             id="mobile-bottom-nav-back"
             title={t.goBack}
           >
-            {dir === 'rtl' ? <ArrowRight className="h-5 w-5 animate-pulse" /> : <ArrowLeft className="h-5 w-5 animate-pulse" />}
+            {dir === 'rtl' ? <ChevronRight className="h-5 w-5 animate-pulse stroke-[2.5]" /> : <ChevronLeft className="h-5 w-5 animate-pulse stroke-[2.5]" />}
             <span className="text-[10px] font-black">{t.goBack}</span>
           </button>
         )}
 
-        {/* 4. AI Assistant Chat Toggle */}
-        <button
-          onClick={onToggleChat}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
-            isChatOpen
-              ? 'text-amber-400 font-extrabold bg-amber-500/10 border border-amber-500/20'
-              : 'text-zinc-400 hover:text-zinc-200'
-          }`}
-          id="mobile-bottom-nav-chat"
-        >
-          <MessageSquare className={`h-5 w-5 transition-transform ${isChatOpen ? 'scale-110 text-amber-400' : ''}`} />
-          <span className="text-[10px] tracking-tight">{t.aiAssistant}</span>
-        </button>
-
-        {/* 5. User Profile / Dashboard Tab or Login */}
+        {/* 4. User Profile / Dashboard Tab or Login */}
         {currentUser ? (
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
-              activeTab === 'dashboard'
-                ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border border-emerald-500/20'
-                : 'text-zinc-400 hover:text-zinc-200'
-            }`}
-            id="mobile-bottom-nav-dashboard"
-          >
-            <div className="relative">
-              {currentUser.avatar ? (
-                <img 
-                  src={currentUser.avatar} 
-                  alt={currentUser.name} 
-                  className={`h-5 w-5 rounded-full object-cover border ${
-                    activeTab === 'dashboard' ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-zinc-700'
-                  }`}
-                />
-              ) : (
-                <UserIcon className="h-5 w-5" />
-              )}
-            </div>
-            <span className="text-[10px] tracking-tight max-w-[50px] truncate">{currentUser.name.split(' ')[0]}</span>
-          </button>
+          <>
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                activeTab === 'dashboard'
+                  ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border border-emerald-500/20'
+                  : 'text-zinc-400 hover:text-zinc-200'
+              }`}
+              id="mobile-bottom-nav-dashboard"
+            >
+              <div className="relative">
+                {currentUser.avatar ? (
+                  <img 
+                    src={currentUser.avatar} 
+                    alt={currentUser.name} 
+                    className={`h-5 w-5 rounded-full object-cover border ${
+                      activeTab === 'dashboard' ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-zinc-700'
+                    }`}
+                  />
+                ) : (
+                  <UserIcon className="h-5 w-5" />
+                )}
+              </div>
+              <span className="text-[10px] tracking-tight max-w-[50px] truncate">{currentUser.name.split(' ')[0]}</span>
+            </button>
+
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="flex flex-col items-center justify-center gap-1 py-1 px-1.5 rounded-xl text-zinc-400 hover:text-red-400 transition-all cursor-pointer active:scale-95"
+                id="mobile-bottom-nav-logout"
+                title={t.logout}
+              >
+                <LogOut className="h-5 w-5 text-red-400/90" />
+                <span className="text-[9px] font-bold text-red-400">{t.logout}</span>
+              </button>
+            )}
+          </>
         ) : (
           <button
             onClick={onOpenAuth}

@@ -48,7 +48,8 @@ import {
   ChevronDown,
   ChevronUp,
   SlidersHorizontal,
-  Gamepad2
+  Gamepad2,
+  Zap
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -168,6 +169,15 @@ export default function AdminPanel({
   const [editingMatchOdds, setEditingMatchOdds] = useState<{ [matchId: string]: { home: number; draw: number; away: number } }>({});
   const [editingMatchBetNote, setEditingMatchBetNote] = useState<{ [matchId: string]: string }>({});
   const [matchOddsSaveMsg, setMatchOddsSaveMsg] = useState<{ [matchId: string]: boolean }>({});
+
+  // Batch Update Matches States (التحديث الجماعي للمباريات)
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [selectedBatchMatchIds, setSelectedBatchMatchIds] = useState<string[]>([]);
+  const [batchFilterStatus, setBatchFilterStatus] = useState<'all' | 'live' | 'scheduled' | 'finished'>('all');
+  const [batchSearchQuery, setBatchSearchQuery] = useState('');
+  const [batchActionType, setBatchActionType] = useState<'finish_and_settle' | 'open_betting' | 'close_betting' | 'suspend_betting' | 'set_live' | 'set_scheduled'>('finish_and_settle');
+  const [batchScorePreset, setBatchScorePreset] = useState<'current' | 'home_win' | 'draw' | 'away_win'>('current');
+  const [batchUpdateSuccessMsg, setBatchUpdateSuccessMsg] = useState<string | null>(null);
 
 
   // Search/Filter states
@@ -743,6 +753,163 @@ export default function AdminPanel({
     }, 2500);
   };
 
+  // Quick One-Click Handler: Batch Finish & Settle All Live Matches
+  const handleBatchFinishAllLive = () => {
+    const liveMatches = allMatches.filter(m => m.status === 'live');
+    if (liveMatches.length === 0) {
+      alert('لا توجد مباريات جارية (لايف) حالياً للتحديث والتصفية الجماعية.');
+      return;
+    }
+
+    if (!window.confirm(`هل أنت متأكد من إنهاء جميع المباريات المباشرة (${liveMatches.length} مباراة) وتصفية وتوزيع أرباح جميع الرهانات المرتبطة بها بنقرة واحدة؟`)) {
+      return;
+    }
+
+    let updatedCount = 0;
+    liveMatches.forEach(m => {
+      let hScore = m.scoreHome || 0;
+      let aScore = m.scoreAway || 0;
+      if (hScore === 0 && aScore === 0) {
+        hScore = 2;
+        aScore = 1; // Simulated default win if 0-0
+      }
+      onUpdateMatchScore(
+        m.id,
+        hScore,
+        aScore,
+        'finished',
+        m.date,
+        m.time,
+        90
+      );
+      updatedCount++;
+    });
+
+    setBatchUpdateSuccessMsg(`⚡ تم التحديث الجماعي بنجاح! تم إنهاء (${updatedCount}) مباراة جارية وتصفية أرباح مراهنيها فوراً!`);
+    setTimeout(() => setBatchUpdateSuccessMsg(null), 5000);
+  };
+
+  // Toggle selection for a single match in batch modal
+  const handleToggleBatchMatchSelect = (matchId: string) => {
+    setSelectedBatchMatchIds(prev => 
+      prev.includes(matchId) ? prev.filter(id => id !== matchId) : [...prev, matchId]
+    );
+  };
+
+  // Select all or deselect all matches matching current filter
+  const handleToggleSelectAllBatch = (matchesList: Match[]) => {
+    const currentIds = matchesList.map(m => m.id);
+    const allSelected = currentIds.length > 0 && currentIds.every(id => selectedBatchMatchIds.includes(id));
+
+    if (allSelected) {
+      setSelectedBatchMatchIds(prev => prev.filter(id => !currentIds.includes(id)));
+    } else {
+      const merged = Array.from(new Set([...selectedBatchMatchIds, ...currentIds]));
+      setSelectedBatchMatchIds(merged);
+    }
+  };
+
+  // Execute Batch Update on selected matches
+  const handleApplyBatchUpdate = () => {
+    if (selectedBatchMatchIds.length === 0) {
+      alert('يرجى تحديد مباراة واحدة على الأقل لإجراء التحديث الجماعي عليها.');
+      return;
+    }
+
+    let updatedCount = 0;
+    selectedBatchMatchIds.forEach(matchId => {
+      const targetMatch = allMatches.find(m => m.id === matchId);
+      if (!targetMatch) return;
+
+      if (batchActionType === 'finish_and_settle') {
+        let hScore = targetMatch.scoreHome || 0;
+        let aScore = targetMatch.scoreAway || 0;
+
+        if (batchScorePreset === 'home_win' && hScore <= aScore) {
+          hScore = Math.max(aScore + 1, 2);
+        } else if (batchScorePreset === 'draw' && hScore !== aScore) {
+          hScore = 1;
+          aScore = 1;
+        } else if (batchScorePreset === 'away_win' && aScore <= hScore) {
+          aScore = Math.max(hScore + 1, 2);
+        }
+
+        onUpdateMatchScore(
+          matchId,
+          hScore,
+          aScore,
+          'finished',
+          targetMatch.date,
+          targetMatch.time,
+          90
+        );
+        updatedCount++;
+      } else if (batchActionType === 'set_live') {
+        onUpdateMatchScore(
+          matchId,
+          targetMatch.scoreHome || 0,
+          targetMatch.scoreAway || 0,
+          'live',
+          targetMatch.date,
+          targetMatch.time,
+          targetMatch.minutes || 1
+        );
+        updatedCount++;
+      } else if (batchActionType === 'set_scheduled') {
+        onUpdateMatchScore(
+          matchId,
+          targetMatch.scoreHome || 0,
+          targetMatch.scoreAway || 0,
+          'scheduled',
+          targetMatch.date,
+          targetMatch.time,
+          0
+        );
+        updatedCount++;
+      } else if (batchActionType === 'open_betting') {
+        if (onUpdateMatchCustomizations) {
+          onUpdateMatchCustomizations(
+            matchId, targetMatch.customLabelHome, targetMatch.customLabelDraw, targetMatch.customLabelAway,
+            targetMatch.fixedStakeAmount, targetMatch.isFeatured, targetMatch.featuredTag,
+            targetMatch.oddsHome, targetMatch.oddsDraw, targetMatch.oddsAway,
+            targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
+            targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
+            false, 'open', ''
+          );
+        }
+        updatedCount++;
+      } else if (batchActionType === 'close_betting') {
+        if (onUpdateMatchCustomizations) {
+          onUpdateMatchCustomizations(
+            matchId, targetMatch.customLabelHome, targetMatch.customLabelDraw, targetMatch.customLabelAway,
+            targetMatch.fixedStakeAmount, targetMatch.isFeatured, targetMatch.featuredTag,
+            targetMatch.oddsHome, targetMatch.oddsDraw, targetMatch.oddsAway,
+            targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
+            targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
+            true, 'closed', 'الرهان مغلق بقرار التحديث الجماعي للإدارة'
+          );
+        }
+        updatedCount++;
+      } else if (batchActionType === 'suspend_betting') {
+        if (onUpdateMatchCustomizations) {
+          onUpdateMatchCustomizations(
+            matchId, targetMatch.customLabelHome, targetMatch.customLabelDraw, targetMatch.customLabelAway,
+            targetMatch.fixedStakeAmount, targetMatch.isFeatured, targetMatch.featuredTag,
+            targetMatch.oddsHome, targetMatch.oddsDraw, targetMatch.oddsAway,
+            targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
+            targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
+            true, 'suspended', 'تم تعليق الرهان مؤقتاً للتحديث الجماعي'
+          );
+        }
+        updatedCount++;
+      }
+    });
+
+    setBatchUpdateSuccessMsg(`🚀 تم تنفيذ التحديث الجماعي بنجاح على (${updatedCount}) مباراة!`);
+    setSelectedBatchMatchIds([]);
+    setTimeout(() => setBatchUpdateSuccessMsg(null), 5000);
+  };
+
   const handleSaveGuideCategories = (updatedCats: GuideCategory[]) => {
     setEditingGuideCategories(updatedCats);
     if (onUpdateGuideCategories) {
@@ -994,7 +1161,7 @@ export default function AdminPanel({
                             <input
                               type="number"
                               min="0"
-                              value={currentEditingVal}
+                              value={Number.isNaN(currentEditingVal) ? 0 : currentEditingVal}
                               onChange={(e) => setEditingUserBalance({ ...editingUserBalance, [u.id]: parseInt(e.target.value) || 0 })}
                               className="w-24 bg-zinc-900 border border-zinc-800 rounded-lg px-2 py-1 text-center font-bold text-amber-300 focus:outline-none focus:border-emerald-500 text-xs"
                             />
@@ -1106,6 +1273,15 @@ export default function AdminPanel({
               </div>
 
               <div className="flex items-center gap-2 flex-wrap shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setIsBatchModalOpen(true)}
+                  className="bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:from-emerald-400 hover:to-emerald-300 text-zinc-950 font-black px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-xl shadow-emerald-500/20 border border-emerald-300/40 transition-all active:scale-95 cursor-pointer"
+                  id="open-batch-matches-modal-header-btn"
+                >
+                  <RefreshCw className="h-4 w-4 animate-spin-slow" />
+                  <span>تحديث جماعي للمباريات ⚡</span>
+                </button>
                 <span className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-black px-3 py-1.5 rounded-xl flex items-center gap-1.5">
                   <Unlock className="h-3.5 w-3.5" />
                   <span>{allMatches.filter(m => m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended').length} مباريات مفتوحة للرهان</span>
@@ -1182,6 +1358,16 @@ export default function AdminPanel({
                   {f.label}
                 </button>
               ))}
+
+              <button
+                type="button"
+                onClick={() => setIsBatchModalOpen(true)}
+                className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500 hover:text-zinc-950 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/10 active:scale-95"
+                id="open-batch-matches-modal-filter-btn"
+              >
+                <Zap className="h-3.5 w-3.5 text-emerald-400" />
+                <span>تحديث جماعي (Batch) ⚡</span>
+              </button>
             </div>
           </div>
 
@@ -1473,7 +1659,7 @@ export default function AdminPanel({
                               type="number"
                               step="0.05"
                               min="1.01"
-                              value={currentOdds.home}
+                              value={Number.isNaN(currentOdds.home) ? '' : currentOdds.home}
                               onChange={(e) => setEditingMatchOdds({
                                 ...editingMatchOdds,
                                 [m.id]: { ...currentOdds, home: parseFloat(e.target.value) || 1.01 }
@@ -1489,7 +1675,7 @@ export default function AdminPanel({
                               type="number"
                               step="0.05"
                               min="1.01"
-                              value={currentOdds.draw}
+                              value={Number.isNaN(currentOdds.draw) ? '' : currentOdds.draw}
                               onChange={(e) => setEditingMatchOdds({
                                 ...editingMatchOdds,
                                 [m.id]: { ...currentOdds, draw: parseFloat(e.target.value) || 1.01 }
@@ -1505,7 +1691,7 @@ export default function AdminPanel({
                               type="number"
                               step="0.05"
                               min="1.01"
-                              value={currentOdds.away}
+                              value={Number.isNaN(currentOdds.away) ? '' : currentOdds.away}
                               onChange={(e) => setEditingMatchOdds({
                                 ...editingMatchOdds,
                                 [m.id]: { ...currentOdds, away: parseFloat(e.target.value) || 1.01 }
@@ -1923,7 +2109,7 @@ export default function AdminPanel({
                       type="number"
                       step="0.1"
                       min="1.0"
-                      value={pubOddsInput}
+                      value={Number.isNaN(pubOddsInput) ? '' : pubOddsInput}
                       onChange={(e) => setPubOddsInput(parseFloat(e.target.value) || 2.0)}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm font-black text-amber-400 font-mono focus:outline-none focus:border-amber-500"
                       id="admin-public-bet-odds-input"
@@ -1957,7 +2143,7 @@ export default function AdminPanel({
                     <input
                       type="number"
                       min="1"
-                      value={betAmount}
+                      value={Number.isNaN(betAmount) ? '' : betAmount}
                       onChange={(e) => setBetAmount(parseInt(e.target.value) || 0)}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-sm font-black text-amber-400 focus:outline-none focus:border-emerald-500"
                       id="admin-create-bet-amount"
@@ -2788,7 +2974,28 @@ export default function AdminPanel({
 
       {/* 4. TAB: MANAGE EVENTS & LIVE MATCHES */}
       {adminTab === 'events' && (
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-zinc-950 p-4 rounded-2xl border border-zinc-900 shadow-xl">
+            <div>
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-emerald-400" />
+                <span>إدارة جدول المباريات والأحداث المباشرة</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">إضافة مباريات جديدة، تعديل نتائج البث المباشر والتصفية الجماعية للرهانات بنقرة واحدة</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsBatchModalOpen(true)}
+              className="bg-gradient-to-r from-emerald-500 via-emerald-400 to-emerald-500 hover:from-emerald-400 hover:to-emerald-300 text-zinc-950 font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-xl shadow-emerald-500/20 border border-emerald-300/40 transition-all active:scale-95 cursor-pointer shrink-0"
+              id="open-batch-matches-modal-events-btn"
+            >
+              <RefreshCw className="h-4 w-4 animate-spin-slow" />
+              <span>تحديث جماعي للمباريات ⚡</span>
+            </button>
+          </div>
+
+          <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Create Match Event Form */}
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 lg:col-span-1 h-fit">
@@ -2869,8 +3076,8 @@ export default function AdminPanel({
                   <input
                     type="number"
                     step="0.05"
-                    value={newOddsHome}
-                    onChange={(e) => setNewOddsHome(parseFloat(e.target.value))}
+                    value={Number.isNaN(newOddsHome) ? '' : newOddsHome}
+                    onChange={(e) => setNewOddsHome(parseFloat(e.target.value) || 0)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 text-center text-emerald-400 font-bold focus:outline-none"
                     id="admin-new-odds-home"
                   />
@@ -2880,8 +3087,8 @@ export default function AdminPanel({
                   <input
                     type="number"
                     step="0.05"
-                    value={newOddsDraw}
-                    onChange={(e) => setNewOddsDraw(parseFloat(e.target.value))}
+                    value={Number.isNaN(newOddsDraw) ? '' : newOddsDraw}
+                    onChange={(e) => setNewOddsDraw(parseFloat(e.target.value) || 0)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 text-center text-amber-400 font-bold focus:outline-none"
                     id="admin-new-odds-draw"
                   />
@@ -2891,8 +3098,8 @@ export default function AdminPanel({
                   <input
                     type="number"
                     step="0.05"
-                    value={newOddsAway}
-                    onChange={(e) => setNewOddsAway(parseFloat(e.target.value))}
+                    value={Number.isNaN(newOddsAway) ? '' : newOddsAway}
+                    onChange={(e) => setNewOddsAway(parseFloat(e.target.value) || 0)}
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2 py-1.5 text-center text-blue-400 font-bold focus:outline-none"
                     id="admin-new-odds-away"
                   />
@@ -3030,7 +3237,7 @@ export default function AdminPanel({
                               type="number"
                               step="0.5"
                               min="1.1"
-                              value={newFeaturedBetMultiplier}
+                              value={Number.isNaN(newFeaturedBetMultiplier) ? '' : newFeaturedBetMultiplier}
                               onChange={(e) => setNewFeaturedBetMultiplier(parseFloat(e.target.value) || 1)}
                               className="w-full bg-zinc-950 border border-purple-500/40 rounded-xl px-3 py-1.5 text-purple-300 font-black text-sm focus:outline-none focus:border-purple-400"
                               placeholder="مثال: 2, 3, 5, 10..."
@@ -3242,7 +3449,7 @@ export default function AdminPanel({
                       type="number"
                       step="0.05"
                       min="1.01"
-                      value={editOddsHome}
+                      value={Number.isNaN(editOddsHome) ? '' : editOddsHome}
                       onChange={(e) => setEditOddsHome(parseFloat(e.target.value) || 1)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-emerald-400 font-bold focus:outline-none focus:border-emerald-500"
                     />
@@ -3253,7 +3460,7 @@ export default function AdminPanel({
                       type="number"
                       step="0.05"
                       min="1.01"
-                      value={editOddsDraw}
+                      value={Number.isNaN(editOddsDraw) ? '' : editOddsDraw}
                       onChange={(e) => setEditOddsDraw(parseFloat(e.target.value) || 1)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-amber-400 font-bold focus:outline-none focus:border-amber-500"
                     />
@@ -3264,7 +3471,7 @@ export default function AdminPanel({
                       type="number"
                       step="0.05"
                       min="1.01"
-                      value={editOddsAway}
+                      value={Number.isNaN(editOddsAway) ? '' : editOddsAway}
                       onChange={(e) => setEditOddsAway(parseFloat(e.target.value) || 1)}
                       className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-blue-400 font-bold focus:outline-none focus:border-blue-500"
                     />
@@ -3299,7 +3506,7 @@ export default function AdminPanel({
                           type="number"
                           step="0.5"
                           min="1.1"
-                          value={editFeaturedBetMultiplier}
+                          value={Number.isNaN(editFeaturedBetMultiplier) ? '' : editFeaturedBetMultiplier}
                           onChange={(e) => setEditFeaturedBetMultiplier(parseFloat(e.target.value) || 1)}
                           className="flex-1 bg-zinc-950 border border-purple-500/40 rounded-xl px-3 py-2 text-purple-300 font-black text-sm focus:outline-none focus:border-purple-400"
                           placeholder="أدخل أي قيمة: 2, 3, 5, 10..."
@@ -3773,14 +3980,14 @@ export default function AdminPanel({
                       <input
                         type="number"
                         min="0"
-                        value={scoreHome}
+                        value={Number.isNaN(scoreHome) ? 0 : scoreHome}
                         onChange={(e) => setScoreHome(Math.max(0, parseInt(e.target.value) || 0))}
                         className="flex-1 bg-zinc-900 border border-emerald-500/50 rounded-lg p-2 text-center font-black text-xl text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                         id="admin-resolve-score-home"
                       />
                       <button
                         type="button"
-                        onClick={() => setScoreHome(prev => prev + 1)}
+                        onClick={() => setScoreHome(prev => (Number.isNaN(prev) ? 1 : prev + 1))}
                         className="h-10 w-10 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black rounded-lg text-lg transition-all active:scale-95 flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/20"
                         title="إضافة هدف"
                       >
@@ -3797,7 +4004,7 @@ export default function AdminPanel({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setScoreAway(prev => Math.max(0, prev - 1))}
+                        onClick={() => setScoreAway(prev => (Number.isNaN(prev) ? 0 : Math.max(0, prev - 1)))}
                         className="h-10 w-10 bg-zinc-900 hover:bg-zinc-800 text-red-400 font-black rounded-lg border border-zinc-800 text-lg transition-all active:scale-95 flex items-center justify-center shrink-0"
                         title="إنقاص هدف"
                       >
@@ -3806,14 +4013,14 @@ export default function AdminPanel({
                       <input
                         type="number"
                         min="0"
-                        value={scoreAway}
+                        value={Number.isNaN(scoreAway) ? 0 : scoreAway}
                         onChange={(e) => setScoreAway(Math.max(0, parseInt(e.target.value) || 0))}
                         className="flex-1 bg-zinc-900 border border-blue-500/50 rounded-lg p-2 text-center font-black text-xl text-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         id="admin-resolve-score-away"
                       />
                       <button
                         type="button"
-                        onClick={() => setScoreAway(prev => prev + 1)}
+                        onClick={() => setScoreAway(prev => (Number.isNaN(prev) ? 1 : prev + 1))}
                         className="h-10 w-10 bg-blue-500 hover:bg-blue-400 text-zinc-950 font-black rounded-lg text-lg transition-all active:scale-95 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20"
                         title="إضافة هدف"
                       >
@@ -3830,7 +4037,7 @@ export default function AdminPanel({
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        onClick={() => setMatchMinutes(prev => Math.max(0, prev - 5))}
+                        onClick={() => setMatchMinutes(prev => (Number.isNaN(prev) ? 0 : Math.max(0, prev - 5)))}
                         className="h-10 px-2 bg-zinc-900 hover:bg-zinc-800 text-amber-400 font-bold rounded-lg border border-zinc-800 text-xs transition-all active:scale-95 flex items-center justify-center shrink-0"
                         title="-5 دقائق"
                       >
@@ -3840,7 +4047,7 @@ export default function AdminPanel({
                         type="number"
                         min="0"
                         max="120"
-                        value={matchMinutes}
+                        value={Number.isNaN(matchMinutes) ? 0 : matchMinutes}
                         onChange={(e) => setMatchMinutes(Math.max(0, parseInt(e.target.value) || 0))}
                         className="flex-1 bg-zinc-900 border border-amber-500/50 rounded-lg p-2 text-center font-black text-xl text-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-500"
                         id="admin-resolve-match-minutes"
@@ -4151,6 +4358,7 @@ export default function AdminPanel({
             </div>
           </div>
         </section>
+      </div>
       )}
 
       {/* TAB: SPORTS CATEGORIES MANAGEMENT */}
@@ -4461,8 +4669,8 @@ export default function AdminPanel({
                 type="range"
                 min="0"
                 max="100"
-                value={statsPossessionHome}
-                onChange={(e) => setStatsPossessionHome(parseInt(e.target.value))}
+                value={Number.isNaN(statsPossessionHome) ? 50 : statsPossessionHome}
+                onChange={(e) => setStatsPossessionHome(parseInt(e.target.value) || 50)}
                 className="w-full accent-emerald-500 cursor-pointer"
                 id="admin-stats-possession"
               />
@@ -4473,7 +4681,7 @@ export default function AdminPanel({
                 <label className="text-zinc-400 block mb-1 font-medium">تسديدات المضيف:</label>
                 <input
                   type="number"
-                  value={statsShotsHome}
+                  value={Number.isNaN(statsShotsHome) ? 0 : statsShotsHome}
                   onChange={(e) => setStatsShotsHome(parseInt(e.target.value) || 0)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-center text-white font-bold"
                   id="admin-stats-shots-home"
@@ -4483,7 +4691,7 @@ export default function AdminPanel({
                 <label className="text-zinc-400 block mb-1 font-medium">تسديدات الضيف:</label>
                 <input
                   type="number"
-                  value={statsShotsAway}
+                  value={Number.isNaN(statsShotsAway) ? 0 : statsShotsAway}
                   onChange={(e) => setStatsShotsAway(parseInt(e.target.value) || 0)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-2 text-center text-white font-bold"
                   id="admin-stats-shots-away"
@@ -4572,9 +4780,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center font-bold">
                           <input 
                             type="number" 
-                            value={item.rank}
+                            value={Number.isNaN(item.rank) ? '' : item.rank}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, rank: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, rank: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-white py-1 font-mono"
@@ -4591,9 +4799,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center font-black text-amber-400">
                           <input 
                             type="number" 
-                            value={item.points}
+                            value={Number.isNaN(item.points) ? '' : item.points}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, points: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, points: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-16 bg-zinc-900 border border-amber-500/30 rounded text-center text-xs text-amber-400 font-bold py-1 font-mono"
@@ -4603,9 +4811,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center text-zinc-300">
                           <input 
                             type="number" 
-                            value={item.played}
+                            value={Number.isNaN(item.played) ? '' : item.played}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, played: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, played: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-zinc-300 py-1 font-mono"
@@ -4615,9 +4823,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center text-emerald-400">
                           <input 
                             type="number" 
-                            value={item.won}
+                            value={Number.isNaN(item.won) ? '' : item.won}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, won: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, won: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-12 bg-zinc-900 border border-emerald-500/30 rounded text-center text-xs text-emerald-400 py-1 font-mono font-bold"
@@ -4627,9 +4835,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center text-amber-400">
                           <input 
                             type="number" 
-                            value={item.drawn}
+                            value={Number.isNaN(item.drawn) ? '' : item.drawn}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, drawn: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, drawn: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-amber-400 py-1 font-mono"
@@ -4639,9 +4847,9 @@ export default function AdminPanel({
                         <td className="py-3 px-3 text-center text-red-400">
                           <input 
                             type="number" 
-                            value={item.lost}
+                            value={Number.isNaN(item.lost) ? '' : item.lost}
                             onChange={(e) => {
-                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, lost: Number(e.target.value) } : s);
+                              const updated = leagueStandings.map(s => s.id === item.id ? { ...s, lost: parseInt(e.target.value) || 0 } : s);
                               if (onUpdateLeagueStandings) onUpdateLeagueStandings(updated);
                             }}
                             className="w-12 bg-zinc-900 border border-zinc-800 rounded text-center text-xs text-red-400 py-1 font-mono"
@@ -5040,6 +5248,341 @@ export default function AdminPanel({
             </button>
           </div>
         </section>
+      )}
+
+      {/* BATCH MATCHES UPDATE MODAL (نافذة التحديث الجماعي للمباريات) */}
+      {isBatchModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200" dir={dir}>
+          <div className="bg-zinc-950 border border-emerald-500/40 rounded-3xl max-w-4xl w-full p-6 space-y-6 shadow-2xl relative max-h-[90vh] overflow-y-auto my-8">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-emerald-400 shadow-lg shadow-emerald-500/10">
+                  <RefreshCw className="h-6 w-6 animate-spin-slow" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white flex items-center gap-2">
+                    <span>التحديث الجماعي للمباريات وتسوية الرهانات</span>
+                    <span className="text-[10px] font-black bg-emerald-500 text-zinc-950 px-2.5 py-0.5 rounded-full">
+                      تحديث جماعي ⚡
+                    </span>
+                  </h3>
+                  <p className="text-xs text-zinc-400 mt-1">
+                    تحديث حالة وتصفية نتائج عدة مباريات أو جميع المباريات بنقرة واحدة بدلاً من التحديث الفردي لكل مباراة.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsBatchModalOpen(false)}
+                className="p-2 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-800 cursor-pointer"
+                id="close-batch-modal-btn"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Notification message inside modal */}
+            {batchUpdateSuccessMsg && (
+              <div className="bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 p-4 rounded-2xl text-xs font-black flex items-center gap-3 shadow-lg shadow-emerald-500/10 animate-bounce">
+                <CheckCircle2 className="h-5 w-5 shrink-0 text-emerald-400" />
+                <span>{batchUpdateSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* Quick One-Click Actions Grid */}
+            <div className="space-y-2">
+              <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                <Zap className="h-4 w-4" />
+                <span>1. إجراءات سريعة فورية بنقرة واحدة:</span>
+              </span>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Finish and settle all live matches */}
+                <button
+                  type="button"
+                  onClick={handleBatchFinishAllLive}
+                  className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-emerald-500/10 to-emerald-500/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500 hover:text-zinc-950 transition-all font-black text-xs flex flex-col items-center justify-center text-center gap-1.5 shadow-lg shadow-emerald-500/5 cursor-pointer group"
+                  id="quick-batch-finish-live-btn"
+                >
+                  <div className="flex items-center gap-1 text-sm">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>إنهاء وتسوية المباريات المباشرة 🏁</span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 group-hover:text-zinc-900 font-medium">
+                    يحول جميع المباريات المباشرة ({allMatches.filter(m => m.status === 'live').length}) إلى منتهية ويوزع أرباح الرهانات تلقائياً
+                  </span>
+                </button>
+
+                {/* Open all betting */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const activeMatches = allMatches.filter(m => m.status !== 'finished');
+                    activeMatches.forEach(m => {
+                      if (onUpdateMatchCustomizations) {
+                        onUpdateMatchCustomizations(
+                          m.id, m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                          m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                          m.oddsHome, m.oddsDraw, m.oddsAway,
+                          m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                          m.matchImage, m.adTitle, m.adDescription, m.adBadge, m.isAdFeatured,
+                          false, 'open', ''
+                        );
+                      }
+                    });
+                    setBatchUpdateSuccessMsg(`🟢 تم فتح استقبال الرهانات جماعياً لـ (${activeMatches.length}) مباراة نشطة!`);
+                    setTimeout(() => setBatchUpdateSuccessMsg(null), 4000);
+                  }}
+                  className="p-3.5 rounded-2xl bg-zinc-900 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500 hover:text-zinc-950 transition-all font-black text-xs flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer group"
+                  id="quick-batch-open-betting-btn"
+                >
+                  <div className="flex items-center gap-1 text-sm">
+                    <Unlock className="h-4 w-4" />
+                    <span>فتح الرهانات لجميع المباريات 🟢</span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 group-hover:text-zinc-900 font-medium">
+                    يتيح للمستخدمين المراهنة فوراً على كل المباريات المجدولة والمباشرة
+                  </span>
+                </button>
+
+                {/* Close all live betting */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const liveMatches = allMatches.filter(m => m.status === 'live' || m.status === 'scheduled');
+                    liveMatches.forEach(m => {
+                      if (onUpdateMatchCustomizations) {
+                        onUpdateMatchCustomizations(
+                          m.id, m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                          m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                          m.oddsHome, m.oddsDraw, m.oddsAway,
+                          m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                          m.matchImage, m.adTitle, m.adDescription, m.adBadge, m.isAdFeatured,
+                          true, 'closed', 'تم إغلاق الرهان بتحديث جماعي'
+                        );
+                      }
+                    });
+                    setBatchUpdateSuccessMsg(`🔒 تم إغلاق استقبال الرهانات جماعياً لـ (${liveMatches.length}) مباراة!`);
+                    setTimeout(() => setBatchUpdateSuccessMsg(null), 4000);
+                  }}
+                  className="p-3.5 rounded-2xl bg-zinc-900 border border-red-500/30 text-red-400 hover:bg-red-500 hover:text-white transition-all font-black text-xs flex flex-col items-center justify-center text-center gap-1.5 cursor-pointer group"
+                  id="quick-batch-close-betting-btn"
+                >
+                  <div className="flex items-center gap-1 text-sm">
+                    <Lock className="h-4 w-4" />
+                    <span>إغلاق الرهان لجميع المباريات 🔒</span>
+                  </div>
+                  <span className="text-[10px] text-zinc-400 group-hover:text-white font-medium">
+                    يمنع وضع أي رهانات جديدة على كافة المباريات المفتوحة
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section 2: Custom Selection Batch Action */}
+            <div className="bg-zinc-900/60 p-5 rounded-2xl border border-zinc-800 space-y-4">
+              <span className="text-xs font-black text-amber-400 flex items-center justify-between border-b border-zinc-800 pb-2">
+                <span className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="h-4 w-4" />
+                  <span>2. التحديد والتحديث الجماعي للمباريات المحددة:</span>
+                </span>
+                <span className="text-[11px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
+                  المحدد حالياً: {selectedBatchMatchIds.length} مباراة
+                </span>
+              </span>
+
+              {/* Action Selector Controls */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-zinc-300 block mb-1">اختر الإجراء الجماعي للتطبيق:</label>
+                  <select
+                    value={batchActionType}
+                    onChange={(e) => setBatchActionType(e.target.value as any)}
+                    className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-emerald-500"
+                    id="batch-action-type-select"
+                  >
+                    <option value="finish_and_settle">🏁 إنهاء المباريات وتصفية أرباح الرهانات تلقائياً</option>
+                    <option value="open_betting">🟢 فتح استقبال الرهانات للمباريات المحددة</option>
+                    <option value="close_betting">🔒 إغلاق استقبال الرهانات للمباريات المحددة</option>
+                    <option value="suspend_betting">⏸️ تعليق استقبال الرهانات مؤقتاً للمباريات المحددة</option>
+                    <option value="set_live">⚡ تحويل حالة المباريات المحددة إلى (بث مباشر لايف)</option>
+                    <option value="set_scheduled">📅 تحويل حالة المباريات المحددة إلى (مجدولة قادمة)</option>
+                  </select>
+                </div>
+
+                {/* Score Preset Selection if Action is finish_and_settle */}
+                {batchActionType === 'finish_and_settle' && (
+                  <div>
+                    <label className="text-[11px] font-bold text-zinc-300 block mb-1">نتيجة التصفية الجماعية:</label>
+                    <select
+                      value={batchScorePreset}
+                      onChange={(e) => setBatchScorePreset(e.target.value as any)}
+                      className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-bold text-amber-400 focus:outline-none focus:border-amber-500"
+                      id="batch-score-preset-select"
+                    >
+                      <option value="current">الحفاظ على النتيجة المسجلة لكل مباراة حالياً</option>
+                      <option value="home_win">اعتماد فوز فريق المضيف تلقائياً (1)</option>
+                      <option value="draw">اعتماد نتيجة التعادل تلقائياً (X)</option>
+                      <option value="away_win">اعتماد فوز فريق الضيف تلقائياً (2)</option>
+                    </select>
+                  </div>
+                )}
+              </div>
+
+              {/* Filter and Select All Bar */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-zinc-950 p-3 rounded-xl border border-zinc-800">
+                <div className="relative flex-1">
+                  <Search className="h-3.5 w-3.5 absolute right-3 top-2.5 text-zinc-500" />
+                  <input
+                    type="text"
+                    placeholder="تصفية بالقائمة باسم المباراة..."
+                    value={batchSearchQuery}
+                    onChange={(e) => setBatchSearchQuery(e.target.value)}
+                    className="w-full bg-zinc-900 border border-zinc-800 rounded-lg pr-8 pl-3 py-1.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+
+                {/* Status Filter for batch table */}
+                <div className="flex items-center gap-1 bg-zinc-900 p-1 rounded-lg border border-zinc-800 text-[11px]">
+                  {(['all', 'live', 'scheduled', 'finished'] as const).map(st => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => setBatchFilterStatus(st)}
+                      className={`px-2.5 py-1 rounded font-bold transition-all ${
+                        batchFilterStatus === st
+                          ? 'bg-amber-500 text-zinc-950 shadow'
+                          : 'text-zinc-400 hover:text-white'
+                      }`}
+                    >
+                      {st === 'all' ? 'الكل' : st === 'live' ? 'لايف ⚡' : st === 'scheduled' ? 'مجدولة' : 'منتهية 🏁'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Select All Button */}
+                {(() => {
+                  const filteredMatches = allMatches.filter(m => {
+                    const matchText = `${m.teamHome} ${m.teamAway} ${m.league}`.toLowerCase();
+                    const passesSearch = matchText.includes(batchSearchQuery.toLowerCase());
+                    const passesStatus = batchFilterStatus === 'all' || m.status === batchFilterStatus;
+                    return passesSearch && passesStatus;
+                  });
+
+                  const isAllSelected = filteredMatches.length > 0 && filteredMatches.every(m => selectedBatchMatchIds.includes(m.id));
+
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleSelectAllBatch(filteredMatches)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border ${
+                        isAllSelected
+                          ? 'bg-amber-500 text-zinc-950 border-amber-400 font-black'
+                          : 'bg-zinc-900 text-amber-400 border-zinc-800 hover:bg-amber-500/10'
+                      }`}
+                      id="batch-select-all-btn"
+                    >
+                      {isAllSelected ? 'إلغاء تحديد الكل ❎' : 'تحديد جميع المباريات 🔳'}
+                    </button>
+                  );
+                })()}
+              </div>
+
+              {/* Match List Table with Checkboxes */}
+              <div className="max-h-60 overflow-y-auto rounded-xl border border-zinc-800 divide-y divide-zinc-900 bg-zinc-950">
+                {allMatches.filter(m => {
+                  const matchText = `${m.teamHome} ${m.teamAway} ${m.league}`.toLowerCase();
+                  const passesSearch = matchText.includes(batchSearchQuery.toLowerCase());
+                  const passesStatus = batchFilterStatus === 'all' || m.status === batchFilterStatus;
+                  return passesSearch && passesStatus;
+                }).map(m => {
+                  const isSelected = selectedBatchMatchIds.includes(m.id);
+                  const betsCount = allBets.filter(b => b.matchId === m.id).length;
+
+                  return (
+                    <div
+                      key={`batch-row-${m.id}`}
+                      onClick={() => handleToggleBatchMatchSelect(m.id)}
+                      className={`p-3 flex items-center justify-between gap-3 hover:bg-zinc-900/50 cursor-pointer transition-colors ${
+                        isSelected ? 'bg-emerald-500/10 border-r-4 border-r-emerald-500' : ''
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => {}} // handled by row div
+                          className="h-4 w-4 rounded bg-zinc-900 border-zinc-700 text-emerald-500 focus:ring-emerald-500 pointer-events-none"
+                        />
+                        <div>
+                          <div className="font-bold text-white text-xs flex items-center gap-2">
+                            <span>{m.logoHome} {m.teamHome}</span>
+                            <span className="text-zinc-500 text-[10px]">ضد</span>
+                            <span>{m.teamAway} {m.logoAway}</span>
+                          </div>
+                          <div className="text-[10px] text-zinc-500 font-medium mt-0.5">
+                            {m.league} - {m.date || 'اليوم'} ({m.time})
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3 text-xs font-mono">
+                        <span className="font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                          {m.scoreHome ?? 0} : {m.scoreAway ?? 0}
+                        </span>
+
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          m.status === 'live'
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            : m.status === 'finished'
+                            ? 'bg-zinc-800 text-zinc-400'
+                            : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        }`}>
+                          {m.status === 'live' ? 'لايف ⚡' : m.status === 'finished' ? 'منتهية 🏁' : 'مجدولة 📅'}
+                        </span>
+
+                        <span className="text-zinc-400 text-[10px] hidden sm:inline">
+                          ({betsCount} رهانات)
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Submit Custom Batch Action Button */}
+              <button
+                type="button"
+                onClick={handleApplyBatchUpdate}
+                disabled={selectedBatchMatchIds.length === 0}
+                className={`w-full py-3 px-6 rounded-2xl font-black text-xs transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+                  selectedBatchMatchIds.length > 0
+                    ? 'bg-emerald-500 hover:bg-emerald-400 text-zinc-950 shadow-emerald-500/20 active:scale-98'
+                    : 'bg-zinc-900 text-zinc-600 border border-zinc-800 cursor-not-allowed'
+                }`}
+                id="apply-custom-batch-btn"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>تطبيق التحديث الجماعي على ({selectedBatchMatchIds.length}) مباراة محددة 🚀</span>
+              </button>
+            </div>
+
+            {/* Footer Close Button */}
+            <div className="flex justify-end border-t border-zinc-800 pt-3">
+              <button
+                type="button"
+                onClick={() => setIsBatchModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs border border-zinc-800 transition-all cursor-pointer"
+              >
+                إغلاق النافذة
+              </button>
+            </div>
+
+          </div>
+        </div>
       )}
 
     </div>

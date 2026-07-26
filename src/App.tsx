@@ -37,8 +37,9 @@ import CashDepositModal from './components/CashDepositModal';
 import WithdrawModal from './components/WithdrawModal';
 import ToastContainer, { ToastItem } from './components/ToastContainer';
 import MobileBottomNav from './components/MobileBottomNav';
+import BetConfirmationModal from './components/BetConfirmationModal';
 
-import { Trophy, Coins, MessageSquare, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Trophy, Coins, MessageSquare, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
 export default function App() {
@@ -49,6 +50,13 @@ export default function App() {
   
   // Toast Notifications state
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  // Bet Confirmation Modal state
+  const [confirmedBetModalData, setConfirmedBetModalData] = useState<{
+    bet: Bet;
+    match: Match;
+    userRemainingBalance: number;
+  } | null>(null);
   
   // Storage states
   const [allUsers, setAllUsers] = useState<User[]>([]);
@@ -141,7 +149,13 @@ export default function App() {
     // Local notifications, chat history, cash wallet, etc.
     const savedNotifs = localStorage.getItem('stad_notifications');
     if (savedNotifs) {
-      setNotifications(JSON.parse(savedNotifs));
+      try {
+        const parsed: Notification[] = JSON.parse(savedNotifs);
+        const unique = parsed.filter((notif, index, self) => index === self.findIndex(n => n.id === notif.id));
+        setNotifications(unique);
+      } catch (e) {
+        setNotifications([]);
+      }
     } else {
       const initialNotifs: Notification[] = [
         {
@@ -477,8 +491,9 @@ export default function App() {
   // Helper: Post a live Notification to current user
   const triggerNotification = (title: string, message: string, type: 'bet' | 'match' | 'system') => {
     if (!currentUser) return;
+    const uniqueId = `notif-${Date.now()}-${Math.random().toString(36).substring(2, 9)}-${Math.floor(Math.random() * 1000000)}`;
     const newNotif: Notification = {
-      id: `notif-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      id: uniqueId,
       userId: currentUser.id,
       title,
       message,
@@ -487,7 +502,8 @@ export default function App() {
       createdAt: new Date().toISOString()
     };
     setNotifications(prev => {
-      const next = [newNotif, ...prev];
+      const filtered = prev.filter(n => n.id !== newNotif.id);
+      const next = [newNotif, ...filtered];
       localStorage.setItem('stad_notifications', JSON.stringify(next));
       return next;
     });
@@ -731,6 +747,17 @@ export default function App() {
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
 
+    // STRICT CHECK: PREVENT DUPLICATE BETS ON THE SAME MATCH (1 BET PER MATCH PER USER)
+    const hasAlreadyBetOnMatch = bets.some(b => b.userId === currentUser.id && b.matchId === matchId);
+    if (hasAlreadyBetOnMatch) {
+      triggerNotification(
+        '⛔ اشتراك مكرر ممنوع',
+        `لقد قمت بالفعل بالمراهنة على هذه المباراة (${match.teamHome} × ${match.teamAway}). النظام يسمح باشتراك رهان واحد فقط لكل مباراة ولا يمكن تكراره أو تعديله بعد الاعتماد.`,
+        'system'
+      );
+      return;
+    }
+
     const baseOdds = outcome === 'home' ? match.oddsHome : outcome === 'away' ? match.oddsAway : match.oddsDraw;
     const multiplierFactor = (match.isFeaturedBet && match.featuredBetMultiplier && match.featuredBetMultiplier > 1) ? match.featuredBetMultiplier : 1;
     const odds = Number((baseOdds * multiplierFactor).toFixed(2));
@@ -746,7 +773,7 @@ export default function App() {
       odds,
       baseOdds,
       featuredMultiplierApplied: multiplierFactor,
-      isFeaturedBet: match.isFeaturedBet,
+      isFeaturedBet: Boolean(match.isFeaturedBet),
       status: 'pending',
       payout: 0,
       placedAt: new Date().toISOString()
@@ -762,9 +789,16 @@ export default function App() {
     // Save bet to Firestore
     saveBetToFirestore(newBet);
 
+    // Open rich Bet Confirmation Modal Overlay
+    setConfirmedBetModalData({
+      bet: newBet,
+      match,
+      userRemainingBalance: updatedUser.balance
+    });
+
     triggerNotification(
-      '⚡ تمت الموافقة التلقائية على رهانك بنجاح', 
-      `تمت الموافقة التلقائية وتثبيت رهانك بقيمة ${amount} كوينز على مباراة (${match.teamHome} × ${match.teamAway}) فوراً! معامل الأرباح: ${odds.toFixed(2)}.`, 
+      '⚡ تم خصم المبلغ وتأكيد الرهان', 
+      `تمت الموافقة واقتطاع مبلغ الرهان (${amount} 🪙) من محفظتك بنجاح لتثبيت رهانك على مباراة (${match.teamHome} × ${match.teamAway}). الرصيد المتبقي: ${updatedUser.balance} 🪙.`, 
       'bet'
     );
   };
@@ -819,8 +853,13 @@ export default function App() {
     // Save updated match in Firestore
     saveMatchToFirestore(matchRef);
 
-    if (selectedMatch?.id === matchId && matchRef) {
-      setSelectedMatch(matchRef);
+    if (selectedMatch?.id === matchId) {
+      if (targetStatus === 'finished') {
+        const nextActive = matches.find(m => m.id !== matchId && m.status !== 'finished');
+        setSelectedMatch(nextActive || null);
+      } else if (matchRef) {
+        setSelectedMatch(matchRef);
+      }
     }
 
     // If targetStatus is not 'finished', we don't settle bets yet
@@ -1125,11 +1164,20 @@ export default function App() {
     const offer = publicBetOffers.find(o => o.id === offerId);
     if (!offer) return;
 
+    // STRICT CHECK: PREVENT DUPLICATE BETS ON THE SAME PUBLIC OFFER OR MATCH
+    const hasAlreadyJoinedOffer = bets.some(b => b.userId === currentUser.id && (b.publicOfferId === offerId || (b.matchId && offer.matchId && b.matchId === offer.matchId)));
+    if (hasAlreadyJoinedOffer) {
+      triggerNotification(
+        '⛔ اشتراك مكرر ممنوع',
+        `لقد قمت بالفعل بالمراهنة أو الاشتراك في هذا التحدي (${offer.title}). النظام يسمح باشتراك واحد فقط لكل مباراة أو تحدي ولا يمكن تعديله أو حذفه.`,
+        'system'
+      );
+      return;
+    }
+
     // 1. Deduct coins from user
     const updatedUser = { ...currentUser, balance: currentUser.balance - stakeAmount };
-    setCurrentUser(updatedUser);
-    localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
-    saveUserToFirestore(updatedUser);
+    updateCurrentUserAndState(updatedUser);
 
     // 2. Add user bet
     const outcomeLabel = offer.outcomeLabel || (offer.selectedOutcome === 'home' ? `فوز ${offer.teamHome}` : offer.selectedOutcome === 'away' ? `فوز ${offer.teamAway}` : 'التعادل');
@@ -1157,9 +1205,15 @@ export default function App() {
       totalStakedCoins: (offer.totalStakedCoins || 0) + stakeAmount
     });
 
+    setConfirmedBetModalData({
+      bet: newBet,
+      match: null,
+      userRemainingBalance: updatedUser.balance
+    });
+
     triggerNotification(
-      '⚡ تمت الموافقة التلقائية والاشتراك بالرهان العام',
-      `تمت الموافقة التلقائية وتثبيت رهانك بمبلغ ${stakeAmount} 🪙 في تحدي "${offer.title}". الخيار: ${outcomeLabel} (معامل x${offer.odds}).`,
+      '⚡ تم خصم المبلغ والاشتراك بالرهان العام',
+      `تم اقتطاع ${stakeAmount} كوينز من محفظتك بنجاح واشتراكك في تحدي "${offer.title}" (الخيار: ${outcomeLabel} - معامل x${offer.odds}). الرصيد المتبقي: ${updatedUser.balance} 🪙.`,
       'bet'
     );
   };
@@ -1333,7 +1387,7 @@ export default function App() {
               className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-black transition-all cursor-pointer active:scale-95 shadow-sm"
               id="top-page-back-btn"
             >
-              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
               <span>{t.goBack} ({dir === 'rtl' ? 'للصفحة السابقة' : 'To Previous Page'})</span>
             </button>
             <span className="text-xs font-bold text-zinc-400 truncate max-w-[170px] sm:max-w-none">
@@ -1377,7 +1431,7 @@ export default function App() {
         {activeTab === 'dashboard' && currentUser && (
           <UserDashboard 
             currentUser={currentUser}
-            onUpdateProfile={setCurrentUser}
+            onUpdateProfile={updateCurrentUserAndState}
             bets={bets}
             allBets={bets}
             matches={matches}
@@ -1394,6 +1448,7 @@ export default function App() {
             onOpenAdminGuideEdit={() => setActiveTab('admin')}
             onNavigateTab={handleTabSelect}
             onCancelBet={handleCancelBet}
+            onLogout={handleLogout}
           />
         )}
 
@@ -1463,6 +1518,19 @@ export default function App() {
         />
       )}
 
+      {/* Bet Confirmation Modal Overlay */}
+      {confirmedBetModalData && (
+        <BetConfirmationModal
+          isOpen={Boolean(confirmedBetModalData)}
+          onClose={() => setConfirmedBetModalData(null)}
+          bet={confirmedBetModalData.bet}
+          match={confirmedBetModalData.match}
+          userRemainingBalance={confirmedBetModalData.userRemainingBalance}
+          onNavigateToDashboard={() => handleTabSelect('dashboard')}
+          onKeepBetting={() => handleTabSelect('events')}
+        />
+      )}
+
       {/* Auth Login/Signup Modal popup */}
       <AuthModal 
         isOpen={isAuthOpen}
@@ -1472,15 +1540,6 @@ export default function App() {
         onRegisterUser={handleRegisterUser}
       />
 
-
-      {/* Floating Conversational AI Coach / Chatbot sidebar */}
-      <Chatbot 
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-        chatHistory={chatHistory}
-        onSendMessage={handleSendMessage}
-        loadingChat={loadingChat}
-      />
 
       {/* Footer credits and details */}
       <footer className="border-t border-zinc-900 bg-zinc-950 py-8 text-center text-xs text-zinc-500" dir="rtl">
@@ -1503,6 +1562,7 @@ export default function App() {
         canGoBack={canGoBack}
         onGoBack={handleGoBack}
         onOpenAuth={() => setIsAuthOpen(true)}
+        onLogout={handleLogout}
         onToggleChat={() => setIsChatOpen(!isChatOpen)}
         isChatOpen={isChatOpen}
       />

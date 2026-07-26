@@ -189,17 +189,22 @@ export default function PublicBetsSection({
                   </span>
                 </div>
 
-                {/* Previous participation status if any */}
-                {userJoinedBets.length > 0 && (
-                  <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-2 rounded-xl text-[11px] font-bold flex items-center justify-between">
-                    <span>✅ أنت مشترك في هذا الرهان!</span>
-                    <span className="font-mono">{totalUserJoinedCoins} 🪙 مراهن عليها</span>
-                  </div>
-                )}
+                {/* Previous participation status / Lock form if already joined */}
               </div>
 
-              {/* Form to Enter Stake & Place Bet */}
-              <form onSubmit={(e) => handleJoinSubmit(e, offer)} className="space-y-3 pt-2 border-t border-zinc-900">
+              {/* Form or Already Subscribed Lock Banner */}
+              {userJoinedBets.length > 0 ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 p-3.5 rounded-xl text-xs font-bold space-y-1.5 pt-3 border-t border-zinc-900">
+                  <div className="flex items-center gap-2 text-emerald-300 font-black">
+                    <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
+                    <span>أنت مشترك بالفعل بـ ({totalUserJoinedCoins} 🪙) 🔒</span>
+                  </div>
+                  <p className="text-[11px] text-zinc-300 font-normal leading-relaxed">
+                    تم اعتماد اشتراكك بنجاح. يُسمح باشتراك واحد فقط لكل مباراة أو تحدي، ولا يمكن تعديله أو إلغاؤه بعد الاعتماد.
+                  </p>
+                </div>
+              ) : (
+                <form onSubmit={(e) => handleJoinSubmit(e, offer)} className="space-y-3 pt-2 border-t border-zinc-900">
                 <div className="space-y-1.5">
                   <div className="flex justify-between items-center text-xs">
                     <label className="text-zinc-300 font-bold">حدد مبلغ رهانك (بالكوينز):</label>
@@ -213,7 +218,7 @@ export default function PublicBetsSection({
                       type="number"
                       min="1"
                       step="10"
-                      value={currentStake}
+                      value={Number.isNaN(currentStake) ? '' : currentStake}
                       onChange={(e) => handleStakeChange(offer.id, parseInt(e.target.value) || 0)}
                       className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-xs font-black text-amber-400 font-mono focus:outline-none focus:border-amber-500"
                       placeholder="أدخل مبلغ الرهان..."
@@ -266,6 +271,7 @@ export default function PublicBetsSection({
                   <span>الاشتراك بالرهان بـ ({currentStake} 🪙) 🚀</span>
                 </button>
               </form>
+            )}
             </div>
           );
         })}

@@ -21,7 +21,6 @@ import {
   ArrowUpRight,
   CheckCircle2,
   ShieldCheck,
-  Calculator,
   X,
   Filter,
   Bell,
@@ -119,33 +118,6 @@ export default function MainPage({
   };
   const [newsError, setNewsError] = useState('');
 
-  // Interactive Betting Calculator State
-  const [simMatchId, setSimMatchId] = useState<string>(matches[0]?.id || '');
-  const [simOutcome, setSimOutcome] = useState<'home' | 'draw' | 'away'>('home');
-  const [simAmount, setSimAmount] = useState<number>(200);
-  const [simBetSuccess, setSimBetSuccess] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (matches.length > 0 && !simMatchId) {
-      setSimMatchId(matches[0].id);
-    }
-  }, [matches]);
-
-  const activeSimMatch = matches.find(m => m.id === simMatchId) || matches[0];
-  const simOdds = activeSimMatch 
-    ? (simOutcome === 'home' ? activeSimMatch.oddsHome : simOutcome === 'draw' ? activeSimMatch.oddsDraw : activeSimMatch.oddsAway)
-    : 2.10;
-  
-  const estimatedPayout = Math.floor(simAmount * simOdds);
-  const estimatedProfit = estimatedPayout - simAmount;
-
-  const handleExecuteSimBet = () => {
-    if (!activeSimMatch) return;
-    onPlaceQuickBet(activeSimMatch, simOutcome);
-    setSimBetSuccess(true);
-    setTimeout(() => setSimBetSuccess(false), 3000);
-  };
-
   // Fetch live sports news on mount
   useEffect(() => {
     async function fetchLiveNews() {
@@ -166,11 +138,11 @@ export default function MainPage({
         const fallbackNews: NewsItem[] = [
           {
             id: 'news-fallback-1',
-            title: 'مباراة كلاسيكو ملحمية منتظرة في الليغا بين الغريمين ريال مدريد وبرشلونة',
-            summary: 'تستعد الجماهير العالمية لمباراة الكلاسيكو النارية الليلة. المحللون يتوقعون مباراة تكتيكية هجومية مثيرة بين الفريقين.',
+            title: 'مباراة قمة نارية منتظرة في البريميرليغ بين ليفربول وتشيلسي',
+            summary: 'تستعد الجماهير العالمية لمباراة القمة النارية الليلة. المحللون يتوقعون مباراة تكتيكية هجومية مثيرة بين الفريقين.',
             source: 'مينوو سبورتس المباشر',
             date: '2026-07-20',
-            category: 'الدوري الإسباني',
+            category: 'الدوري الإنجليزي',
           },
           {
             id: 'news-fallback-2',
@@ -245,10 +217,9 @@ export default function MainPage({
     return matchesSearch && matchesSport;
   });
 
-  // Separate live, scheduled, and finished matches
+  // Separate live and scheduled matches (excluding finished matches)
   const liveMatches = filteredMatches.filter(m => m.status === 'live');
   const scheduledMatches = filteredMatches.filter(m => m.status === 'scheduled');
-  const finishedMatches = filteredMatches.filter(m => m.status === 'finished');
 
   // Value bets recommendations (highest multiplier odds with great potential)
   const valueBetMatches = matches.filter(m => m.status !== 'finished').slice(0, 3);
@@ -256,187 +227,43 @@ export default function MainPage({
   return (
     <div className="space-y-10 py-6" dir={dir}>
       
-      {/* 1. Hero / Premium Banner Section + Live Profit Simulator */}
+      {/* 1. Hero / Premium Banner Section */}
       <section className="relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-zinc-950 p-6 sm:p-10 shadow-2xl shadow-emerald-500/10">
         <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/20 via-zinc-950 to-zinc-950" />
         
-        <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="relative z-10 max-w-3xl space-y-4">
+          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-black text-emerald-400 ring-1 ring-emerald-500/30">
+            <Sparkles className="h-4 w-4 text-amber-400 animate-pulse" />
+            <span>توقعات AI المحدثة وتحليلات مباشرة</span>
+          </div>
           
-          {/* Left Text & Call to Action */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-black text-emerald-400 ring-1 ring-emerald-500/30">
-              <Sparkles className="h-4 w-4 text-amber-400 animate-pulse" />
-              <span>محاكاة الأرباح الفورية وتوقعات AI المحدثة</span>
-            </div>
-            
-            <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight">
-              ضاعف أرباحك الذكية مع <span className="text-emerald-400">مينوو للتوقعات</span> 🚀
-            </h1>
-            
-            <p className="text-sm sm:text-base text-zinc-400 leading-relaxed max-w-xl">
-              تصفح أحدث أودز المباريات العالمية، استخدم حاسبة العوائد التفاعلية، وشارك في التوقعات بضغطة واحدة لتجميع الكوينز وجني الأرباح.
-            </p>
+          <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight">
+            ضاعف أرباحك الذكية مع <span className="text-emerald-400">مينوو للتوقعات</span> 🚀
+          </h1>
+          
+          <p className="text-sm sm:text-base text-zinc-400 leading-relaxed max-w-xl">
+            تصفح أحدث أودز المباريات العالمية وشارك في التوقعات بضغطة واحدة لتجميع الكوينز وجني الأرباح.
+          </p>
 
-            <div className="flex flex-wrap items-center gap-3 pt-2">
-              <a 
-                href="#quick-bet-simulator"
-                className="rounded-xl bg-emerald-500 px-6 py-3 text-xs sm:text-sm font-black text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
-              >
-                <Calculator className="h-4 w-4" />
-                <span>حاسبة الأرباح السريعة 💰</span>
-              </a>
-              
-              <a 
-                href="#matches-section"
-                className="rounded-xl bg-zinc-900 border border-zinc-800 px-5 py-3 text-xs sm:text-sm font-bold text-white hover:bg-zinc-800 transition-colors"
-              >
-                تصفح كافة المباريات المتاحة
-              </a>
-            </div>
-
-            <div className="flex items-center gap-4 text-xs text-zinc-400 pt-2 border-t border-zinc-900/80">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>شحن وسحب مؤمن عبر فودافون كاش</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Zap className="h-4 w-4 text-amber-400" />
-                <span>تنفيذ آلي للرهان خلال ثوانٍ</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Interactive Quick Bet & Profit Simulator Box */}
-          <div id="quick-bet-simulator" className="lg:col-span-5 bg-zinc-900/90 border border-emerald-500/30 rounded-2xl p-5 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
-              <div className="flex items-center gap-2 text-white font-extrabold text-sm">
-                <Calculator className="h-4 w-4 text-emerald-400" />
-                <span>حاسبة وتجربة الربح السريع</span>
-              </div>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-black">
-                أودز حية ⚡
-              </span>
-            </div>
-
-            {/* Select Match */}
-            <div>
-              <label className="block text-[11px] font-bold text-zinc-400 mb-1">اختر المباراة المراد توقعها:</label>
-              <select
-                value={simMatchId}
-                onChange={(e) => setSimMatchId(e.target.value)}
-                className="w-full bg-zinc-950 border border-zinc-800 rounded-xl px-3 py-2 text-xs text-white font-bold focus:outline-none focus:border-emerald-500"
-              >
-                {matches.map(m => (
-                  <option key={m.id} value={m.id}>
-                    {m.teamHome} vs {m.teamAway} ({m.league})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Choose Outcome */}
-            <div>
-              <label className="block text-[11px] font-bold text-zinc-400 mb-1">اختر النتيجة المرجحة:</label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSimOutcome('home')}
-                  className={`py-2 px-1 rounded-xl border text-center transition-all ${
-                    simOutcome === 'home'
-                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow-md'
-                      : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <div className="text-[10px] opacity-80">فوز {activeSimMatch?.teamHome || 'المضيف'}</div>
-                  <div className="text-xs font-black font-mono">{(activeSimMatch?.oddsHome || 1.85).toFixed(2)}</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSimOutcome('draw')}
-                  className={`py-2 px-1 rounded-xl border text-center transition-all ${
-                    simOutcome === 'draw'
-                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow-md'
-                      : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <div className="text-[10px] opacity-80">تعادل (X)</div>
-                  <div className="text-xs font-black font-mono">{(activeSimMatch?.oddsDraw || 3.20).toFixed(2)}</div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSimOutcome('away')}
-                  className={`py-2 px-1 rounded-xl border text-center transition-all ${
-                    simOutcome === 'away'
-                      ? 'bg-emerald-500 text-zinc-950 border-emerald-400 font-black shadow-md'
-                      : 'bg-zinc-950 text-zinc-300 border-zinc-800 hover:border-zinc-700'
-                  }`}
-                >
-                  <div className="text-[10px] opacity-80">فوز {activeSimMatch?.teamAway || 'الضيف'}</div>
-                  <div className="text-xs font-black font-mono">{(activeSimMatch?.oddsAway || 2.40).toFixed(2)}</div>
-                </button>
-              </div>
-            </div>
-
-            {/* Stake Amount Preset Selector */}
-            <div>
-              <div className="flex justify-between items-center text-[11px] font-bold text-zinc-400 mb-1">
-                <span>قيمة الرهان بالكوينز:</span>
-                <span className="text-amber-400 font-mono text-xs">{simAmount} كوينز</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5 mb-2">
-                {[100, 200, 500, 1000].map(amt => (
-                  <button
-                    key={amt}
-                    type="button"
-                    onClick={() => setSimAmount(amt)}
-                    className={`py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                      simAmount === amt
-                        ? 'bg-amber-400/20 text-amber-300 border-amber-400/50'
-                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:text-white'
-                    }`}
-                  >
-                    +{amt}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Calculated Profit Display */}
-            <div className="bg-zinc-950 border border-emerald-500/30 rounded-xl p-3 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] text-zinc-400 font-bold">العائد الإجمالي عند الفوز:</p>
-                <p className="text-base font-black text-emerald-400 font-mono flex items-center gap-1">
-                  <span>{estimatedPayout.toLocaleString()}</span>
-                  <span className="text-xs text-zinc-300">كوينز 💰</span>
-                </p>
-              </div>
-              <div className="text-left border-r border-zinc-800 pr-3">
-                <p className="text-[10px] text-zinc-400 font-bold">صافي الربح المتوقع:</p>
-                <p className="text-sm font-black text-amber-400 font-mono">
-                  +{estimatedProfit.toLocaleString()} كوينز
-                </p>
-              </div>
-            </div>
-
-            {simBetSuccess && (
-              <div className="bg-emerald-500/20 border border-emerald-500/40 p-2.5 rounded-xl text-emerald-400 text-xs text-center font-extrabold flex items-center justify-center gap-1.5 animate-pulse">
-                <CheckCircle2 className="h-4 w-4" />
-                <span>تم تسجيل الرهان وقيد المحاكاة بنجاح! 🎯</span>
-              </div>
-            )}
-
-            <button
-              onClick={handleExecuteSimBet}
-              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
-              id="hero-execute-sim-bet-btn"
+          <div className="flex flex-wrap items-center gap-3 pt-2">
+            <a 
+              href="#matches-section"
+              className="rounded-xl bg-emerald-500 px-6 py-3 text-xs sm:text-sm font-black text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
             >
-              <Zap className="h-4 w-4" />
-              <span>ضع الرهان الآن بهذه الحسبة ⚡</span>
-            </button>
+              <span>تصفح كافة المباريات المتاحة ⚽</span>
+            </a>
           </div>
 
+          <div className="flex items-center gap-4 text-xs text-zinc-400 pt-2 border-t border-zinc-900/80">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span>شحن وسحب مؤمن عبر فودافون كاش</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <Zap className="h-4 w-4 text-amber-400" />
+              <span>تنفيذ آلي للرهان خلال ثوانٍ</span>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -691,7 +518,7 @@ export default function MainPage({
             <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
               selectedSportFilter === 'all' ? 'bg-zinc-950/20 text-zinc-950' : 'bg-zinc-800 text-zinc-400'
             }`}>
-              {matches.length}
+              {matches.filter(m => m.status !== 'finished').length}
             </span>
           </button>
 
@@ -703,7 +530,7 @@ export default function MainPage({
             { id: 'volleyball', name: 'كرة الطائرة', icon: '🏐' },
             { id: 'esports', name: 'الألعاب الإلكترونية', icon: '🎮' },
           ]).map(category => {
-            const matchCount = matches.filter(m => m.sport === category.id).length;
+            const matchCount = matches.filter(m => m.sport === category.id && m.status !== 'finished').length;
             const isSelected = selectedSportFilter === category.id;
 
             return (
@@ -800,47 +627,6 @@ export default function MainPage({
             )}
           </div>
 
-          {/* C. Finished Matches */}
-          {finishedMatches.length > 0 && (
-            <div className="space-y-3">
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Tv className="h-4 w-4" />
-                <span>أحدث النتائج والمباريات المنتهية</span>
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {finishedMatches.map(match => (
-                  <div 
-                    key={match.id}
-                    onClick={() => onSelectMatch(match)}
-                    className="group cursor-pointer rounded-2xl border border-zinc-900 bg-zinc-950 p-4 hover:border-zinc-800 hover:bg-zinc-900/40 transition-all flex flex-col justify-between"
-                  >
-                    <div className="flex justify-between items-center text-xs text-zinc-500 mb-2">
-                      <span>{match.league}</span>
-                      <span className="px-2 py-0.5 rounded bg-zinc-900 border border-zinc-800 text-zinc-400">انتهت</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{match.logoHome}</span>
-                        <span className="text-sm font-medium text-white">{match.teamHome}</span>
-                      </div>
-                      <span className="text-base font-black text-emerald-400">{match.scoreHome}</span>
-                    </div>
-                    <div className="flex items-center justify-between py-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg">{match.logoAway}</span>
-                        <span className="text-sm font-medium text-white">{match.teamAway}</span>
-                      </div>
-                      <span className="text-base font-black text-emerald-400">{match.scoreAway}</span>
-                    </div>
-                    <div className="mt-3 pt-2 border-t border-zinc-900 text-center text-xs text-zinc-500 group-hover:text-emerald-400 transition-colors">
-                      شاهد الإحصائيات والتوقعات 📊
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
         </div>
 
         {/* 4. Sidebar: News (Grounding) & Standings/Results Feed */}
@@ -904,9 +690,9 @@ export default function MainPage({
               </div>
               
               {[
-                { rank: 1, team: 'ريال مدريد 🇪🇸', p: 38, pts: 87, form: '🟢🟢🟢' },
-                { rank: 2, team: 'برشلونة 🇪🇸', p: 38, pts: 82, form: '🟢🔴🟢' },
-                { rank: 3, team: 'مانشستر سيتي 🏴󠁧󠁢󠁥󠁮󠁧󠁿', p: 37, pts: 85, form: '🟢🟢🟢' },
+                { rank: 1, team: 'ليفربول 🏴󠁧󠁢󠁥󠁮󠁧󠁿', p: 38, pts: 89, form: '🟢🟢🟢' },
+                { rank: 2, team: 'مانشستر سيتي 🏴󠁧󠁢󠁥󠁮󠁧󠁿', p: 38, pts: 87, form: '🟢🟢🟢' },
+                { rank: 3, team: 'تشيلسي 🏴󠁧󠁢󠁥󠁮󠁧󠁿', p: 38, pts: 84, form: '🟢🔴🟢' },
                 { rank: 4, team: 'أرسنال 🏴󠁧󠁢󠁥󠁮󠁧󠁿', p: 37, pts: 83, form: '🔴🟢🟢' },
                 { rank: 5, team: 'بايرن ميونخ 🇩🇪', p: 34, pts: 72, form: '🟢🔴🔴' }
               ].map(row => (
@@ -1067,7 +853,7 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
               VS
             </div>
           )}
-          <span className="text-[10px] text-zinc-500 mt-2 tracking-wider">نقاط محاكاة</span>
+          <span className="text-[10px] text-zinc-500 mt-2 tracking-wider">مباشر / مجدولة</span>
         </div>
 
         {/* Away Team */}
@@ -1087,7 +873,7 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
             onClick={() => onSelect(match)}
             className="text-emerald-400 hover:underline font-bold"
           >
-            تفاصيل ومحاكاة اللعب 📊
+            تفاصيل المباراة والتوقعات 📊
           </button>
         </div>
 

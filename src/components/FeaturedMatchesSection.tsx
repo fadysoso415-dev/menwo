@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Match } from '../types';
-import { Flame, Crown, Sparkles, Trophy, ArrowLeft, Zap, ShieldCheck, Clock, PlayCircle, Bell } from 'lucide-react';
+import { Flame, Crown, Sparkles, Trophy, ChevronLeft, Zap, ShieldCheck, Clock, PlayCircle, Bell } from 'lucide-react';
 
 interface FeaturedMatchesSectionProps {
   matches: Match[];
@@ -303,7 +303,7 @@ export default function FeaturedMatchesSection({
             {/* Strategic Insight */}
             <div className="text-xs text-zinc-400 flex items-center gap-1.5">
               <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-              <span>مؤشرات المباراة موثقة بإحصائيات المواجهات المباشرة والذكاء الاصطناعي</span>
+              <span>مؤشرات المباراة موثقة بإحصائيات المواجهات المباشرة الموثوقة</span>
             </div>
 
             <button
@@ -311,7 +311,7 @@ export default function FeaturedMatchesSection({
               className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black px-6 py-2.5 rounded-xl text-xs transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2"
             >
               <span>فتح تحليلات المباراة وإحداثيات الرهان</span>
-              <ArrowLeft className="h-4 w-4" />
+              <ChevronLeft className="h-4 w-4 stroke-[2.5]" />
             </button>
           </div>
 

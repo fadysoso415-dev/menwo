@@ -12,8 +12,8 @@ import {
   Coins,
   MessageSquare,
   ArrowUpRight,
-  ArrowRight,
-  ArrowLeft
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 interface NavbarProps {
@@ -25,7 +25,7 @@ interface NavbarProps {
   onGoBack?: () => void;
   onOpenAuth: () => void;
   onLogout: () => void;
-  onToggleChat: () => void;
+  onToggleChat?: () => void;
   onOpenDeposit: () => void;
   onOpenWithdraw?: () => void;
 }
@@ -59,7 +59,7 @@ export default function Navbar({
               title={t.goBack}
               id="nav-top-back-btn"
             >
-              {dir === 'rtl' ? <ArrowRight className="h-4 w-4" /> : <ArrowLeft className="h-4 w-4" />}
+              {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
               <span>{t.goBack}</span>
             </button>
           )}
@@ -168,16 +168,6 @@ export default function Navbar({
                 </div>
               </div>
 
-              {/* Chat Toggle Button */}
-              <button
-                onClick={onToggleChat}
-                className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all border border-zinc-900"
-                title={t.aiAssistant}
-                id="toggle-chat-navbar-btn"
-              >
-                <MessageSquare className="h-5 w-5 text-emerald-400" />
-              </button>
-
               {/* Notification bell */}
               <button
                 onClick={() => setActiveTab('dashboard')}
@@ -210,25 +200,16 @@ export default function Navbar({
               {/* Logout button */}
               <button
                 onClick={onLogout}
-                className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-900 hover:text-red-400 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-extrabold text-red-400 bg-red-500/10 hover:bg-red-500/20 hover:text-red-300 border border-red-500/20 transition-all cursor-pointer active:scale-95 shadow-sm"
                 title={t.logout}
                 id="logout-nav-btn"
               >
-                <LogOut className="h-5 w-5" />
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">{t.logout}</span>
               </button>
             </div>
           ) : (
             <div className="flex items-center gap-2">
-              {/* Chat Toggle Button (Available for guests too!) */}
-              <button
-                onClick={onToggleChat}
-                className="relative rounded-lg p-2 text-zinc-400 hover:bg-zinc-900 hover:text-white transition-all border border-zinc-900"
-                title={t.aiAssistant}
-                id="toggle-chat-navbar-guest-btn"
-              >
-                <MessageSquare className="h-5 w-5 text-emerald-400" />
-              </button>
-
               <button
                 onClick={onOpenAuth}
                 className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20"

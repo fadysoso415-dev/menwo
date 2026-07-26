@@ -152,7 +152,7 @@ export default function WithdrawModal({
                   type="number"
                   min="10"
                   max={currentUser.balance}
-                  value={amountInput}
+                  value={Number.isNaN(amountInput) ? '' : amountInput}
                   onChange={(e) => setAmountInput(parseInt(e.target.value) || 0)}
                   className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-sm font-black text-amber-400 font-mono focus:outline-none focus:border-emerald-500"
                   placeholder="أدخل مبلغ السحب..."
