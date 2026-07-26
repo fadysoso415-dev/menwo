@@ -131,14 +131,29 @@ export default function MobileBottomNav({
             )}
           </>
         ) : (
-          <button
-            onClick={onOpenAuth}
-            className="flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl text-zinc-400 hover:text-emerald-400 transition-all cursor-pointer active:scale-95"
-            id="mobile-bottom-nav-login"
-          >
-            <LogIn className="h-5 w-5 text-emerald-400" />
-            <span className="text-[10px] tracking-tight">{t.login}</span>
-          </button>
+          <>
+            <button
+              onClick={() => setActiveTab('signup')}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
+                activeTab === 'signup'
+                  ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border border-emerald-500/20'
+                  : 'text-zinc-400 hover:text-emerald-400'
+              }`}
+              id="mobile-bottom-nav-signup"
+            >
+              <UserIcon className="h-5 w-5 text-emerald-400" />
+              <span className="text-[10px] tracking-tight">حساب جديد</span>
+            </button>
+
+            <button
+              onClick={onOpenAuth}
+              className="flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl text-zinc-400 hover:text-emerald-400 transition-all cursor-pointer active:scale-95"
+              id="mobile-bottom-nav-login"
+            >
+              <LogIn className="h-5 w-5 text-emerald-400" />
+              <span className="text-[10px] tracking-tight">{t.login}</span>
+            </button>
+          </>
         )}
 
         {/* 6. Admin Panel Tab if Admin */}

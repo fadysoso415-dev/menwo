@@ -8,6 +8,7 @@ interface AuthModalProps {
   onLoginSuccess: (user: User) => void;
   allUsers: User[];
   onRegisterUser: (newUser: User) => void;
+  onNavigateSignUp?: () => void;
 }
 
 const AVATAR_OPTIONS = [
@@ -22,7 +23,8 @@ export default function AuthModal({
   onClose,
   onLoginSuccess,
   allUsers,
-  onRegisterUser
+  onRegisterUser,
+  onNavigateSignUp
 }: AuthModalProps) {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [name, setName] = useState('');
@@ -43,39 +45,57 @@ export default function AuthModal({
     setForgotMsg(false);
 
     if (isLoginMode) {
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPass = password.trim();
+
+      if (!cleanEmail) {
+        setError('يرجى إدخال البريد الإلكتروني.');
+        return;
+      }
+      if (!cleanPass) {
+        setError('يرجى إدخال كلمة المرور لدخول حسابك.');
+        return;
+      }
+
       // Find matching user in state list
-      const user = allUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+      const user = allUsers.find(u => u.email.trim().toLowerCase() === cleanEmail);
       if (user) {
-        if (!password) {
-          setError('يرجى إدخال كلمة المرور لدخول حسابك.');
+        // Verify password if user has password set
+        if (user.password && user.password !== cleanPass) {
+          setError('كلمة المرور غير صحيحة. يرجى التأكد وإعادة المحاولة.');
           return;
         }
-        const userToLogin = user.email.toLowerCase() === 'fadysoso415@gmail.com' 
-          ? { ...user, isAdmin: true } 
-          : user;
+        const userToLogin = (cleanEmail === 'fadysoso415@gmail.com' || cleanEmail === 'admin@stad.com' || user.isAdmin) 
+          ? { ...user, password: cleanPass, isAdmin: true } 
+          : { ...user, password: cleanPass };
         onLoginSuccess(userToLogin);
         onClose();
       } else {
-        setError('عفواً، البريد الإلكتروني غير مسجل. يمكنك إنشاء حساب جديد مجاناً!');
+        setError('عفواً، البريد الإلكتروني غير مسجل لدينا. يمكنك إنشاء حساب جديد مجاناً!');
       }
     } else {
       // Register mode
-      if (!name || !email || !password) {
-        setError('جميع الحقول الأساسية مطلوبة لإنشاء الحساب.');
+      const cleanEmail = email.trim().toLowerCase();
+      const cleanPass = password.trim();
+      const cleanName = name.trim();
+
+      if (!cleanName || !cleanEmail || !cleanPass) {
+        setError('جميع الحقول الأساسية مطلوبة لإنشاء الحساب (الاسم، البريد الإلكتروني، وكلمة المرور).');
         return;
       }
-      if (allUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+      if (allUsers.some(u => u.email.trim().toLowerCase() === cleanEmail)) {
         setError('هذا البريد الإلكتروني مسجل بالفعل لدينا! حاول تسجيل الدخول.');
         return;
       }
 
-      const isUserAdmin = email.toLowerCase() === 'fadysoso415@gmail.com' || email.toLowerCase().includes('admin');
+      const isUserAdmin = cleanEmail === 'fadysoso415@gmail.com' || cleanEmail === 'admin@stad.com';
 
       const newUser: User = {
         id: `user-${Date.now()}`,
-        name,
-        email,
-        phone: phone || undefined,
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPass,
+        phone: phone.trim() || undefined,
         balance: 0,
         isAdmin: isUserAdmin,
         avatar: selectedAvatar,
@@ -153,15 +173,30 @@ export default function AuthModal({
         </div>
 
         {/* Sub Header Intro */}
-        <div className="text-right mb-5 relative z-10">
-          <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-            {isLoginMode ? 'مرحباً بك مجدداً! 👋' : 'انضم إلى مجتمع كبار المراهنين 🚀'}
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
-            {isLoginMode 
-              ? 'أدخل بيانات حسابك للوصول إلى محفظتك وقسائم الرهان المباشرة.' 
-              : 'أنشئ حسابك الآن واستمتع بسحب وإيداع سريع فوراً عبر فودافون كاش.'}
-          </p>
+        <div className="text-right mb-5 relative z-10 flex justify-between items-start">
+          <div>
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+              {isLoginMode ? 'مرحباً بك مجدداً! 👋' : 'انضم إلى مجتمع كبار المراهنين 🚀'}
+            </h2>
+            <p className="text-xs text-zinc-400 mt-1 leading-relaxed">
+              {isLoginMode 
+                ? 'أدخل بيانات حسابك للوصول إلى محفظتك وقسائم الرهان المباشرة.' 
+                : 'أنشئ حسابك الآن واستمتع بسحب وإيداع سريع فوراً عبر فودافون كاش.'}
+            </p>
+          </div>
+
+          {!isLoginMode && onNavigateSignUp && (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onNavigateSignUp();
+              }}
+              className="text-[11px] font-bold text-emerald-400 hover:underline bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 shrink-0 cursor-pointer"
+            >
+              <span>الصفحة الكاملة ↗️</span>
+            </button>
+          )}
         </div>
 
         {/* Error Alert Box */}

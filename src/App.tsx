@@ -32,6 +32,7 @@ import MainPage from './components/MainPage';
 import EventsPage from './components/EventsPage';
 import UserDashboard from './components/UserDashboard';
 import AdminPanel from './components/AdminPanel';
+import SignUpPage from './components/SignUpPage';
 import Chatbot from './components/Chatbot';
 import CashDepositModal from './components/CashDepositModal';
 import WithdrawModal from './components/WithdrawModal';
@@ -106,7 +107,7 @@ export default function App() {
     const unsubUsers = subscribeToUsers((realtimeUsers) => {
       if (realtimeUsers.length > 0) {
         const updated = realtimeUsers.map(u => 
-          u.email.toLowerCase() === 'fadysoso415@gmail.com' ? { ...u, isAdmin: true } : u
+          (u.email.toLowerCase() === 'fadysoso415@gmail.com' || u.email.toLowerCase() === 'admin@stad.com') ? { ...u, isAdmin: true } : u
         );
         setAllUsers(updated);
       }
@@ -124,7 +125,7 @@ export default function App() {
     if (savedUsers) {
       const parsed: User[] = JSON.parse(savedUsers);
       const updated = parsed.map(u => 
-        u.email.toLowerCase() === 'fadysoso415@gmail.com' ? { ...u, isAdmin: true } : u
+        (u.email.toLowerCase() === 'fadysoso415@gmail.com' || u.email.toLowerCase() === 'admin@stad.com') ? { ...u, isAdmin: true } : u
       );
       setAllUsers(updated);
     } else {
@@ -135,15 +136,17 @@ export default function App() {
     // Active user session
     const savedActiveUser = localStorage.getItem('stad_active_user');
     if (savedActiveUser) {
-      const parsedUser: User = JSON.parse(savedActiveUser);
-      if (parsedUser.email.toLowerCase() === 'fadysoso415@gmail.com') {
-        parsedUser.isAdmin = true;
+      try {
+        const parsedUser: User = JSON.parse(savedActiveUser);
+        if (parsedUser.email.toLowerCase() === 'fadysoso415@gmail.com' || parsedUser.email.toLowerCase() === 'admin@stad.com') {
+          parsedUser.isAdmin = true;
+        }
+        setCurrentUser(parsedUser);
+      } catch (e) {
+        setCurrentUser(null);
       }
-      setCurrentUser(parsedUser);
     } else {
-      const defaultUser = { ...DEFAULT_USERS[1], isAdmin: true };
-      setCurrentUser(defaultUser);
-      localStorage.setItem('stad_active_user', JSON.stringify(defaultUser));
+      setCurrentUser(null);
     }
 
     // Local notifications, chat history, cash wallet, etc.
@@ -679,8 +682,10 @@ export default function App() {
   };
 
   const handleRegisterUser = (newUser: User) => {
+    saveUserToFirestore(newUser);
     setAllUsers(prev => {
-      const next = [...prev, newUser];
+      const filtered = prev.filter(u => u.id !== newUser.id && u.email !== newUser.email);
+      const next = [...filtered, newUser];
       localStorage.setItem('stad_users', JSON.stringify(next));
       return next;
     });
@@ -1394,6 +1399,7 @@ export default function App() {
               {activeTab === 'events' && (selectedMatch ? `مباراة: ${selectedMatch.teamHome} × ${selectedMatch.teamAway}` : 'قسم الأحداث والمباريات')}
               {activeTab === 'dashboard' && 'لوحة حسابي والمحفظة'}
               {activeTab === 'admin' && 'لوحة تحكم المسؤول'}
+              {activeTab === 'signup' && 'إنشاء حساب جديد'}
             </span>
           </div>
         )}
@@ -1493,6 +1499,16 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'signup' && (
+          <SignUpPage 
+            allUsers={allUsers}
+            onRegisterUser={handleRegisterUser}
+            onLoginSuccess={handleLoginSuccess}
+            onNavigateTab={handleTabSelect}
+            onOpenAuthModal={() => setIsAuthOpen(true)}
+          />
+        )}
+
       </main>
 
       {/* Cash Deposit Modal */}
@@ -1538,6 +1554,7 @@ export default function App() {
         onLoginSuccess={handleLoginSuccess}
         allUsers={allUsers}
         onRegisterUser={handleRegisterUser}
+        onNavigateSignUp={() => handleTabSelect('signup')}
       />
 
 

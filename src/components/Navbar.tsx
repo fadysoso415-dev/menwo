@@ -5,6 +5,7 @@ import LanguageSelector from './LanguageSelector';
 import { 
   Trophy, 
   User as UserIcon, 
+  UserPlus,
   Bell, 
   ShieldAlert, 
   LogOut, 
@@ -211,8 +212,21 @@ export default function Navbar({
           ) : (
             <div className="flex items-center gap-2">
               <button
+                onClick={() => setActiveTab('signup')}
+                className={`flex items-center gap-1.5 rounded-xl px-3 sm:px-3.5 py-2 text-xs sm:text-sm font-bold border transition-all cursor-pointer ${
+                  activeTab === 'signup'
+                    ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40'
+                    : 'bg-zinc-900/90 hover:bg-zinc-800 text-zinc-200 border-zinc-800'
+                }`}
+                id="signup-nav-btn"
+              >
+                <UserPlus className="h-4 w-4 text-emerald-400" />
+                <span className="hidden sm:inline">إنشاء حساب</span>
+              </button>
+
+              <button
                 onClick={onOpenAuth}
-                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20"
+                className="flex items-center gap-1.5 rounded-xl bg-emerald-500 px-3 sm:px-4 py-2 text-xs sm:text-sm font-black text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 cursor-pointer"
                 id="login-register-btn"
               >
                 <UserIcon className="h-4 w-4" />
