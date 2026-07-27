@@ -39,6 +39,7 @@ import WithdrawModal from './components/WithdrawModal';
 import ToastContainer, { ToastItem } from './components/ToastContainer';
 import MobileBottomNav from './components/MobileBottomNav';
 import BetConfirmationModal from './components/BetConfirmationModal';
+import QuickBetModal from './components/QuickBetModal';
 
 import { Trophy, Coins, MessageSquare, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
@@ -81,6 +82,9 @@ export default function App() {
   const [isCashDepositOpen, setIsCashDepositOpen] = useState(false);
   const [isWithdrawOpen, setIsWithdrawOpen] = useState(false);
   const [loadingChat, setLoadingChat] = useState(false);
+  const [isQuickBetModalOpen, setIsQuickBetModalOpen] = useState(false);
+  const [quickBetModalMatch, setQuickBetModalMatch] = useState<Match | null>(null);
+  const [quickBetModalOutcome, setQuickBetModalOutcome] = useState<'home' | 'draw' | 'away'>('home');
 
 
   // Initialize data and set up real-time Firestore listeners for Matches, Bets, Users, and Public Bets
@@ -291,20 +295,18 @@ export default function App() {
   const handleSubmitWithdrawalRequest = (amountCoins: number, receiverPhone: string) => {
     if (!currentUser) return;
 
+    if (currentUser.balance < amountCoins || amountCoins <= 0) {
+      triggerNotification('🔴 رصيد غير كافٍ', `عذراً، رصيدك المالي الحالي (${currentUser.balance} 🪙) غير كافٍ لسحب ${amountCoins} كوينز.`, 'system');
+      return;
+    }
+
     // 1. Deduct coins from user balance right away so they cannot double spend
     const updatedUser = {
       ...currentUser,
       balance: Math.max(0, currentUser.balance - amountCoins)
     };
 
-    setCurrentUser(updatedUser);
-    localStorage.setItem('stad_active_user', JSON.stringify(updatedUser));
-
-    setAllUsers(prev => {
-      const next = prev.map(u => u.id === currentUser.id ? updatedUser : u);
-      localStorage.setItem('stad_users', JSON.stringify(next));
-      return next;
-    });
+    updateCurrentUserAndState(updatedUser);
 
     // 2. Create withdrawal request
     const newReq: WithdrawalRequest = {
@@ -327,7 +329,7 @@ export default function App() {
 
     triggerNotification(
       '⏳ جاري مراجعة طلب سحب الأرباح',
-      `تم تقديم طلب سحب أرباح بمبلغ ${amountCoins} ج.م (${amountCoins} 🪙) على محفظة ${receiverPhone}. طلبك قيد المراجعة الفورية من القسم المالي.`,
+      `تم خصم واقتطاع ${amountCoins} 🪙 كوينز من محفظتك وتقديم طلب سحب بمبلغ ${amountCoins} ج.م كاش على رقم ${receiverPhone}. طلبك قيد المراجعة واعتماد الأدمن.`,
       'system'
     );
   };
@@ -337,12 +339,28 @@ export default function App() {
       const targetReq = prev.find(r => r.id === requestId);
       if (!targetReq || targetReq.status === 'approved') return prev;
 
+      // Update Firestore / state for target user balance confirmation
+      setAllUsers(uList => {
+        const uNext = uList.map(u => {
+          if (u.id === targetReq.userId) {
+            saveUserToFirestore(u);
+            if (currentUser?.id === u.id) {
+              setCurrentUser(u);
+              localStorage.setItem('stad_active_user', JSON.stringify(u));
+            }
+          }
+          return u;
+        });
+        localStorage.setItem('stad_users', JSON.stringify(uNext));
+        return uNext;
+      });
+
       const next = prev.map(r => r.id === requestId ? { ...r, status: 'approved' as const } : r);
       localStorage.setItem('stad_withdrawal_requests', JSON.stringify(next));
 
       triggerNotification(
-        '💸 تم تحويل الأرباح بنجاح!',
-        `تمت الموافقة على طلب سحب الأرباح وتحويل مبلغ ${targetReq.amountEgp} ج.م كاش إلى محفظتك رقم ${targetReq.receiverPhone}.`,
+        '💸 تم اعتماد السحب وتأكيد الخصم!',
+        `تمت موافقة الأدمن وتأكيد خصم ${targetReq.amountCoins} 🪙 كوينز من محفظتك وتحويل مبلغ ${targetReq.amountEgp} ج.م كاش إلى محفظتك رقم ${targetReq.receiverPhone}.`,
         'system'
       );
 
@@ -360,6 +378,7 @@ export default function App() {
         const uNext = uList.map(u => {
           if (u.id === targetReq.userId) {
             const updated = { ...u, balance: u.balance + targetReq.amountCoins };
+            saveUserToFirestore(updated);
             if (currentUser?.id === u.id) {
               setCurrentUser(updated);
               localStorage.setItem('stad_active_user', JSON.stringify(updated));
@@ -377,7 +396,7 @@ export default function App() {
 
       triggerNotification(
         '❌ تم رفض طلب سحب الأرباح',
-        `تم رفض طلب سحب الأرباح بمبلغ ${targetReq.amountEgp} ج.م وإعادة ${targetReq.amountCoins} 🪙 كوينز إلى حسابك.`,
+        `تم رفض طلب السحب وإعادة ${targetReq.amountCoins} 🪙 كوينز إلى محفظتك مرة أخرى.`,
         'system'
       );
 
@@ -402,7 +421,7 @@ export default function App() {
 
     triggerNotification(
       '⏳ إرسال طلب شحن رصيد',
-      `تم استلام طلب شحن ${request.amountEgp} ج.م (${request.coinsRequested} 🪙). جاري مراجعة صورة الإيصال من الإدارة.`,
+      `تم استلام طلب شحن ${request.amountEgp} ج.م (${request.coinsRequested} 🪙). جاري مراجعة صورة الإيصال من الإدارة لتأكيد زيادة المحفظة.`,
       'system'
     );
   };
@@ -412,11 +431,12 @@ export default function App() {
       const targetReq = prev.find(r => r.id === requestId);
       if (!targetReq || targetReq.status === 'approved') return prev;
 
-      // 1. Credit coins to user's balance
+      // 1. Credit coins to user's balance & sync to Firestore and state
       setAllUsers(uList => {
         const uNext = uList.map(u => {
           if (u.id === targetReq.userId) {
             const updated = { ...u, balance: u.balance + targetReq.coinsRequested };
+            saveUserToFirestore(updated);
             if (currentUser?.id === u.id) {
               setCurrentUser(updated);
               localStorage.setItem('stad_active_user', JSON.stringify(updated));
@@ -435,8 +455,8 @@ export default function App() {
 
       // 3. Trigger notification
       triggerNotification(
-        '🎉 تم تأكيد طلب الشحن بنجاح!',
-        `تم قبول إيصال التحويل واكتمل إيداع +${targetReq.coinsRequested} 🪙 كوينز في محفظتك بنجاح مقابل ${targetReq.amountEgp} ج.م.`,
+        '🎉 تم تأكيد اعتماد الشحن وزيادة الكوينز!',
+        `تمت موافقة الأدمن على طلب الشحن وزيادة +${targetReq.coinsRequested} 🪙 كوينز في محفظتك بنجاح مقابل ${targetReq.amountEgp} ج.م!`,
         'system'
       );
 
@@ -809,22 +829,15 @@ export default function App() {
   };
 
   // Quick Bet Home helper
-  const handlePlaceQuickBet = (match: Match, outcome: 'home' | 'draw' | 'away') => {
-    if (!currentUser) {
-      setIsAuthOpen(true);
-      return;
-    }
-
-    if (currentUser.balance < 100) {
-      triggerNotification(
-        '🔴 رصيد غير كافٍ',
-        'عذراً، رصيدك الحقيقي غير كافٍ لإجراء الرهان السريع (100 كوينز). يرجى تقديم طلب شحن من المحفظة أولاً.',
-        'system'
-      );
-      return;
-    }
-
-    handlePlaceBet(match.id, outcome, 100); // quick 100 bet
+  const handlePlaceQuickBet = (match?: Match, outcome: 'home' | 'draw' | 'away' = 'home') => {
+    const isBettingAvailable = (m: Match) => m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
+    const targetMatch = (match && isBettingAvailable(match)) 
+      ? match 
+      : matches.find(isBettingAvailable) || matches[0];
+    if (!targetMatch) return;
+    setQuickBetModalMatch(targetMatch);
+    setQuickBetModalOutcome(outcome);
+    setIsQuickBetModalOpen(true);
   };
 
   // 2. SIMULATE MATCH RESOLUTION & ADMIN MATCH ENGINE (تحديث حالة وتاريخ المباراة وتصفية تسوية الرهانات)
@@ -982,7 +995,8 @@ export default function App() {
     isAdFeatured?: boolean,
     isBettingClosed?: boolean,
     bettingStatus?: 'open' | 'closed' | 'suspended',
-    bettingNote?: string
+    bettingNote?: string,
+    isActive?: boolean
   ) => {
     const target = matches.find(m => m.id === matchId);
     if (!target) return;
@@ -1008,7 +1022,8 @@ export default function App() {
       isAdFeatured: isAdFeatured !== undefined ? isAdFeatured : target.isAdFeatured,
       isBettingClosed: isBettingClosed !== undefined ? isBettingClosed : target.isBettingClosed,
       bettingStatus: bettingStatus !== undefined ? bettingStatus : target.bettingStatus,
-      bettingNote: bettingNote !== undefined ? bettingNote : target.bettingNote
+      bettingNote: bettingNote !== undefined ? bettingNote : target.bettingNote,
+      isActive: isActive !== undefined ? isActive : target.isActive
     };
 
     saveMatchToFirestore(updated);
@@ -1384,26 +1399,6 @@ export default function App() {
       {/* Main Container Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 pb-16 pt-3 sm:pt-4">
         
-        {/* Top Back Navigation Bar for sub-pages / non-home tabs */}
-        {(canGoBack || activeTab !== 'home') && (
-          <div className="flex items-center justify-between bg-zinc-900/90 border border-zinc-800 rounded-2xl px-3.5 py-2.5 mb-4 backdrop-blur-md shadow-sm" dir={dir}>
-            <button
-              onClick={handleGoBack}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-black transition-all cursor-pointer active:scale-95 shadow-sm"
-              id="top-page-back-btn"
-            >
-              {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
-              <span>{t.goBack} ({dir === 'rtl' ? 'للصفحة السابقة' : 'To Previous Page'})</span>
-            </button>
-            <span className="text-xs font-bold text-zinc-400 truncate max-w-[170px] sm:max-w-none">
-              {activeTab === 'events' && (selectedMatch ? `مباراة: ${selectedMatch.teamHome} × ${selectedMatch.teamAway}` : 'قسم الأحداث والمباريات')}
-              {activeTab === 'dashboard' && 'لوحة حسابي والمحفظة'}
-              {activeTab === 'admin' && 'لوحة تحكم المسؤول'}
-              {activeTab === 'signup' && 'إنشاء حساب جديد'}
-            </span>
-          </div>
-        )}
-
         {/* Render Tab pages dynamically */}
         {activeTab === 'home' && (
           <MainPage 
@@ -1415,6 +1410,7 @@ export default function App() {
             sportsCategories={sportsCategories}
             onTriggerToast={triggerToast}
             onTriggerNotification={triggerNotification}
+            activeBets={bets}
           />
         )}
 
@@ -1546,6 +1542,24 @@ export default function App() {
           onKeepBetting={() => handleTabSelect('events')}
         />
       )}
+
+      {/* Quick Bet Modal Overlay - Accessible From Any Page */}
+      <QuickBetModal
+        isOpen={isQuickBetModalOpen}
+        onClose={() => setIsQuickBetModalOpen(false)}
+        match={quickBetModalMatch}
+        initialOutcome={quickBetModalOutcome}
+        currentUser={currentUser}
+        onConfirmBet={handlePlaceBet}
+        onOpenAuth={() => setIsAuthOpen(true)}
+        onOpenDeposit={() => {
+          if (!currentUser) setIsAuthOpen(true);
+          else setIsCashDepositOpen(true);
+        }}
+        allMatches={matches}
+        onSelectMatch={(m) => setQuickBetModalMatch(m)}
+        activeBets={bets}
+      />
 
       {/* Auth Login/Signup Modal popup */}
       <AuthModal 

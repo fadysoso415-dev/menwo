@@ -372,7 +372,7 @@ export default function UserActiveBetsList({
           <p className="text-xs text-zinc-400 max-w-md mx-auto">
             {isFiltersActive 
               ? 'جرّب تغيير فلاتر البحث أو التصفية لإظهار كافة الرهانات المسجلة.' 
-              : 'لم تقم بإجراء أي رهان بعد. يمكنك تصفح جدول المباريات القادمة والمشاركة في التوقعات الآن!'}
+              : 'لم تقم بإجراء أي رهان بعد. يمكنك تصفح جدول المباريات المتاحة والمشاركة في التوقعات الآن!'}
           </p>
           {isFiltersActive && (
             <button

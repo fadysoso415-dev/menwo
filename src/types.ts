@@ -100,6 +100,7 @@ export interface Match {
   isBettingClosed?: boolean;
   bettingStatus?: 'open' | 'closed' | 'suspended';
   bettingNote?: string;
+  isActive?: boolean;
 }
 
 export interface Bet {

@@ -1503,7 +1503,7 @@ export default function UserDashboard({
                 onClick={() => onNavigateTab('events')}
                 className="px-3 py-1 bg-amber-500 text-zinc-950 font-black rounded-lg text-[11px] shrink-0 hover:bg-amber-400 transition-all cursor-pointer"
               >
-                تصفح المباريات والرهانات ⚽
+                تصفح المباريات والرهانات
               </button>
             )}
           </div>
@@ -1718,7 +1718,7 @@ export default function UserDashboard({
                 onClick={() => onNavigateTab('events')}
                 className="px-3 py-1 bg-amber-500 text-zinc-950 font-black rounded-lg text-[11px] shrink-0 hover:bg-amber-400 transition-all cursor-pointer"
               >
-                المباريات والرهانات ⚽
+                المباريات والرهانات
               </button>
             )}
           </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Match, NewsItem, LeagueStandingItem, SportCategory } from '../types';
+import { Match, NewsItem, LeagueStandingItem, SportCategory, Bet } from '../types';
 import LeagueStandingsSection from './LeagueStandingsSection';
 import FeaturedMatchesSection from './FeaturedMatchesSection';
 import { useLanguage } from '../context/LanguageContext';
@@ -16,7 +16,6 @@ import {
   Loader2,
   Trophy,
   Coins,
-  Zap,
   Percent,
   ArrowUpRight,
   CheckCircle2,
@@ -24,7 +23,8 @@ import {
   X,
   Filter,
   Bell,
-  Lock
+  Lock,
+  Clock
 } from 'lucide-react';
 
 interface MainPageProps {
@@ -41,6 +41,7 @@ interface MainPageProps {
     type?: 'score_change' | 'goal' | 'bet_win' | 'bet_lost' | 'info'
   ) => void;
   onTriggerNotification?: (title: string, message: string, type: 'bet' | 'match' | 'system') => void;
+  activeBets?: Bet[];
 }
 
 export default function MainPage({
@@ -51,7 +52,8 @@ export default function MainPage({
   leagueStandings = [],
   sportsCategories = [],
   onTriggerToast,
-  onTriggerNotification
+  onTriggerNotification,
+  activeBets = []
 }: MainPageProps) {
   const { t, dir } = useLanguage();
   const [searchQuery, setSearchQuery] = useState('');
@@ -169,8 +171,9 @@ export default function MainPage({
     fetchLiveNews();
   }, []);
 
-  // Filter matches based on search query and selected sport filter (excluding finished matches on user page)
+  // Filter matches based on search query and selected sport filter (excluding finished and inactive matches on user page)
   const filteredMatches = matches.filter(match => {
+    if (match.isActive === false) return false;
     if (match.status === 'finished') return false;
 
     const q = searchQuery.trim().toLowerCase();
@@ -222,63 +225,53 @@ export default function MainPage({
   const scheduledMatches = filteredMatches.filter(m => m.status === 'scheduled');
 
   // Value bets recommendations (highest multiplier odds with great potential)
-  const valueBetMatches = matches.filter(m => m.status !== 'finished').slice(0, 3);
+  const valueBetMatches = matches.filter(m => m.status !== 'finished' && m.isActive !== false).slice(0, 3);
 
   return (
-    <div className="space-y-10 py-6" dir={dir}>
+    <div className="space-y-6 sm:space-y-8 py-2 sm:py-4" dir={dir}>
       
-      {/* 1. Hero / Premium Banner Section */}
-      <section className="relative rounded-3xl overflow-hidden border border-emerald-500/20 bg-zinc-950 p-6 sm:p-10 shadow-2xl shadow-emerald-500/10">
-        <div className="absolute inset-0 bg-gradient-to-tr from-emerald-950/20 via-zinc-950 to-zinc-950" />
-        
-        <div className="relative z-10 max-w-3xl space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3.5 py-1 text-xs font-black text-emerald-400 ring-1 ring-emerald-500/30">
-            <Sparkles className="h-4 w-4 text-amber-400 animate-pulse" />
-            <span>توقعات AI المحدثة وتحليلات مباشرة</span>
+      {/* 1. Compact Sleek Top Status & Hero Bar */}
+      <section className="relative rounded-2xl overflow-hidden border border-emerald-500/30 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-4 sm:p-5 shadow-xl shadow-emerald-500/5">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 relative z-10">
+          <div className="space-y-1">
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-0.5 text-[11px] font-black text-emerald-400 border border-emerald-500/30">
+              <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+              <span>منصة الرهانات والتوقعات المباشرة</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <span>مباريات اليوم والرهانات المتاحة</span>
+              <span className="text-xs px-2 py-0.5 bg-emerald-500 text-zinc-950 font-black rounded-lg">مباشر 🔥</span>
+            </h1>
           </div>
-          
-          <h1 className="text-3xl sm:text-5xl font-black text-white leading-tight">
-            ضاعف أرباحك الذكية مع <span className="text-emerald-400">مينوو للتوقعات</span> 🚀
-          </h1>
-          
-          <p className="text-sm sm:text-base text-zinc-400 leading-relaxed max-w-xl">
-            تصفح أحدث أودز المباريات العالمية وشارك في التوقعات بضغطة واحدة لتجميع الكوينز وجني الأرباح.
-          </p>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
+            <div className="flex items-center gap-2 text-xs text-zinc-300 font-bold bg-zinc-900/90 border border-zinc-800 px-3 py-2 rounded-xl">
+              <span>المباريات النشطة: <strong className="text-emerald-400 font-mono text-sm">{matches.filter(m => m.status !== 'finished').length}</strong></span>
+            </div>
+
             <a 
-              href="#matches-section"
-              className="rounded-xl bg-emerald-500 px-6 py-3 text-xs sm:text-sm font-black text-zinc-950 hover:bg-emerald-400 transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2"
+              href="#matches-search-section"
+              className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-4 py-2 text-xs font-black transition-all shadow-md flex items-center gap-1.5 shrink-0"
             >
-              <span>تصفح كافة المباريات المتاحة ⚽</span>
+              <Search className="h-3.5 w-3.5" />
+              <span>بحث سريع 🔍</span>
             </a>
-          </div>
-
-          <div className="flex items-center gap-4 text-xs text-zinc-400 pt-2 border-t border-zinc-900/80">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck className="h-4 w-4 text-emerald-400" />
-              <span>شحن وسحب مؤمن عبر فودافون كاش</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Zap className="h-4 w-4 text-amber-400" />
-              <span>تنفيذ آلي للرهان خلال ثوانٍ</span>
-            </div>
           </div>
         </div>
       </section>
 
-      {/* Recommended AI High-ROI Value Bets Bar */}
+      {/* 2. Recommended AI High-ROI Value Bets Bar - IMMEDIATELY SEEN */}
       {valueBetMatches.length > 0 && (
-        <section className="space-y-4">
+        <section className="space-y-3">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
               <Flame className="h-5 w-5 text-amber-400 animate-pulse" />
-              <span>توصيات الذكاء الاصطناعي - رهانات القيمة العالية 🔥</span>
+              <span>توصيات الذكاء الاصطناعي - أعلى العوائد والنسب 🔥</span>
             </h2>
-            <span className="text-xs text-emerald-400 font-bold">عائد ربحي مرتفع المتوقع</span>
+            <span className="text-xs text-emerald-400 font-bold">تأكيد بنسبة 1-Tap ⚡</span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
             {valueBetMatches.map((m, idx) => {
               const bestOdds = Math.max(m.oddsHome, m.oddsDraw, m.oddsAway);
               const bestOutcome = bestOdds === m.oddsHome ? 'home' : bestOdds === m.oddsDraw ? 'draw' : 'away';
@@ -287,44 +280,44 @@ export default function MainPage({
               return (
                 <div 
                   key={m.id}
-                  className="bg-zinc-950 border border-amber-500/20 hover:border-amber-500/50 rounded-2xl p-4 shadow-xl transition-all space-y-3 relative overflow-hidden group"
+                  className="bg-zinc-950 border border-amber-500/30 hover:border-amber-500/60 rounded-2xl p-3.5 shadow-xl transition-all space-y-2.5 relative overflow-hidden group"
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-400 font-bold">{m.league}</span>
-                    <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black">
-                      موصى به 🔥 {85 + idx * 3}% ثقة
+                    <span className="text-zinc-400 font-bold truncate max-w-[140px]">{m.league}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-black">
+                      ثقة عالية 🔥 {88 + idx * 3}%
                     </span>
                   </div>
 
                   <div className="flex items-center justify-between py-1 text-center">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 max-w-[42%]">
                       <span className="text-xl">{m.logoHome}</span>
-                      <span className="text-xs font-bold text-white">{m.teamHome}</span>
+                      <span className="text-xs font-bold text-white truncate">{m.teamHome}</span>
                     </div>
-                    <span className="text-xs font-black text-zinc-500">VS</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-white">{m.teamAway}</span>
+                    <span className="text-[10px] font-black text-zinc-500 bg-zinc-900 px-1.5 py-0.5 rounded-md">VS</span>
+                    <div className="flex items-center gap-1.5 max-w-[42%] justify-end">
+                      <span className="text-xs font-bold text-white truncate">{m.teamAway}</span>
                       <span className="text-xl">{m.logoAway}</span>
                     </div>
                   </div>
 
-                  <div className="bg-zinc-900/80 p-2.5 rounded-xl border border-zinc-800 flex items-center justify-between text-xs">
+                  <div className="bg-zinc-900/90 p-2 rounded-xl border border-zinc-800 flex items-center justify-between text-xs">
                     <div>
-                      <p className="text-[10px] text-zinc-400">التوقع الموصى به:</p>
-                      <p className="font-extrabold text-white">{outcomeLabel}</p>
+                      <p className="text-[10px] text-zinc-400">الرهان المقترح:</p>
+                      <p className="font-extrabold text-white text-xs">{outcomeLabel}</p>
                     </div>
                     <div className="text-left">
-                      <p className="text-[10px] text-zinc-400">معامل الربح:</p>
+                      <p className="text-[10px] text-zinc-400">معامل العائد:</p>
                       <p className="font-mono font-black text-emerald-400 text-sm">{bestOdds.toFixed(2)}x</p>
                     </div>
                   </div>
 
                   <button
                     onClick={() => onPlaceQuickBet(m, bestOutcome)}
-                    className="w-full py-2 bg-amber-400 hover:bg-amber-300 text-zinc-950 font-extrabold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5"
+                    className="w-full py-2 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 font-black text-xs rounded-xl transition-all shadow-md shadow-amber-500/10 flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                    id={`value-bet-btn-${m.id}`}
                   >
-                    <Zap className="h-3.5 w-3.5" />
-                    <span>رهان سريع بنسبة مضاعفة ⚡</span>
+                    <span>مراهنة بنسبة {bestOdds.toFixed(2)}x</span>
                   </button>
                 </div>
               );
@@ -333,7 +326,7 @@ export default function MainPage({
         </section>
       )}
 
-      {/* Featured Matches Section (المباريات المتميزة ووسوم الإدارة) */}
+      {/* 3. Featured Matches Section (المباريات المتميزة ووسوم الإدارة) */}
       <FeaturedMatchesSection
         matches={matches}
         onSelectMatch={onSelectMatch}
@@ -341,51 +334,21 @@ export default function MainPage({
         currentUser={currentUser}
         reminders={matchReminders}
         onToggleReminder={handleToggleReminder}
+        activeBets={activeBets}
       />
 
-      {/* Active Scheduled Reminders Banner */}
-      {matchReminders.length > 0 && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-300 shadow-xl">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-amber-500/20 text-amber-400 font-bold border border-amber-500/30 shrink-0">
-              <Bell className="h-4 w-4 animate-bounce" />
-            </div>
-            <div>
-              <span className="font-bold block text-sm text-white">
-                ⏰ التنبيهات المجدولة بـ 15 دقيقة ({matchReminders.length} {matchReminders.length === 1 ? 'مباراة' : 'مباريات'})
-              </span>
-              <span className="text-[11px] text-zinc-400">
-                سيتم إرسال إشعار منبثق فوري فور اقتراب موعد انطلاق المباراة بـ 15 دقيقة لتضع رهانك في الوقت المناسب.
-              </span>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {matches.filter(m => matchReminders.includes(m.id)).slice(0, 3).map(m => (
-              <span key={m.id} className="bg-zinc-900 border border-zinc-800 text-amber-300 px-2.5 py-1 rounded-xl text-[11px] font-bold flex items-center gap-1.5 shadow-sm">
-                <span>{m.teamHome} × {m.teamAway}</span>
-                <button
-                  onClick={() => handleToggleReminder(m)}
-                  className="text-zinc-500 hover:text-red-400 transition-colors ml-1 p-0.5"
-                  title="إلغاء التنبيه"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* 2. Intelligent Search and Filtering Bar */}
-      <section id="matches-section" className="space-y-4 bg-zinc-950/80 border border-zinc-800/80 rounded-2xl p-4 sm:p-6 shadow-xl">
-        <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+
+      {/* 4. Search and Filtering Bar + Live Match Grid */}
+      <section id="matches-search-section" className="space-y-4 bg-zinc-950/90 border border-zinc-800/80 rounded-2xl p-4 sm:p-5 shadow-xl">
+        <div className="flex flex-col lg:flex-row gap-3 items-start lg:items-center justify-between">
           <div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+            <h2 className="text-lg sm:text-xl font-black text-white tracking-tight flex items-center gap-2">
               <Flame className="h-5 w-5 text-emerald-400" />
-              <span>البحث عن المباريات والأحداث المتاحة</span>
+              <span>جميع المباريات المتاحة للرهان</span>
             </h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
-              ابحث باسم الفريق، الدوري، أو اختر وسم <span className="text-amber-400 font-bold">'المباراة المتميزة'</span>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              اضغط على أي خيار (فوز الأرض / التعادل / فوز الضيف) للرهان الفوري
             </p>
           </div>
 
@@ -580,17 +543,18 @@ export default function MainPage({
                     currentUser={currentUser}
                     hasReminder={matchReminders.includes(match.id)}
                     onToggleReminder={handleToggleReminder}
+                    activeBets={activeBets}
                   />
                 ))}
               </div>
             </div>
           )}
 
-          {/* B. Scheduled / Upcoming Matches */}
+          {/* B. Available Betting Matches */}
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Calendar className="h-4 w-4" />
-              <span>المباريات القادمة</span>
+              <Clock className="h-4 w-4 text-emerald-400" />
+              <span>المباريات المتاحة للرهان</span>
             </h3>
             
             {scheduledMatches.length > 0 ? (
@@ -604,6 +568,7 @@ export default function MainPage({
                     currentUser={currentUser}
                     hasReminder={matchReminders.includes(match.id)}
                     onToggleReminder={handleToggleReminder}
+                    activeBets={activeBets}
                   />
                 ))}
               </div>
@@ -739,10 +704,12 @@ interface MatchCardProps {
   currentUser: any;
   hasReminder: boolean;
   onToggleReminder: (match: Match) => void;
+  activeBets?: Bet[];
 }
 
-function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onToggleReminder }: MatchCardProps) {
+function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onToggleReminder, activeBets = [] }: MatchCardProps) {
   const isLive = match.status === 'live';
+  const userBet = currentUser ? activeBets.find(b => b.userId === currentUser.id && b.matchId === match.id) : null;
 
   return (
     <div 
@@ -753,6 +720,27 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
     >
       {isLive && (
         <div className="absolute right-0 top-0 h-1 w-full bg-emerald-500" />
+      )}
+
+      {/* Active User Bet Indicator Badge */}
+      {userBet && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-2.5 mb-3 flex items-center justify-between text-xs text-amber-300 shadow-sm">
+          <div className="flex items-center gap-1.5 font-bold truncate max-w-[70%]">
+            <Lock className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <span className="truncate">
+              رهانك: {userBet.selectedOutcome === 'home' ? `فوز ${userBet.teamHome}` : userBet.selectedOutcome === 'away' ? `فوز ${userBet.teamAway}` : 'التعادل'} ({userBet.amount} 🪙)
+            </span>
+          </div>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+            userBet.status === 'won'
+              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+              : userBet.status === 'lost'
+                ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+          }`}>
+            {userBet.status === 'won' ? 'فائز 🟢' : userBet.status === 'lost' ? 'خاسر 🔴' : 'قيد الانتظار ⏳'}
+          </span>
+        </div>
       )}
 
       {/* Promotional Bet Banner if configured */}
@@ -794,24 +782,6 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
         <span className="text-xs text-zinc-400 font-medium">{match.league}</span>
         
         <div className="flex items-center gap-2">
-          {/* Reminder Alert Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleReminder(match);
-            }}
-            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 border shadow-sm ${
-              hasReminder
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-500/10 ring-1 ring-amber-500/30 font-black'
-                : 'bg-zinc-900/90 text-zinc-300 border-zinc-800 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30'
-            }`}
-            title="جدولة إشعار منبثق قبل بدء المباراة بـ 15 دقيقة"
-            id={`reminder-btn-${match.id}`}
-          >
-            <Bell className={`h-3.5 w-3.5 ${hasReminder ? 'fill-amber-400 text-amber-400 animate-bounce' : 'text-amber-400'}`} />
-            <span>{hasReminder ? 'تنبيه مفعّل (-15د) ⏰' : 'تنبيه (-15د) 🔔'}</span>
-          </button>
 
           {isLive ? (
             <div className="flex items-center gap-1.5 bg-red-500/10 text-red-400 px-2.5 py-1 rounded-full text-xs font-bold ring-1 ring-red-500/20">
@@ -819,9 +789,9 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
               <span>لايف دقيقة {match.minutes}'</span>
             </div>
           ) : (
-            <div className="flex items-center gap-1 bg-zinc-900 text-zinc-400 px-2.5 py-1 rounded-xl border border-zinc-800 text-xs">
-              <Calendar className="h-3.5 w-3.5" />
-              <span>{match.date || 'غداً'}، {match.time}</span>
+            <div className="flex items-center gap-1.5 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 rounded-xl border border-emerald-500/20 text-xs font-bold">
+              <Clock className="h-3.5 w-3.5 text-emerald-400" />
+              <span>متاحة للرهان ({match.time})</span>
             </div>
           )}
         </div>
@@ -853,7 +823,9 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
               VS
             </div>
           )}
-          <span className="text-[10px] text-zinc-500 mt-2 tracking-wider">مباشر / مجدولة</span>
+          <span className="text-[10px] text-emerald-400 font-bold mt-2 tracking-wider">
+            {isLive ? 'مباشر الآن 🔴' : 'متاحة للرهان 🟢'}
+          </span>
         </div>
 
         {/* Away Team */}

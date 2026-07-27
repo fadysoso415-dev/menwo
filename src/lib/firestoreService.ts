@@ -24,7 +24,7 @@ export function sanitizeForFirestore<T>(data: T): T {
       .filter(item => item !== undefined)
       .map(item => sanitizeForFirestore(item)) as unknown as T;
   }
-  if (typeof data === 'object' && data.constructor === Object) {
+  if (typeof data === 'object' && Object.prototype.toString.call(data) === '[object Object]') {
     const cleaned: Record<string, unknown> = {};
     for (const [key, val] of Object.entries(data)) {
       if (val !== undefined) {

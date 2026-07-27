@@ -40,26 +40,30 @@ interface ToastContainerProps {
 export default function ToastContainer({ toasts, onDismiss }: ToastContainerProps) {
   const [soundEnabled, setSoundEnabled] = useState(true);
 
-  // Play audio chime on new score toasts
+  // Play audio chime on new score toasts safely
   useEffect(() => {
     if (toasts.length > 0 && soundEnabled) {
       try {
-        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (typeof AudioCtxClass === 'function') {
-          const audioCtx = new AudioCtxClass();
-          const osc = audioCtx.createOscillator();
-          const gain = audioCtx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
-          osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5 note
-          gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
-          osc.connect(gain);
-          gain.connect(audioCtx.destination);
-          osc.start();
-          osc.stop(audioCtx.currentTime + 0.3);
+        const win = typeof window !== 'undefined' ? (window as any) : null;
+        if (!win) return;
+        const AudioCtx = win.AudioContext || win.webkitAudioContext;
+        if (typeof AudioCtx === 'function' && AudioCtx.prototype) {
+          const audioCtx = new AudioCtx();
+          if (audioCtx && typeof audioCtx.createOscillator === 'function') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+            osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15); // A5 note
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+          }
         }
-      } catch (e) {
+      } catch {
         // AudioContext browser restrictions handled silently
       }
     }

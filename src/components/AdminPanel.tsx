@@ -44,6 +44,7 @@ import {
   Sliders,
   PauseCircle,
   PlayCircle,
+  Power,
   EyeOff,
   ChevronDown,
   ChevronUp,
@@ -109,7 +110,8 @@ interface AdminPanelProps {
     isAdFeatured?: boolean,
     isBettingClosed?: boolean,
     bettingStatus?: 'open' | 'closed' | 'suspended',
-    bettingNote?: string
+    bettingNote?: string,
+    isActive?: boolean
   ) => void;
   onUpdateLeagueStandings?: (standings: LeagueStandingItem[]) => void;
   onClearDemoData?: () => void;
@@ -164,7 +166,7 @@ export default function AdminPanel({
 
   // Dedicated Match Bets Management States
   const [matchBetsSearchQuery, setMatchBetsSearchQuery] = useState('');
-  const [matchBetsStatusFilter, setMatchBetsStatusFilter] = useState<'all' | 'open' | 'closed' | 'suspended' | 'live' | 'finished'>('all');
+  const [matchBetsStatusFilter, setMatchBetsStatusFilter] = useState<'all' | 'active' | 'inactive' | 'open' | 'closed' | 'suspended' | 'live' | 'finished'>('all');
   const [expandedMatchBetsId, setExpandedMatchBetsId] = useState<string | null>(null);
   const [editingMatchOdds, setEditingMatchOdds] = useState<{ [matchId: string]: { home: number; draw: number; away: number } }>({});
   const [editingMatchBetNote, setEditingMatchBetNote] = useState<{ [matchId: string]: string }>({});
@@ -175,7 +177,7 @@ export default function AdminPanel({
   const [selectedBatchMatchIds, setSelectedBatchMatchIds] = useState<string[]>([]);
   const [batchFilterStatus, setBatchFilterStatus] = useState<'all' | 'live' | 'scheduled' | 'finished'>('all');
   const [batchSearchQuery, setBatchSearchQuery] = useState('');
-  const [batchActionType, setBatchActionType] = useState<'finish_and_settle' | 'open_betting' | 'close_betting' | 'suspend_betting' | 'set_live' | 'set_scheduled'>('finish_and_settle');
+  const [batchActionType, setBatchActionType] = useState<'finish_and_settle' | 'open_betting' | 'close_betting' | 'suspend_betting' | 'set_live' | 'set_scheduled' | 'activate_matches' | 'deactivate_matches'>('finish_and_settle');
   const [batchScorePreset, setBatchScorePreset] = useState<'current' | 'home_win' | 'draw' | 'away_win'>('current');
   const [batchUpdateSuccessMsg, setBatchUpdateSuccessMsg] = useState<string | null>(null);
 
@@ -271,6 +273,7 @@ export default function AdminPanel({
   const [newFeaturedBetMultiplier, setNewFeaturedBetMultiplier] = useState<number>(3.0);
   const [newFeaturedBetLabel, setNewFeaturedBetLabel] = useState<string>('🔥 رهان مميز مضاعف x3');
   const [newMatchImage, setNewMatchImage] = useState<string>('');
+  const [newIsActive, setNewIsActive] = useState<boolean>(true);
   const [addMatchSuccess, setAddMatchSuccess] = useState(false);
 
   // Match Bet Button Customization States
@@ -624,6 +627,7 @@ export default function AdminPanel({
       featuredBetMultiplier: newIsFeaturedBet ? (Number(newFeaturedBetMultiplier) > 0 ? Number(newFeaturedBetMultiplier) : 3) : 1,
       featuredBetLabel: newIsFeaturedBet ? (newFeaturedBetLabel.trim() || `🔥 رهان مميز مضاعف x${newFeaturedBetMultiplier}`) : undefined,
       matchImage: newMatchImage.trim() || undefined,
+      isActive: newIsActive,
     };
 
     onAddMatch(created);
@@ -640,6 +644,7 @@ export default function AdminPanel({
     setNewFeaturedBetMultiplier(3.0);
     setNewFeaturedBetLabel('🔥 رهان مميز مضاعف x3');
     setNewMatchImage('');
+    setNewIsActive(true);
     setTimeout(() => setAddMatchSuccess(false), 3000);
   };
 
@@ -899,6 +904,30 @@ export default function AdminPanel({
             targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
             targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
             true, 'suspended', 'تم تعليق الرهان مؤقتاً للتحديث الجماعي'
+          );
+        }
+        updatedCount++;
+      } else if (batchActionType === 'activate_matches') {
+        if (onUpdateMatchCustomizations) {
+          onUpdateMatchCustomizations(
+            matchId, targetMatch.customLabelHome, targetMatch.customLabelDraw, targetMatch.customLabelAway,
+            targetMatch.fixedStakeAmount, targetMatch.isFeatured, targetMatch.featuredTag,
+            targetMatch.oddsHome, targetMatch.oddsDraw, targetMatch.oddsAway,
+            targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
+            targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
+            targetMatch.isBettingClosed, targetMatch.bettingStatus, targetMatch.bettingNote, true
+          );
+        }
+        updatedCount++;
+      } else if (batchActionType === 'deactivate_matches') {
+        if (onUpdateMatchCustomizations) {
+          onUpdateMatchCustomizations(
+            matchId, targetMatch.customLabelHome, targetMatch.customLabelDraw, targetMatch.customLabelAway,
+            targetMatch.fixedStakeAmount, targetMatch.isFeatured, targetMatch.featuredTag,
+            targetMatch.oddsHome, targetMatch.oddsDraw, targetMatch.oddsAway,
+            targetMatch.isFeaturedBet, targetMatch.featuredBetMultiplier, targetMatch.featuredBetLabel,
+            targetMatch.matchImage, targetMatch.adTitle, targetMatch.adDescription, targetMatch.adBadge, targetMatch.isAdFeatured,
+            targetMatch.isBettingClosed, targetMatch.bettingStatus, targetMatch.bettingNote, false
           );
         }
         updatedCount++;
@@ -1339,6 +1368,8 @@ export default function AdminPanel({
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 { id: 'all', label: 'جميع المباريات' },
+                { id: 'active', label: 'منشطة (معروضة) ⚡' },
+                { id: 'inactive', label: 'غير منشطة (مخفية) ⚪' },
                 { id: 'open', label: 'رهانات مفتوحة 🟢' },
                 { id: 'suspended', label: 'معلقة مؤقتاً ⏸️' },
                 { id: 'closed', label: 'مغلقة 🔒' },
@@ -1379,7 +1410,11 @@ export default function AdminPanel({
               const passesSearch = matchText.includes(query);
 
               let passesStatus = true;
-              if (matchBetsStatusFilter === 'open') {
+              if (matchBetsStatusFilter === 'active') {
+                passesStatus = m.isActive !== false;
+              } else if (matchBetsStatusFilter === 'inactive') {
+                passesStatus = m.isActive === false;
+              } else if (matchBetsStatusFilter === 'open') {
                 passesStatus = m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
               } else if (matchBetsStatusFilter === 'suspended') {
                 passesStatus = m.bettingStatus === 'suspended';
@@ -1404,7 +1439,11 @@ export default function AdminPanel({
                 const passesSearch = matchText.includes(query);
 
                 let passesStatus = true;
-                if (matchBetsStatusFilter === 'open') {
+                if (matchBetsStatusFilter === 'active') {
+                  passesStatus = m.isActive !== false;
+                } else if (matchBetsStatusFilter === 'inactive') {
+                  passesStatus = m.isActive === false;
+                } else if (matchBetsStatusFilter === 'open') {
                   passesStatus = m.status !== 'finished' && !m.isBettingClosed && m.bettingStatus !== 'closed' && m.bettingStatus !== 'suspended';
                 } else if (matchBetsStatusFilter === 'suspended') {
                   passesStatus = m.bettingStatus === 'suspended';
@@ -1453,8 +1492,38 @@ export default function AdminPanel({
                         </span>
                       </div>
 
-                      {/* Status Badges */}
+                      {/* Status Badges & Activation Button */}
                       <div className="flex items-center gap-2 flex-wrap">
+                        {/* Primary Activation Toggle Button */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onUpdateMatchCustomizations) {
+                              const nextState = m.isActive === false ? true : false;
+                              onUpdateMatchCustomizations(
+                                m.id,
+                                m.customLabelHome, m.customLabelDraw, m.customLabelAway,
+                                m.fixedStakeAmount, m.isFeatured, m.featuredTag,
+                                m.oddsHome, m.oddsDraw, m.oddsAway,
+                                m.isFeaturedBet, m.featuredBetMultiplier, m.featuredBetLabel,
+                                m.matchImage, m.adTitle, m.adDescription, m.adBadge,
+                                m.isAdFeatured, m.isBettingClosed, m.bettingStatus,
+                                m.bettingNote, nextState
+                              );
+                            }
+                          }}
+                          className={`px-3 py-1 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 border shadow-md cursor-pointer active:scale-95 ${
+                            m.isActive !== false
+                              ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40 hover:bg-emerald-500 hover:text-zinc-950'
+                              : 'bg-amber-500/20 text-amber-400 border-amber-500/40 hover:bg-amber-500 hover:text-zinc-950 animate-pulse'
+                          }`}
+                          title={m.isActive !== false ? "انقر لإلغاء تنشيط المباراة وإخفائها عن المستخدمين" : "انقر لتنشيط المباراة وإظهارها للمستخدمين"}
+                          id={`toggle-active-btn-${m.id}`}
+                        >
+                          <Zap className="h-3.5 w-3.5" />
+                          <span>{m.isActive !== false ? '⚡ منشطة (تظهر للمستخدم)' : '⚪ غير منشطة (انقر لتنشيط الرهان)'}</span>
+                        </button>
+
                         {m.status === 'finished' ? (
                           <span className="bg-zinc-800 text-zinc-300 text-[11px] font-bold px-2.5 py-1 rounded-lg">
                             🏁 مباراة منتهية
@@ -3167,6 +3236,32 @@ export default function AdminPanel({
                     className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-xs text-amber-300 font-bold focus:outline-none focus:border-amber-500"
                     id="admin-new-fixed-stake"
                   />
+                </div>
+
+                {/* Activation Control for New Match */}
+                <div className="pt-2 border-t border-zinc-900 space-y-2">
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl flex items-center justify-between gap-3">
+                    <div>
+                      <label className="text-emerald-400 font-extrabold text-xs flex items-center gap-1.5 cursor-pointer">
+                        <Zap className="h-4 w-4 text-emerald-400" />
+                        <span>تنشيط الرهان والمباراة وإظهارها للمستخدمين ⚡</span>
+                      </label>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">عند التنشيط تظهر المباراة والرهان فوراً للمستخدمين. إذا كانت غير منشطة تظل مخفية في الإدارة.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setNewIsActive(!newIsActive)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all flex items-center gap-1.5 cursor-pointer shrink-0 border ${
+                        newIsActive
+                          ? 'bg-emerald-500 text-zinc-950 border-emerald-400 shadow-lg shadow-emerald-500/20'
+                          : 'bg-zinc-900 text-zinc-400 border-zinc-700 hover:text-white'
+                      }`}
+                      id="toggle-new-is-active-btn"
+                    >
+                      <Power className="h-4 w-4" />
+                      <span>{newIsActive ? '⚡ مفعلة (تظهر للمستخدم)' : '⚪ غير مفعلة (مخفية)'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Featured Match Toggle & Tag */}
@@ -5405,6 +5500,8 @@ export default function AdminPanel({
                     id="batch-action-type-select"
                   >
                     <option value="finish_and_settle">🏁 إنهاء المباريات وتصفية أرباح الرهانات تلقائياً</option>
+                    <option value="activate_matches">⚡ تنشيط وتفعيل الرهانات للمباريات المحددة (إظهار للمستخدمين)</option>
+                    <option value="deactivate_matches">⚪ إلغاء تنشيط الرهانات للمباريات المحددة (إخفاء عن المستخدمين)</option>
                     <option value="open_betting">🟢 فتح استقبال الرهانات للمباريات المحددة</option>
                     <option value="close_betting">🔒 إغلاق استقبال الرهانات للمباريات المحددة</option>
                     <option value="suspend_betting">⏸️ تعليق استقبال الرهانات مؤقتاً للمباريات المحددة</option>

@@ -98,6 +98,17 @@ export default function BetConfirmationModal({
 
         {/* Bet Summary Grid */}
         <div className="space-y-2.5 text-xs">
+          {/* Wallet Deduction Confirmation Notice */}
+          <div className="bg-emerald-500/10 border border-emerald-500/30 p-3 rounded-xl flex items-center justify-between text-emerald-400 font-bold">
+            <div className="flex items-center gap-2">
+              <Coins className="h-4 w-4 text-emerald-400 shrink-0" />
+              <span>تم سحب واقتطاع المبلغ من المحفظة:</span>
+            </div>
+            <span className="text-sm font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+              -{bet.amount} 🪙
+            </span>
+          </div>
+
           {/* Outcome */}
           <div className="flex justify-between items-center bg-zinc-900/50 p-3 rounded-xl border border-zinc-900">
             <span className="text-zinc-400 font-medium">توقعك المختار:</span>

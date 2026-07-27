@@ -3,7 +3,6 @@ import { User, Notification } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import LanguageSelector from './LanguageSelector';
 import { 
-  Trophy, 
   User as UserIcon, 
   UserPlus,
   Bell, 
@@ -29,6 +28,7 @@ interface NavbarProps {
   onToggleChat?: () => void;
   onOpenDeposit: () => void;
   onOpenWithdraw?: () => void;
+  onOpenQuickBet?: () => void;
 }
 
 export default function Navbar({
@@ -42,7 +42,8 @@ export default function Navbar({
   onLogout,
   onToggleChat,
   onOpenDeposit,
-  onOpenWithdraw
+  onOpenWithdraw,
+  onOpenQuickBet
 }: NavbarProps) {
   const { t, dir } = useLanguage();
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -51,28 +52,13 @@ export default function Navbar({
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/90 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8" dir={dir}>
         
-        {/* Back Button & Logo / Brand */}
+        {/* Logo / Brand */}
         <div className="flex items-center gap-2 sm:gap-3">
-          {(canGoBack || activeTab !== 'home') && onGoBack && (
-            <button
-              onClick={onGoBack}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs font-black transition-all shadow-sm active:scale-95 cursor-pointer"
-              title={t.goBack}
-              id="nav-top-back-btn"
-            >
-              {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
-              <span>{t.goBack}</span>
-            </button>
-          )}
-
           <button 
             onClick={() => setActiveTab('home')}
             className="flex items-center gap-2 text-emerald-400 hover:opacity-90 transition-opacity"
             id="nav-logo-btn"
           >
-            <div className="flex h-9 w-9 sm:h-10 sm:w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20">
-              <Trophy className="h-5 w-5" />
-            </div>
             <span className="text-lg sm:text-xl font-bold tracking-tight text-white">
               {t.appName.split(' ')[0]} <span className="text-emerald-400">{t.appName.split(' ')[1] || 'AI'}</span>
             </span>
@@ -92,17 +78,20 @@ export default function Navbar({
           >
             {t.home}
           </button>
+
           <button
             onClick={() => setActiveTab('events')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
               activeTab === 'events' 
                 ? 'bg-emerald-500/10 text-emerald-400 font-bold' 
                 : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
             id="nav-tab-events"
           >
-            {t.eventsAndMatches}
+            <Coins className="h-4 w-4 text-emerald-400" />
+            <span>صفحة الرهانات</span>
           </button>
+
           
           {currentUser && (
             <button

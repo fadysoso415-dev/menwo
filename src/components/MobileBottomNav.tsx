@@ -3,13 +3,12 @@ import { User } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { 
   Home, 
-  Coins, 
+  Coins,
   User as UserIcon, 
   MessageSquare, 
   ShieldAlert, 
   ChevronRight, 
   ChevronLeft,
-  Flame,
   LogIn,
   LogOut
 } from 'lucide-react';
@@ -24,6 +23,7 @@ interface MobileBottomNavProps {
   onLogout?: () => void;
   onToggleChat?: () => void;
   isChatOpen?: boolean;
+  onOpenQuickBet?: () => void;
 }
 
 export default function MobileBottomNav({
@@ -35,7 +35,8 @@ export default function MobileBottomNav({
   onOpenAuth,
   onLogout,
   onToggleChat,
-  isChatOpen = false
+  isChatOpen = false,
+  onOpenQuickBet
 }: MobileBottomNavProps) {
   const { t, dir } = useLanguage();
 
@@ -60,22 +61,21 @@ export default function MobileBottomNav({
           <span className="text-[10px] tracking-tight">{t.home}</span>
         </button>
 
-        {/* 2. Events & Betting Tab */}
+        {/* 2. Bets Tab (صفحة الرهانات المتاحة) */}
         <button
           onClick={() => setActiveTab('events')}
-          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 relative ${
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
             activeTab === 'events'
               ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border border-emerald-500/20'
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
           id="mobile-bottom-nav-events"
         >
-          <div className="relative">
-            <Coins className={`h-5 w-5 transition-transform ${activeTab === 'events' ? 'scale-110 text-emerald-400' : ''}`} />
-            <span className="absolute -top-1 -right-1 flex h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-          </div>
-          <span className="text-[10px] tracking-tight">المباريات والرهانات</span>
+          <Coins className={`h-5 w-5 transition-transform ${activeTab === 'events' ? 'scale-110 text-emerald-400' : ''}`} />
+          <span className="text-[10px] tracking-tight">صفحة الرهانات</span>
         </button>
+
+
 
         {/* 3. Go Back Button (Prominently placed when sub-pages/matches are active) */}
         {(canGoBack || activeTab !== 'home') && onGoBack && (

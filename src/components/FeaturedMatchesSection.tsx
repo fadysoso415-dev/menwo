@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Match } from '../types';
-import { Flame, Crown, Sparkles, Trophy, ChevronLeft, Zap, ShieldCheck, Clock, PlayCircle, Bell } from 'lucide-react';
+import { Match, Bet } from '../types';
+import { Flame, Crown, Sparkles, Trophy, ChevronLeft, ShieldCheck, Clock, PlayCircle, Bell, Lock, CheckCircle2, XCircle } from 'lucide-react';
 
 interface FeaturedMatchesSectionProps {
   matches: Match[];
@@ -9,6 +9,7 @@ interface FeaturedMatchesSectionProps {
   currentUser?: any;
   reminders?: string[];
   onToggleReminder?: (match: Match) => void;
+  activeBets?: Bet[];
 }
 
 export default function FeaturedMatchesSection({
@@ -17,10 +18,11 @@ export default function FeaturedMatchesSection({
   onPlaceQuickBet,
   currentUser,
   reminders = [],
-  onToggleReminder
+  onToggleReminder,
+  activeBets = []
 }: FeaturedMatchesSectionProps) {
-  // Filter matches that are featured or have a featuredTag, excluding finished matches
-  const featuredMatches = matches.filter(m => (m.isFeatured || Boolean(m.featuredTag)) && m.status !== 'finished');
+  // Filter matches that are featured or have a featuredTag, excluding finished and inactive matches
+  const featuredMatches = matches.filter(m => (m.isFeatured || Boolean(m.featuredTag)) && m.status !== 'finished' && m.isActive !== false);
 
   const [activeFilterTag, setActiveFilterTag] = useState<string>('all');
   const [selectedMatchIndex, setSelectedMatchIndex] = useState<number>(0);
@@ -126,6 +128,32 @@ export default function FeaturedMatchesSection({
             </div>
           )}
 
+          {/* User's Active Bet Status Badge if already placed */}
+          {(() => {
+            const userBet = currentUser ? activeBets.find(b => b.userId === currentUser.id && b.matchId === activeMatch.id) : null;
+            if (!userBet) return null;
+            const payoutAmt = Math.round(userBet.amount * userBet.odds);
+            return (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs text-amber-300 shadow-lg">
+                <div className="flex items-center gap-2 font-bold">
+                  <Lock className="h-4 w-4 text-amber-400 shrink-0" />
+                  <span>
+                    لديك رهان مسجل على هذه المباراة: <strong className="text-emerald-400">{userBet.selectedOutcome === 'home' ? `فوز ${userBet.teamHome}` : userBet.selectedOutcome === 'away' ? `فوز ${userBet.teamAway}` : 'التعادل'}</strong> بمبلغ <strong className="text-white">{userBet.amount} 🪙</strong> (العائد المتوقع: {payoutAmt} 🪙)
+                  </span>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-xs font-black flex items-center gap-1.5 shrink-0 ${
+                  userBet.status === 'won'
+                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                    : userBet.status === 'lost'
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border border-amber-500/30 animate-pulse'
+                }`}>
+                  {userBet.status === 'won' ? `فائز 🟢 (+${payoutAmt} 🪙)` : userBet.status === 'lost' ? 'خاسر 🔴' : 'قيد الانتظار ⏳'}
+                </span>
+              </div>
+            );
+          })()}
+
           {/* Promotional Betting Announcement (إذا تم إنشاؤه بواسطة الأدمن) */}
           {activeMatch.adTitle && (
             <div className="bg-gradient-to-r from-amber-500/20 via-purple-500/20 to-amber-500/20 p-4 rounded-2xl border border-amber-500/40 shadow-xl space-y-2">
@@ -162,26 +190,6 @@ export default function FeaturedMatchesSection({
 
             {/* Status / Time Badge */}
             <div className="flex items-center gap-2">
-              {onToggleReminder && activeMatch && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onToggleReminder(activeMatch);
-                  }}
-                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 border shadow-sm ${
-                    reminders.includes(activeMatch.id)
-                      ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-amber-500/10 ring-1 ring-amber-500/30 font-black'
-                      : 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-amber-500/10 hover:text-amber-300 hover:border-amber-500/30'
-                  }`}
-                  title="جدولة إشعار منبثق قبل بدء المباراة بـ 15 دقيقة"
-                  id={`featured-reminder-btn-${activeMatch.id}`}
-                >
-                  <Bell className={`h-3.5 w-3.5 ${reminders.includes(activeMatch.id) ? 'fill-amber-400 text-amber-400 animate-bounce' : 'text-amber-400'}`} />
-                  <span>{reminders.includes(activeMatch.id) ? 'تنبيه مفعّل (-15د) ⏰' : 'تنبيه (-15د) 🔔'}</span>
-                </button>
-              )}
-
               {activeMatch.status === 'live' ? (
                 <span className="flex items-center gap-1.5 bg-red-500/20 text-red-400 border border-red-500/40 text-xs font-black px-3 py-1 rounded-full animate-pulse">
                   <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
@@ -192,9 +200,9 @@ export default function FeaturedMatchesSection({
                   انتهت المباراة
                 </span>
               ) : (
-                <span className="flex items-center gap-1.5 bg-zinc-800 text-amber-300 border border-zinc-700 text-xs font-bold px-3 py-1 rounded-full">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>{activeMatch.date} • {activeMatch.time}</span>
+                <span className="flex items-center gap-1.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-bold px-3 py-1 rounded-full">
+                  <Clock className="h-3.5 w-3.5 text-emerald-400" />
+                  <span>متاحة للرهان ({activeMatch.time})</span>
                 </span>
               )}
             </div>
@@ -246,14 +254,13 @@ export default function FeaturedMatchesSection({
 
           </div>
 
-          {/* Odds & Quick Action Bar */}
+          {/* Odds & Action Bar */}
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between text-xs font-bold text-zinc-400 px-1">
               <span className="flex items-center gap-1 text-amber-400">
-                <Zap className="h-4 w-4" />
                 <span>فرص الأودز والتوقعات المباشرة:</span>
               </span>
-              <span className="text-[11px] text-zinc-500">اختر توقعك للرهان السريع السريع</span>
+              <span className="text-[11px] text-zinc-500">اختر توقعك للمباراة</span>
             </div>
 
             <div className="grid grid-cols-3 gap-3">
