@@ -671,34 +671,49 @@ export default function App() {
 
   // User Auth Actions
   const handleLoginSuccess = (user: User) => {
-    setCurrentUser(user);
-    localStorage.setItem('stad_active_user', JSON.stringify(user));
+    const isEmailAdmin = user.email.trim().toLowerCase() === 'fadysoso415@gmail.com' || user.email.trim().toLowerCase() === 'admin@stad.com';
+    const effectiveUser = (isEmailAdmin || user.isAdmin) ? { ...user, isAdmin: true } : user;
+
+    setCurrentUser(effectiveUser);
+    localStorage.setItem('stad_active_user', JSON.stringify(effectiveUser));
     
-    // If not in allUsers, add
+    // If not in allUsers, add or update
     setAllUsers(prev => {
-      if (!prev.some(u => u.id === user.id)) {
-        const next = [...prev, user];
+      const exists = prev.some(u => u.id === effectiveUser.id || u.email.toLowerCase() === effectiveUser.email.toLowerCase());
+      if (!exists) {
+        const next = [...prev, effectiveUser];
         localStorage.setItem('stad_users', JSON.stringify(next));
         return next;
       }
-      return prev;
+      const updated = prev.map(u => (u.id === effectiveUser.id || u.email.toLowerCase() === effectiveUser.email.toLowerCase()) ? effectiveUser : u);
+      localStorage.setItem('stad_users', JSON.stringify(updated));
+      return updated;
     });
 
-    // Instantly navigate user to available matches for betting
-    setActiveTab('events');
-    setTabHistory(['home', 'events']);
+    saveUserToFirestore(effectiveUser);
 
-    // Auto-select active match so betting card is instantly open and ready
-    const activeMatch = matches.find(m => m.status === 'live' || m.status === 'upcoming') || matches[0];
-    if (activeMatch) {
-      setSelectedMatch(activeMatch);
+    if (effectiveUser.isAdmin) {
+      // Direct redirect to Admin Panel for admin users / fadysoso415@gmail.com
+      setActiveTab('admin');
+      setTabHistory(['home', 'admin']);
+      triggerToast('مرحباً بك يا مسؤول المنصة! 👑', 'تم تسجيل الدخول وتحويلك مباشرةً إلى لوحة التحكم الإدارية.');
+    } else {
+      // Instantly navigate regular user to available matches for betting
+      setActiveTab('events');
+      setTabHistory(['home', 'events']);
+
+      // Auto-select active match so betting card is instantly open and ready
+      const activeMatch = matches.find(m => m.status === 'live' || m.status === 'upcoming') || matches[0];
+      if (activeMatch) {
+        setSelectedMatch(activeMatch);
+      }
+      
+      triggerNotification(
+        '⚡ تم تسجيل الدخول بنجاح', 
+        `أهلاً بك يا ${user.name}! تم نقلك فوراً لقسم المباريات المتاحة للرهان لبدء التوقع والمراهنة السريعة.`, 
+        'system'
+      );
     }
-    
-    triggerNotification(
-      '⚡ تم تسجيل الدخول بنجاح', 
-      `أهلاً بك يا ${user.name}! تم نقلك فوراً لقسم المباريات المتاحة للرهان لبدء التوقع والمراهنة السريعة.`, 
-      'system'
-    );
   };
 
   const handleRegisterUser = (newUser: User) => {

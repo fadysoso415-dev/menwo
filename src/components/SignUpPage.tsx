@@ -118,7 +118,7 @@ export default function SignUpPage({
       onRegisterUser(newUser);
       onLoginSuccess(newUser);
       setIsSubmitting(false);
-      onNavigateTab('dashboard');
+      onNavigateTab(isUserAdmin ? 'admin' : 'dashboard');
     }, 400);
   };
 
