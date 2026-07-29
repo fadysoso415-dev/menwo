@@ -306,16 +306,16 @@ interface LanguageContextType {
 }
 
 const LanguageContext = createContext<LanguageContextType>({
-  language: 'ar',
+  language: 'en',
   setLanguage: () => {},
-  t: translations.ar,
-  dir: 'rtl'
+  t: translations.en,
+  dir: 'ltr'
 });
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
     const saved = localStorage.getItem('minoo_lang') as Language;
-    return saved && ['ar', 'en', 'fr'].includes(saved) ? saved : 'ar';
+    return saved && ['ar', 'en', 'fr'].includes(saved) ? saved : 'en';
   });
 
   const dir = language === 'ar' ? 'rtl' : 'ltr';

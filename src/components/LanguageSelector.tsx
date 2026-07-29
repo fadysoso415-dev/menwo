@@ -3,8 +3,8 @@ import { useLanguage, Language } from '../context/LanguageContext';
 import { Globe, ChevronDown, Check } from 'lucide-react';
 
 const LANGUAGES: { code: Language; name: string; flag: string }[] = [
-  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
   { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
   { code: 'fr', name: 'Français', flag: '🇫🇷' },
 ];
 
