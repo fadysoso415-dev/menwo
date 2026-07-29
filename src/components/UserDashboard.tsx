@@ -327,6 +327,7 @@ function CustomMonthlyTooltip({ active, payload }: any) {
 
 interface UserDashboardProps {
   currentUser: User;
+  initialSubTab?: 'wallet' | 'profile' | 'bets' | 'guide' | 'all';
   onUpdateProfile: (updatedUser: User) => void;
   bets: Bet[];
   allBets?: Bet[];
@@ -349,6 +350,7 @@ interface UserDashboardProps {
 
 export default function UserDashboard({
   currentUser,
+  initialSubTab = 'wallet',
   onUpdateProfile,
   bets,
   allBets = [],
@@ -369,6 +371,16 @@ export default function UserDashboard({
   onLogout
 }: UserDashboardProps) {
   const { t, dir } = useLanguage();
+  const [activeSubTab, setActiveSubTab] = useState<'wallet' | 'profile' | 'bets' | 'guide' | 'all'>(
+    initialSubTab
+  );
+
+  useEffect(() => {
+    if (initialSubTab) {
+      setActiveSubTab(initialSubTab);
+    }
+  }, [initialSubTab]);
+
   const [profileName, setProfileName] = useState(currentUser.name);
   const [profileEmail, setProfileEmail] = useState(currentUser.email);
   const [newPassword, setNewPassword] = useState('');
@@ -724,41 +736,83 @@ export default function UserDashboard({
   return (
     <div className="space-y-6 py-6" dir={dir}>
       
-      {/* Dashboard Top Navigation & Section Switcher */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-zinc-950 p-3 rounded-2xl border border-zinc-900 shadow-md">
-        <div className="flex items-center gap-2 bg-zinc-900/80 p-1 rounded-xl border border-zinc-800 w-full sm:w-auto">
+      {/* Dashboard Top Navigation & Dedicated Sub-Tab Switcher */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-zinc-950 p-3 rounded-2xl border border-zinc-900 shadow-xl sticky top-16 z-30 backdrop-blur-md">
+        <div className="flex items-center gap-1.5 bg-zinc-900/90 p-1.5 rounded-xl border border-zinc-800/80 w-full md:w-auto overflow-x-auto scrollbar-none">
+          
+          {/* 1. Wallet Tab */}
           <button
-            onClick={() => setActiveSection('dashboard')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-              activeSection === 'dashboard'
-                ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
-                : 'text-zinc-400 hover:text-white'
+            onClick={() => setActiveSubTab('wallet')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'wallet'
+                ? 'bg-amber-500 text-zinc-950 font-black shadow-md shadow-amber-500/20'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
             }`}
-            id="dashboard-section-overview-btn"
+            id="subtab-wallet-btn"
+          >
+            <Wallet className="h-4 w-4" />
+            <span>المحفظة والرصيد 💳</span>
+          </button>
+
+          {/* 2. Profile & Account Tab */}
+          <button
+            onClick={() => setActiveSubTab('profile')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'profile'
+                ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+            }`}
+            id="subtab-profile-btn"
           >
             <UserIcon className="h-4 w-4" />
-            <span>لوحة التحكم والإحصائيات</span>
+            <span>الحساب والبيانات 👤</span>
           </button>
-          
+
+          {/* 3. Bets & Stats Tab */}
           <button
-            onClick={() => setActiveSection('guide')}
-            className={`flex-1 sm:flex-initial px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
-              activeSection === 'guide'
+            onClick={() => setActiveSubTab('bets')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'bets'
                 ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
-                : 'text-zinc-400 hover:text-white'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
             }`}
-            id="dashboard-section-guide-btn"
+            id="subtab-bets-btn"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>رهاناتي والإحصائيات 📊</span>
+          </button>
+
+          {/* 4. Beginner Guide Tab */}
+          <button
+            onClick={() => setActiveSubTab('guide')}
+            className={`px-3.5 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'guide'
+                ? 'bg-emerald-500 text-zinc-950 font-black shadow-md shadow-emerald-500/20'
+                : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+            }`}
+            id="subtab-guide-btn"
           >
             <BookOpen className="h-4 w-4" />
-            <span>دليل المبتدئين والتعليمات</span>
-            <span className="px-1.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold">
-              جديد 💡
-            </span>
+            <span>دليل التعليمات 📖</span>
+          </button>
+
+          {/* 5. Overview All Tab */}
+          <button
+            onClick={() => setActiveSubTab('all')}
+            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 whitespace-nowrap cursor-pointer ${
+              activeSubTab === 'all'
+                ? 'bg-zinc-800 text-white font-black border border-zinc-700'
+                : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+            id="subtab-all-btn"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-400" />
+            <span>العرض الشامل ✨</span>
           </button>
         </div>
 
         {/* User Balance Quick Badge */}
-        <div className="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-900 w-full sm:w-auto justify-between sm:justify-end">
+        <div className="flex items-center gap-3 bg-zinc-900/50 px-4 py-2 rounded-xl border border-zinc-900 w-full md:w-auto justify-between md:justify-end">
           <span className="text-xs text-zinc-400 font-medium">الرصيد المتاح:</span>
           <span className="text-sm font-black text-amber-400 flex items-center gap-1">
             <Coins className="h-4 w-4 text-amber-400" />
@@ -767,43 +821,17 @@ export default function UserDashboard({
         </div>
       </div>
 
-      {/* Beginner Guide Banner Alert when in Overview mode */}
-      {activeSection === 'dashboard' && (
-        <div className="bg-gradient-to-r from-emerald-950/40 via-zinc-900 to-zinc-950 border border-emerald-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-emerald-400 flex-shrink-0">
-              <BookOpen className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span>جديد في منصة مينوو للتوقعات؟</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold">إرشادات سريعة</span>
-              </p>
-              <p className="text-[11px] text-zinc-400 mt-0.5">
-                تعرف على خطوات شحن المحفظة، المشاركة في الرهانات العامة، وطريقة احتساب معاملات الأودز والعوائد المكتسبة.
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={() => setActiveSection('guide')}
-            className="w-full sm:w-auto px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs rounded-xl transition-all shadow-md flex items-center justify-center gap-1.5 flex-shrink-0"
-          >
-            <span>استكشف دليل المبتدئين 📖</span>
-          </button>
-        </div>
-      )}
-
       {/* Render Beginner Guide if 'guide' tab is active */}
-      {activeSection === 'guide' ? (
-        <div className="space-y-4">
+      {activeSubTab === 'guide' && (
+        <div className="space-y-4 animate-in fade-in duration-200">
           <div className="flex items-center justify-between bg-zinc-950 border border-zinc-800 rounded-2xl p-3 shadow-md">
             <button
-              onClick={() => setActiveSection('dashboard')}
+              onClick={() => setActiveSubTab('wallet')}
               className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-xs sm:text-sm font-bold transition-all cursor-pointer active:scale-95"
               id="guide-back-to-dash-btn"
             >
               {dir === 'rtl' ? <ChevronRight className="h-4.5 w-4.5 stroke-[2.5]" /> : <ChevronLeft className="h-4.5 w-4.5 stroke-[2.5]" />}
-              <span>الرجوع للوحة التحكم الإحصائية</span>
+              <span>الرجوع للمحفظة والحساب</span>
             </button>
             <span className="text-xs text-zinc-400 font-semibold">دليل التعليمات والإرشادات</span>
           </div>
@@ -816,205 +844,329 @@ export default function UserDashboard({
             onOpenAdminGuideEdit={onOpenAdminGuideEdit}
           />
         </div>
-      ) : (
-        <>
-      {/* 1. Header & Profile customization */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* Profile Card & Settings */}
-        <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 flex flex-col justify-between">
-          <div className="space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center justify-between border-b border-zinc-900 pb-3">
-              <div className="flex items-center gap-1.5">
-                <UserIcon className="h-4.5 w-4.5 text-emerald-400" />
-                <span>الملف الشخصي والبيانات</span>
-              </div>
-              {onLogout && (
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer active:scale-95"
-                  id="dash-header-logout-btn"
-                  title="تسجيل الخروج"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  <span>خروج</span>
-                </button>
-              )}
-            </h3>
+      )}
 
-            <div className="flex items-center gap-4 py-2">
-              <img 
-                src={currentUser.avatar} 
-                alt={currentUser.name} 
-                className="h-16 w-16 rounded-full border-2 border-emerald-500 object-cover" 
-              />
+      {/* 1. Wallet Sub-Tab View */}
+      {(activeSubTab === 'wallet' || activeSubTab === 'all') && (
+        <div className="space-y-6 animate-in fade-in duration-200" id="wallet-subtab-section">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 shadow-sm">
+                <Wallet className="h-5 w-5" />
+              </div>
               <div>
-                <div className="flex items-center gap-1.5">
-                  <h4 className="font-bold text-white text-lg">{currentUser.name}</h4>
-                  {currentUser.isAdmin && (
-                    <span className="rounded-md bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 flex items-center gap-0.5">
-                      <ShieldCheck className="h-3 w-3" />
-                      أدمن
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-zinc-500 mt-0.5">{currentUser.email}</p>
-                <div className="flex items-center gap-1 text-[10px] text-zinc-600 mt-2">
-                  <Calendar className="h-3 w-3" />
-                  <span>عضو منذ: {new Date(currentUser.createdAt).toLocaleDateString('ar-EG')}</span>
-                </div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <span>المحفظة والرصيد والعمليات المالية</span>
+                  <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-2 py-0.5 rounded-full">حساب الكاش</span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">إدارة الكوينز، طلبات الإيداع والسحب الفوري، وسجل المعاملات</p>
               </div>
             </div>
+            <span className="text-xs text-amber-400 font-bold bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20 hidden sm:inline-block">
+              سعر الصرف: 1 جنيه = 1 كوين 🪙
+            </span>
+          </div>
 
-            {/* Profile Form */}
-            <form onSubmit={handleProfileSubmit} className="space-y-3 pt-3">
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1">الاسم الكامل</label>
-                <input 
-                  type="text" 
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                  id="profile-name-input"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-zinc-400 mb-1">البريد الإلكتروني</label>
-                <input 
-                  type="email" 
-                  value={profileEmail}
-                  onChange={(e) => setProfileEmail(e.target.value)}
-                  className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white focus:border-emerald-500 focus:outline-none"
-                  id="profile-email-input"
-                  required
-                />
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <GlassBalanceCard
+                balance={currentUser.balance}
+                onOpenCashDepositModal={onOpenCashDepositModal}
+                onOpenWithdrawModal={onOpenWithdrawModal}
+                depositRequests={depositRequests}
+                withdrawalRequests={withdrawalRequests}
+                userId={currentUser.id}
+              />
+            </div>
 
-              {/* Password change fields */}
-              <div className="pt-2 border-t border-zinc-900 space-y-2.5">
-                <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-bold">
-                  <Lock className="h-3.5 w-3.5 text-emerald-400" />
-                  <span>تغيير كلمة المرور (اختياري)</span>
-                </div>
+            {/* Wallet Info & Quick Exchange Rules */}
+            <div className="rounded-3xl border border-zinc-900 bg-zinc-950 p-6 flex flex-col justify-between space-y-4 shadow-xl">
+              <div className="space-y-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-900 pb-3">
+                  <Coins className="h-4 w-4 text-amber-400" />
+                  <span>طرق وسرعة الشحن والسحب</span>
+                </h3>
+                <p className="text-xs text-zinc-400 leading-relaxed">
+                  تتميز منصة مينوو بالتنفيذ السريع والمباشر لكافة عمليات الإيداع وسحب العوائد عبر محفظتك الإلكترونية المفضلة.
+                </p>
 
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">كلمة المرور الجديدة</label>
-                  <div className="relative">
-                    <input 
-                      type={showPassword ? "text" : "password"} 
-                      value={newPassword}
-                      onChange={(e) => {
-                        setNewPassword(e.target.value);
-                        if (passwordError) setPasswordError('');
-                      }}
-                      placeholder="أدخل كلمة المرور الجديدة (6 أحرف على الأقل)"
-                      className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none pl-9"
-                      id="profile-new-password-input"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors p-1"
-                      title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
-                    >
-                      {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                    </button>
+                <div className="space-y-2 pt-2">
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs font-bold">
+                    <span className="text-zinc-400">فودافون / أورنج / اتصالات:</span>
+                    <span className="text-emerald-400">مدعوم 📲</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs font-bold">
+                    <span className="text-zinc-400">تطبيق إنستاباي Instapay:</span>
+                    <span className="text-emerald-400">مدعوم 🏦</span>
+                  </div>
+                  <div className="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900/60 border border-zinc-800/80 text-xs font-bold">
+                    <span className="text-zinc-400">زمن المعالجة والمراجعة:</span>
+                    <span className="text-amber-400">فوري (1 - 5 دقائق) ⚡</span>
                   </div>
                 </div>
-
-                <div>
-                  <label className="block text-[11px] font-medium text-zinc-400 mb-1">تأكيد كلمة المرور الجديدة</label>
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    value={confirmPassword}
-                    onChange={(e) => {
-                      setConfirmPassword(e.target.value);
-                      if (passwordError) setPasswordError('');
-                    }}
-                    placeholder="أعد كتابة كلمة المرور الجديدة"
-                    className="w-full rounded-lg border border-zinc-900 bg-zinc-900/40 px-3 py-2 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
-                    id="profile-confirm-password-input"
-                  />
-                </div>
               </div>
 
-              {passwordError && (
-                <p className="text-xs text-red-400 font-bold flex items-center gap-1 bg-red-500/10 border border-red-500/20 p-2 rounded-lg">
-                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                  <span>{passwordError}</span>
-                </p>
-              )}
+              <div className="grid grid-cols-2 gap-2.5 pt-2">
+                {onOpenCashDepositModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenCashDepositModal}
+                    className="py-2.5 px-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-zinc-950 font-black text-xs transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  >
+                    <span>طلب شحن 📲</span>
+                  </button>
+                )}
+                {onOpenWithdrawModal && (
+                  <button
+                    type="button"
+                    onClick={onOpenWithdrawModal}
+                    className="py-2.5 px-3 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer active:scale-95"
+                  >
+                    <span>طلب سحب 💸</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              {showEditSuccess && (
-                <p className="text-xs text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg">
-                  <Check className="h-3.5 w-3.5 shrink-0" />
-                  <span>تم حفظ البيانات وتحديث معلومات الحساب بنجاح!</span>
-                </p>
-              )}
-
-              <button 
-                type="submit" 
-                className="w-full rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-bold text-emerald-400 py-2.5 transition-all cursor-pointer active:scale-98"
-                id="save-profile-btn"
-              >
-                تحديث معلومات الحساب
-              </button>
-            </form>
-
+      {/* 2. Profile & Account Sub-Tab View */}
+      {(activeSubTab === 'profile' || activeSubTab === 'all') && (
+        <div className="space-y-6 animate-in fade-in duration-200" id="profile-subtab-section">
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm">
+                <UserIcon className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <span>إعدادات الحساب والملف الشخصي</span>
+                  <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">بيانات العضوية</span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">تحديث الاسم، البريد الإلكتروني، كلمة المرور وتفضيلات الأمان</p>
+              </div>
+            </div>
             {onLogout && (
               <button
                 type="button"
                 onClick={onLogout}
-                className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs transition-all cursor-pointer active:scale-98 shadow-sm"
-                id="dashboard-full-logout-btn"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 transition-all cursor-pointer active:scale-95"
+                id="profile-subtab-logout-btn"
               >
-                <LogOut className="h-4 w-4" />
-                <span>تسجيل الخروج من الحساب</span>
+                <LogOut className="h-3.5 w-3.5" />
+                <span>تسجيل الخروج</span>
               </button>
             )}
           </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Profile Edit Card */}
+            <div className="lg:col-span-2 rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-6 shadow-xl">
+              <div className="flex items-center gap-4 border-b border-zinc-900 pb-4">
+                <img 
+                  src={currentUser.avatar} 
+                  alt={currentUser.name} 
+                  className="h-16 w-16 rounded-full border-2 border-emerald-500 object-cover shadow-md" 
+                />
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-white text-lg">{currentUser.name}</h4>
+                    {currentUser.isAdmin && (
+                      <span className="rounded-md bg-red-500/10 border border-red-500/20 px-2 py-0.5 text-[10px] font-bold text-red-400 flex items-center gap-0.5">
+                        <ShieldCheck className="h-3 w-3" />
+                        أدمن المنصة
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-zinc-500 mt-0.5">{currentUser.email}</p>
+                  <div className="flex items-center gap-1 text-[11px] text-zinc-500 mt-1.5">
+                    <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+                    <span>تاريخ الانضمام: {new Date(currentUser.createdAt).toLocaleDateString('ar-EG')}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profile Form */}
+              <form onSubmit={handleProfileSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">الاسم الكامل</label>
+                    <input 
+                      type="text" 
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-900 bg-zinc-900/40 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      id="profile-name-input"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-zinc-400 mb-1">البريد الإلكتروني</label>
+                    <input 
+                      type="email" 
+                      value={profileEmail}
+                      onChange={(e) => setProfileEmail(e.target.value)}
+                      className="w-full rounded-xl border border-zinc-900 bg-zinc-900/40 px-3.5 py-2.5 text-xs text-white focus:border-emerald-500 focus:outline-none"
+                      id="profile-email-input"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Password change fields */}
+                <div className="pt-3 border-t border-zinc-900 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs text-zinc-300 font-bold">
+                    <Lock className="h-4 w-4 text-emerald-400" />
+                    <span>تغيير كلمة المرور (اختياري)</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-400 mb-1">كلمة المرور الجديدة</label>
+                      <div className="relative">
+                        <input 
+                          type={showPassword ? "text" : "password"} 
+                          value={newPassword}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            if (passwordError) setPasswordError('');
+                          }}
+                          placeholder="كلمة المرور الجديدة"
+                          className="w-full rounded-xl border border-zinc-900 bg-zinc-900/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none pl-9"
+                          id="profile-new-password-input"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors p-1 cursor-pointer"
+                          title={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
+                        >
+                          {showPassword ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-medium text-zinc-400 mb-1">تأكيد كلمة المرور الجديدة</label>
+                      <input 
+                        type={showPassword ? "text" : "password"} 
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          if (passwordError) setPasswordError('');
+                        }}
+                        placeholder="تأكيد كلمة المرور"
+                        className="w-full rounded-xl border border-zinc-900 bg-zinc-900/40 px-3.5 py-2.5 text-xs text-white placeholder-zinc-600 focus:border-emerald-500 focus:outline-none"
+                        id="profile-confirm-password-input"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {passwordError && (
+                  <p className="text-xs text-red-400 font-bold flex items-center gap-1 bg-red-500/10 border border-red-500/20 p-2.5 rounded-xl">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>{passwordError}</span>
+                  </p>
+                )}
+
+                {showEditSuccess && (
+                  <p className="text-xs text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-xl">
+                    <Check className="h-3.5 w-3.5 shrink-0" />
+                    <span>تم حفظ البيانات وتحديث معلومات الحساب بنجاح!</span>
+                  </p>
+                )}
+
+                <button 
+                  type="submit" 
+                  className="w-full sm:w-auto px-6 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs py-3 transition-all cursor-pointer active:scale-98 shadow-md"
+                  id="save-profile-btn"
+                >
+                  حفظ وتحديث بيانات الحساب
+                </button>
+              </form>
+            </div>
+
+            {/* Account Security & Preferences */}
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 shadow-xl flex flex-col justify-between">
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2 border-b border-zinc-900 pb-3">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span>أمان الحساب والجلسات</span>
+                </h3>
+
+                <div className="space-y-3 text-xs">
+                  <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
+                    <span className="text-zinc-400 font-bold block">حالة التوثيق والأمان:</span>
+                    <span className="text-emerald-400 font-black flex items-center gap-1">
+                      <Check className="h-3.5 w-3.5" /> حساب نشط ومحمي
+                    </span>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-zinc-900/40 border border-zinc-800/80 space-y-1">
+                    <span className="text-zinc-400 font-bold block">نوع العضوية:</span>
+                    <span className="text-white font-black">{currentUser.isAdmin ? 'مدير نظام (أدمن)' : 'عضو مسجل'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {onLogout && (
+                <button
+                  type="button"
+                  onClick={onLogout}
+                  className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 font-bold text-xs transition-all cursor-pointer active:scale-98 shadow-sm"
+                  id="dashboard-full-logout-btn"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>تسجيل الخروج المباشر</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
+      )}
 
-        {/* Glassmorphism Balance Card with Animated Counter */}
-        <GlassBalanceCard
-          balance={currentUser.balance}
-          onOpenCashDepositModal={onOpenCashDepositModal}
-          onOpenWithdrawModal={onOpenWithdrawModal}
-          depositRequests={depositRequests}
-          withdrawalRequests={withdrawalRequests}
-          userId={currentUser.id}
-        />
+      {/* 3. Bets & Performance Stats Sub-Tab View */}
+      {(activeSubTab === 'bets' || activeSubTab === 'all') && (
+        <div className="space-y-6 animate-in fade-in duration-200" id="bets-subtab-section">
+          
+          <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 shadow-sm">
+                <BarChart3 className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-white flex items-center gap-2">
+                  <span>رهاناتي وإحصائيات الأداء</span>
+                  <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 rounded-full">تحليل شامل</span>
+                </h2>
+                <p className="text-xs text-zinc-400 mt-0.5">متابعة الأرباح، الرسوم البيانية، وسجل جميع الرهانات القائمة والمنتهية</p>
+              </div>
+            </div>
+          </div>
 
-
-        {/* Interactive Stats Grid */}
-        <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">
-          <h3 className="text-base font-bold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-3">
-            <TrendingUp className="h-4.5 w-4.5 text-emerald-400" />
-            <span>إحصائيات وتحليل الأداء</span>
-          </h3>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-xl bg-zinc-900/30 border border-zinc-900 p-3 text-center">
-              <span className="text-[10px] text-zinc-500 font-bold block mb-1">إجمالي الرهانات</span>
-              <span className="text-2xl font-black text-white">{totalBetsPlaced}</span>
+          {/* Interactive Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 text-center shadow-lg">
+              <span className="text-[11px] text-zinc-500 font-bold block mb-1">إجمالي الرهانات</span>
+              <span className="text-3xl font-black text-white">{totalBetsPlaced}</span>
             </div>
             
-            <div className="rounded-xl bg-zinc-900/30 border border-zinc-900 p-3 text-center">
-              <span className="text-[10px] text-zinc-500 font-bold block mb-1">نسبة الفوز (%)</span>
-              <span className="text-2xl font-black text-emerald-400">{winRate}%</span>
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 text-center shadow-lg">
+              <span className="text-[11px] text-zinc-500 font-bold block mb-1">نسبة الفوز (%)</span>
+              <span className="text-3xl font-black text-emerald-400">{winRate}%</span>
             </div>
 
-            <div className="rounded-xl bg-zinc-900/30 border border-zinc-900 p-3 text-center">
-              <span className="text-[10px] text-zinc-500 font-bold block mb-1">مسترجع الفوز</span>
-              <span className="text-2xl font-black text-amber-400">{totalPayout} 🪙</span>
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 text-center shadow-lg">
+              <span className="text-[11px] text-zinc-500 font-bold block mb-1">مسترجع الفوز</span>
+              <span className="text-3xl font-black text-amber-400">{totalPayout.toLocaleString()} 🪙</span>
             </div>
 
-            <div className="rounded-xl bg-zinc-900/30 border border-zinc-900 p-3 text-center">
-              <span className="text-[10px] text-zinc-500 font-bold block mb-1">صافي الأرباح</span>
-              <span className={`text-2xl font-black ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                {netProfit >= 0 ? `+${netProfit}` : netProfit} 🪙
+            <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-4 text-center shadow-lg">
+              <span className="text-[11px] text-zinc-500 font-bold block mb-1">صافي الأرباح</span>
+              <span className={`text-3xl font-black ${netProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                {netProfit >= 0 ? `+${netProfit.toLocaleString()}` : netProfit.toLocaleString()} 🪙
               </span>
             </div>
           </div>
@@ -1025,9 +1177,6 @@ export default function UserDashboard({
               يتم تسوية وتصفية الرهانات بدقة بناءً على النتائج والإحصائيات الرسمية للفعاليات والمباريات.
             </span>
           </div>
-        </div>
-
-      </section>
 
       {/* 1.5 Recharts Pie Chart & Community Predictions Grid Section */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6" id="analytics-and-predictions-grid">
@@ -1816,72 +1965,74 @@ export default function UserDashboard({
             يتم تحديث رسم الأداء الشهري تلقائياً مع كل تغير في نتائج الرهانات ⚡
           </span>
         </div>
-
       </section>
+      </div>
+      )}
 
-      {/* 2. Active Bets List Component */}
-      <UserActiveBetsList bets={bets} currentUser={currentUser} matches={matches} />
+      {/* 2. Active Bets List Component inside Bets Subtab */}
+      {(activeSubTab === 'bets' || activeSubTab === 'all') && (
+        <UserActiveBetsList bets={bets} currentUser={currentUser} matches={matches} />
+      )}
 
-      {/* 3. Notifications Feed */}
-      <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4">
-        <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
-          <div>
-            <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
-              <Bell className="h-5 w-5 text-emerald-400" />
-              <span>الإشعارات وتنبيهات النظام</span>
-            </h3>
-            <p className="text-xs text-zinc-500 mt-0.5">تابع تحديثات نتائج المباريات وحسابك أولاً بأول</p>
+      {/* 3. Notifications Feed inside Profile / Account Subtab */}
+      {(activeSubTab === 'profile' || activeSubTab === 'all') && (
+        <section className="rounded-2xl border border-zinc-900 bg-zinc-950 p-6 space-y-4 shadow-xl">
+          <div className="flex justify-between items-center border-b border-zinc-900 pb-4">
+            <div>
+              <h3 className="text-lg font-bold text-white flex items-center gap-1.5">
+                <Bell className="h-5 w-5 text-emerald-400" />
+                <span>الإشعارات وتنبيهات النظام</span>
+              </h3>
+              <p className="text-xs text-zinc-500 mt-0.5">تابع تحديثات نتائج المباريات وحسابك أولاً بأول</p>
+            </div>
+
+            <button
+              onClick={onClearNotifications}
+              className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-semibold hover:underline cursor-pointer"
+              id="clear-all-notifications-btn"
+            >
+              <Trash2 className="h-4 w-4" />
+              <span>مسح جميع الإشعارات</span>
+            </button>
           </div>
 
-          <button
-            onClick={onClearNotifications}
-            className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 font-semibold hover:underline"
-            id="clear-all-notifications-btn"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>مسح جميع الإشعارات</span>
-          </button>
-        </div>
-
-        {notifications.length > 0 ? (
-          <div className="space-y-3">
-            {notifications.map((notif, idx) => (
-              <div 
-                key={`${notif.id}-${idx}`}
-                onClick={() => onMarkNotificationRead(notif.id)}
-                className={`rounded-xl p-4 border transition-all flex justify-between items-start cursor-pointer ${
-                  notif.read 
-                    ? 'border-zinc-900 bg-zinc-950 text-zinc-400' 
-                    : 'border-emerald-500/10 bg-emerald-500/5 text-zinc-200'
-                }`}
-                id={`notif-item-${notif.id}`}
-              >
-                <div className="flex gap-3">
-                  <div className={`p-2 rounded-lg ${notif.read ? 'bg-zinc-900 text-zinc-500' : 'bg-emerald-500/10 text-emerald-400'}`}>
-                    {notif.type === 'bet' ? <Coins className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+          {notifications.length > 0 ? (
+            <div className="space-y-3">
+              {notifications.map((notif, idx) => (
+                <div 
+                  key={`${notif.id}-${idx}`}
+                  onClick={() => onMarkNotificationRead(notif.id)}
+                  className={`rounded-xl p-4 border transition-all flex justify-between items-start cursor-pointer ${
+                    notif.read 
+                      ? 'border-zinc-900 bg-zinc-950 text-zinc-400' 
+                      : 'border-emerald-500/10 bg-emerald-500/5 text-zinc-200'
+                  }`}
+                  id={`notif-item-${notif.id}`}
+                >
+                  <div className="flex gap-3">
+                    <div className={`p-2 rounded-lg ${notif.read ? 'bg-zinc-900 text-zinc-500' : 'bg-emerald-500/10 text-emerald-400'}`}>
+                      {notif.type === 'bet' ? <Coins className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-white leading-snug">{notif.title}</h4>
+                      <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{notif.message}</p>
+                      <span className="text-[9px] text-zinc-600 mt-2 block">
+                        {new Date(notif.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-white leading-snug">{notif.title}</h4>
-                    <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{notif.message}</p>
-                    <span className="text-[9px] text-zinc-600 mt-2 block">
-                      {new Date(notif.createdAt).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </div>
+                  {!notif.read && (
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 mt-2" />
+                  )}
                 </div>
-                {!notif.read && (
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 mt-2" />
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 text-zinc-500 text-sm">
-            صندوق الوارد نظيف بالكامل! لا توجد إشعارات حالياً.
-          </div>
-        )}
-      </section>
-
-      </>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-zinc-500 text-sm">
+              صندوق الوارد نظيف بالكامل! لا توجد إشعارات حالياً.
+            </div>
+          )}
+        </section>
       )}
 
       {/* Confirmation Modal for cancelling/deleting a pending bet */}

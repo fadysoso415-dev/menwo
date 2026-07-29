@@ -4,6 +4,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { 
   Home, 
   Coins,
+  Wallet,
+  Trophy,
   User as UserIcon, 
   MessageSquare, 
   ShieldAlert, 
@@ -58,10 +60,24 @@ export default function MobileBottomNav({
           id="mobile-bottom-nav-home"
         >
           <Home className={`h-5 w-5 transition-transform ${activeTab === 'home' ? 'scale-110 text-emerald-400' : ''}`} />
-          <span className="text-[10px] tracking-tight">{t.home}</span>
+          <span className="text-[10px] font-bold tracking-tight">الرئيسية</span>
         </button>
 
-        {/* 2. Bets Tab (صفحة الرهانات المتاحة) */}
+        {/* 2. Wallet Tab (المحفظة) */}
+        <button
+          onClick={() => setActiveTab('wallet')}
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
+            activeTab === 'wallet'
+              ? 'text-amber-400 font-extrabold bg-amber-500/10 border border-amber-500/20 shadow-md shadow-amber-500/10'
+              : 'text-zinc-400 hover:text-zinc-200'
+          }`}
+          id="mobile-bottom-nav-wallet"
+        >
+          <Wallet className={`h-5 w-5 transition-transform ${activeTab === 'wallet' ? 'scale-110 text-amber-400' : ''}`} />
+          <span className="text-[10px] font-bold tracking-tight">المحفظة</span>
+        </button>
+
+        {/* 3. Bets / Matches Tab (مبارياتي) */}
         <button
           onClick={() => setActiveTab('events')}
           className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
@@ -71,8 +87,8 @@ export default function MobileBottomNav({
           }`}
           id="mobile-bottom-nav-events"
         >
-          <Coins className={`h-5 w-5 transition-transform ${activeTab === 'events' ? 'scale-110 text-emerald-400' : ''}`} />
-          <span className="text-[10px] tracking-tight">صفحة الرهانات</span>
+          <Trophy className={`h-5 w-5 transition-transform ${activeTab === 'events' ? 'scale-110 text-emerald-400' : ''}`} />
+          <span className="text-[10px] font-bold tracking-tight">مبارياتي</span>
         </button>
 
 
@@ -90,13 +106,13 @@ export default function MobileBottomNav({
           </button>
         )}
 
-        {/* 4. User Profile / Dashboard Tab or Login */}
+        {/* 4. User Profile / Account Tab */}
         {currentUser ? (
           <>
             <button
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => setActiveTab('profile')}
               className={`flex flex-col items-center justify-center gap-1 flex-1 py-1 px-1 rounded-xl transition-all cursor-pointer active:scale-95 ${
-                activeTab === 'dashboard'
+                activeTab === 'profile' || activeTab === 'dashboard'
                   ? 'text-emerald-400 font-extrabold bg-emerald-500/10 border border-emerald-500/20'
                   : 'text-zinc-400 hover:text-zinc-200'
               }`}
@@ -108,14 +124,14 @@ export default function MobileBottomNav({
                     src={currentUser.avatar} 
                     alt={currentUser.name} 
                     className={`h-5 w-5 rounded-full object-cover border ${
-                      activeTab === 'dashboard' ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-zinc-700'
+                      activeTab === 'profile' || activeTab === 'dashboard' ? 'border-emerald-400 ring-2 ring-emerald-500/30' : 'border-zinc-700'
                     }`}
                   />
                 ) : (
                   <UserIcon className="h-5 w-5" />
                 )}
               </div>
-              <span className="text-[10px] tracking-tight max-w-[50px] truncate">{currentUser.name.split(' ')[0]}</span>
+              <span className="text-[10px] font-bold tracking-tight">الحساب</span>
             </button>
 
             {onLogout && (

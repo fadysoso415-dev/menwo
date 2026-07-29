@@ -41,7 +41,7 @@ import MobileBottomNav from './components/MobileBottomNav';
 import BetConfirmationModal from './components/BetConfirmationModal';
 import QuickBetModal from './components/QuickBetModal';
 
-import { Trophy, Coins, MessageSquare, AlertCircle, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Trophy, Coins, MessageSquare, AlertCircle, ChevronRight, ChevronLeft, Crown } from 'lucide-react';
 import { useLanguage } from './context/LanguageContext';
 
 export default function App() {
@@ -1445,9 +1445,10 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'dashboard' && currentUser && (
+        {(activeTab === 'dashboard' || activeTab === 'wallet' || activeTab === 'profile') && currentUser && (
           <UserDashboard 
             currentUser={currentUser}
+            initialSubTab={activeTab === 'wallet' ? 'wallet' : activeTab === 'profile' ? 'profile' : 'all'}
             onUpdateProfile={updateCurrentUserAndState}
             bets={bets}
             allBets={bets}
@@ -1591,11 +1592,11 @@ export default function App() {
       <footer className="border-t border-zinc-900 bg-zinc-950 py-8 text-center text-xs text-zinc-500" dir="rtl">
         <div className="max-w-7xl mx-auto px-4 space-y-3">
           <div className="flex justify-center gap-2 items-center text-zinc-400 font-bold">
-            <Trophy className="h-4 w-4 text-emerald-400" />
-            <span>منصة مينوو الرياضية © 2026</span>
+            <Crown className="h-4 w-4 text-emerald-400 fill-emerald-400/30" />
+            <span>منصة MENWO الرياضية © 2026</span>
           </div>
           <p className="max-w-md mx-auto leading-relaxed">
-            منصة مينوو الرياضية المتكاملة لتوقع النتائج والمنافسات وتحديات الرياضة الرسمية. جميع الحقوق محفوظة © 2026.
+            منصة MENWO المتكاملة لرهانات وألعاب الرياضة الرسمية. جميع الحقوق محفوظة © 2026.
           </p>
         </div>
       </footer>

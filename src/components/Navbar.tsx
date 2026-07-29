@@ -10,6 +10,7 @@ import {
   LogOut, 
   PlusCircle, 
   Coins,
+  Crown,
   MessageSquare,
   ArrowUpRight,
   ChevronRight,
@@ -56,12 +57,20 @@ export default function Navbar({
         <div className="flex items-center gap-2 sm:gap-3">
           <button 
             onClick={() => setActiveTab('home')}
-            className="flex items-center gap-2 text-emerald-400 hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2.5 text-emerald-400 hover:opacity-90 transition-opacity"
             id="nav-logo-btn"
           >
-            <span className="text-lg sm:text-xl font-bold tracking-tight text-white">
-              {t.appName.split(' ')[0]} <span className="text-emerald-400">{t.appName.split(' ')[1] || 'AI'}</span>
-            </span>
+            <div className="flex items-center justify-center h-9 w-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-600/30 border border-emerald-500/40 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+              <Crown className="h-5 w-5 text-emerald-400 fill-emerald-400/30" />
+            </div>
+            <div className="flex flex-col text-start">
+              <span className="text-xl sm:text-2xl font-black tracking-wider text-white drop-shadow-[0_2px_10px_rgba(34,197,94,0.3)] font-sans">
+                MEN<span className="text-emerald-400">WO</span>
+              </span>
+              <span className="text-[9px] font-bold text-zinc-400 tracking-tight hidden sm:block">
+                منصة الألعاب والمراهنات الأولى
+              </span>
+            </div>
           </button>
         </div>
 
@@ -94,17 +103,31 @@ export default function Navbar({
 
           
           {currentUser && (
-            <button
-              onClick={() => setActiveTab('dashboard')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                activeTab === 'dashboard' 
-                  ? 'bg-emerald-500/10 text-emerald-400 font-bold' 
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-              }`}
-              id="nav-tab-dashboard"
-            >
-              {t.userDashboard}
-            </button>
+            <>
+              <button
+                onClick={() => setActiveTab('wallet')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'wallet' 
+                    ? 'bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+                id="nav-tab-wallet"
+              >
+                <span>المحفظة</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('profile')}
+                className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'profile' || activeTab === 'dashboard' 
+                    ? 'bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20' 
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}
+                id="nav-tab-dashboard"
+              >
+                <span>الحساب والإحصائيات</span>
+              </button>
+            </>
           )}
 
           {currentUser?.isAdmin && (
@@ -172,7 +195,7 @@ export default function Navbar({
 
               {/* User Avatar & Name */}
               <button 
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => setActiveTab('profile')}
                 className="flex items-center gap-2 text-start hover:opacity-80 transition-opacity hidden sm:flex"
                 id="nav-profile-menu-btn"
               >

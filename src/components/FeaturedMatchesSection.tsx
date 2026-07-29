@@ -40,6 +40,7 @@ export default function FeaturedMatchesSection({
   });
 
   const activeMatch = filteredList[selectedMatchIndex] || filteredList[0] || featuredMatches[0];
+  const existingBet = currentUser && activeMatch ? activeBets.find(b => b.userId === currentUser.id && b.matchId === activeMatch.id) : null;
 
   return (
     <section 
@@ -256,53 +257,77 @@ export default function FeaturedMatchesSection({
 
           {/* Odds & Action Bar */}
           <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between text-xs font-bold text-zinc-400 px-1">
-              <span className="flex items-center gap-1 text-amber-400">
-                <span>فرص الأودز والتوقعات المباشرة:</span>
-              </span>
-              <span className="text-[11px] text-zinc-500">اختر توقعك للمباراة</span>
-            </div>
+            {existingBet ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 text-center space-y-2">
+                <div className="flex items-center justify-center gap-2 text-amber-400 font-extrabold text-xs">
+                  <Lock className="h-4 w-4 shrink-0" />
+                  <span>تم تسجيل رهانك مسبقاً على هذه المباراة المميزة</span>
+                </div>
+                <p className="text-xs text-zinc-300">
+                  راهنت بمبلغ <strong className="text-amber-400">{existingBet.amount.toLocaleString()} 🪙</strong> على{' '}
+                  <strong className="text-emerald-400">
+                    {existingBet.selectedOutcome === 'home'
+                      ? `فوز ${existingBet.teamHome}`
+                      : existingBet.selectedOutcome === 'away'
+                        ? `فوز ${existingBet.teamAway}`
+                        : 'التعادل'}
+                  </strong>
+                </p>
+                <div className="inline-block px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/40 rounded-full text-[11px] font-bold">
+                  ممنوع المراهنة مرتين لنفس المباراة ⛔
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center justify-between text-xs font-bold text-zinc-400 px-1">
+                  <span className="flex items-center gap-1 text-amber-400">
+                    <span>فرص الأودز والتوقعات المباشرة:</span>
+                  </span>
+                  <span className="text-[11px] text-zinc-500">اختر توقعك للمباراة</span>
+                </div>
 
-            <div className="grid grid-cols-3 gap-3">
-              {/* Home Outcome */}
-              <button
-                onClick={() => onPlaceQuickBet(activeMatch, 'home')}
-                className="group relative bg-zinc-950/80 hover:bg-emerald-500/20 border border-zinc-800 hover:border-emerald-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
-              >
-                <span className="text-[11px] text-zinc-400 group-hover:text-emerald-300 block mb-1 truncate font-bold">
-                  {activeMatch.customLabelHome || `فوز ${activeMatch.teamHome}`}
-                </span>
-                <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono">
-                  x{activeMatch.oddsHome}
-                </span>
-              </button>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Home Outcome */}
+                  <button
+                    onClick={() => onPlaceQuickBet(activeMatch, 'home')}
+                    className="group relative bg-zinc-950/80 hover:bg-emerald-500/20 border border-zinc-800 hover:border-emerald-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
+                  >
+                    <span className="text-[11px] text-zinc-400 group-hover:text-emerald-300 block mb-1 truncate font-bold">
+                      {activeMatch.customLabelHome || `فوز ${activeMatch.teamHome}`}
+                    </span>
+                    <span className="text-lg sm:text-xl font-black text-emerald-400 font-mono">
+                      x{activeMatch.oddsHome}
+                    </span>
+                  </button>
 
-              {/* Draw Outcome */}
-              <button
-                onClick={() => onPlaceQuickBet(activeMatch, 'draw')}
-                className="group relative bg-zinc-950/80 hover:bg-amber-500/20 border border-zinc-800 hover:border-amber-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
-              >
-                <span className="text-[11px] text-zinc-400 group-hover:text-amber-300 block mb-1 truncate font-bold">
-                  {activeMatch.customLabelDraw || 'التعادل'}
-                </span>
-                <span className="text-lg sm:text-xl font-black text-amber-400 font-mono">
-                  x{activeMatch.oddsDraw}
-                </span>
-              </button>
+                  {/* Draw Outcome */}
+                  <button
+                    onClick={() => onPlaceQuickBet(activeMatch, 'draw')}
+                    className="group relative bg-zinc-950/80 hover:bg-amber-500/20 border border-zinc-800 hover:border-amber-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
+                  >
+                    <span className="text-[11px] text-zinc-400 group-hover:text-amber-300 block mb-1 truncate font-bold">
+                      {activeMatch.customLabelDraw || 'التعادل'}
+                    </span>
+                    <span className="text-lg sm:text-xl font-black text-amber-400 font-mono">
+                      x{activeMatch.oddsDraw}
+                    </span>
+                  </button>
 
-              {/* Away Outcome */}
-              <button
-                onClick={() => onPlaceQuickBet(activeMatch, 'away')}
-                className="group relative bg-zinc-950/80 hover:bg-blue-500/20 border border-zinc-800 hover:border-blue-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
-              >
-                <span className="text-[11px] text-zinc-400 group-hover:text-blue-300 block mb-1 truncate font-bold">
-                  {activeMatch.customLabelAway || `فوز ${activeMatch.teamAway}`}
-                </span>
-                <span className="text-lg sm:text-xl font-black text-blue-400 font-mono">
-                  x{activeMatch.oddsAway}
-                </span>
-              </button>
-            </div>
+                  {/* Away Outcome */}
+                  <button
+                    onClick={() => onPlaceQuickBet(activeMatch, 'away')}
+                    className="group relative bg-zinc-950/80 hover:bg-blue-500/20 border border-zinc-800 hover:border-blue-500/50 rounded-2xl p-3 sm:p-4 text-center transition-all shadow-md active:scale-95"
+                  >
+                    <span className="text-[11px] text-zinc-400 group-hover:text-blue-300 block mb-1 truncate font-bold">
+                      {activeMatch.customLabelAway || `فوز ${activeMatch.teamAway}`}
+                    </span>
+                    <span className="text-lg sm:text-xl font-black text-blue-400 font-mono">
+                      x{activeMatch.oddsAway}
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
 
           {/* Action Footer */}

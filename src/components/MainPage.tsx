@@ -24,7 +24,16 @@ import {
   Filter,
   Bell,
   Lock,
-  Clock
+  Clock,
+  Crown,
+  Zap,
+  Smartphone,
+  Headphones,
+  CreditCard,
+  Gamepad2,
+  Dices,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 
 interface MainPageProps {
@@ -230,33 +239,158 @@ export default function MainPage({
   return (
     <div className="space-y-6 sm:space-y-8 py-2 sm:py-4" dir={dir}>
       
-      {/* 1. Compact Sleek Top Status & Hero Bar */}
-      <section className="relative rounded-2xl overflow-hidden border border-emerald-500/30 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-950 p-4 sm:p-5 shadow-xl shadow-emerald-500/5">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 relative z-10">
-          <div className="space-y-1">
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 px-3 py-0.5 text-[11px] font-black text-emerald-400 border border-emerald-500/30">
-              <Sparkles className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-              <span>منصة الرهانات والتوقعات المباشرة</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-              <span>مباريات اليوم والرهانات المتاحة</span>
-              <span className="text-xs px-2 py-0.5 bg-emerald-500 text-zinc-950 font-black rounded-lg">مباشر 🔥</span>
-            </h1>
-          </div>
+      {/* 1. MENWO Master Hero Banner & Phone Frame (Exact Match to Image) */}
+      <section className="relative rounded-3xl overflow-hidden border border-emerald-500/40 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-5 sm:p-8 shadow-[0_0_50px_rgba(34,197,94,0.15)]">
+        {/* Background Glowing Effects */}
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-emerald-500/20 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-green-500/10 rounded-full blur-[80px] pointer-events-none" />
 
-          <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end">
-            <div className="flex items-center gap-2 text-xs text-zinc-300 font-bold bg-zinc-900/90 border border-zinc-800 px-3 py-2 rounded-xl">
-              <span>المباريات النشطة: <strong className="text-emerald-400 font-mono text-sm">{matches.filter(m => m.status !== 'finished').length}</strong></span>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+          
+          {/* Main Hero Copy & Typography */}
+          <div className="lg:col-span-7 space-y-5 text-start">
+            {/* Crown Tag */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 border border-emerald-500/40 px-3.5 py-1 text-xs font-black text-emerald-400 shadow-[0_0_15px_rgba(34,197,94,0.3)]">
+              <Crown className="h-4 w-4 text-emerald-400 fill-emerald-400/40" />
+              <span>MENWO - منصة الألعاب والمراهنات الأولى</span>
             </div>
 
-            <a 
-              href="#matches-search-section"
-              className="rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 px-4 py-2 text-xs font-black transition-all shadow-md flex items-center gap-1.5 shrink-0"
-            >
-              <Search className="h-3.5 w-3.5" />
-              <span>بحث سريع 🔍</span>
-            </a>
+            {/* Giant Title */}
+            <div className="space-y-1">
+              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-white tracking-tight leading-none">
+                العب واكسب
+              </h1>
+              <h2 className="text-5xl sm:text-7xl lg:text-8xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-green-300 to-emerald-500 drop-shadow-[0_0_35px_rgba(34,197,94,0.6)] leading-tight tracking-tight">
+                فلوس كتير
+              </h2>
+            </div>
+
+            {/* Subtitle list */}
+            <p className="text-sm sm:text-xl font-bold text-emerald-300/90 tracking-wide">
+              مباريات • كازينو • تنس • ألعاب إلكترونية والمزيد!
+            </p>
+
+            {/* Instant Deposit Lightning Tag */}
+            <div className="pt-1">
+              <div className="inline-flex items-center gap-2.5 bg-gradient-to-r from-emerald-500/20 via-emerald-600/30 to-emerald-500/20 border border-emerald-500/50 px-5 py-2.5 rounded-2xl text-emerald-300 font-black text-sm sm:text-base shadow-[0_0_25px_rgba(34,197,94,0.25)]">
+                <Zap className="h-5 w-5 text-amber-400 fill-amber-400 animate-pulse" />
+                <span>إيداع سريع وسحب فوري ⚡</span>
+              </div>
+            </div>
           </div>
+
+          {/* Right Phone Mockup Display (Exact Match to Phone in Image) */}
+          <div className="lg:col-span-5 flex justify-center">
+            <div className="w-full max-w-[310px] bg-zinc-950 border-4 border-zinc-800/90 rounded-[36px] p-3.5 shadow-[0_20px_50px_rgba(0,0,0,0.8)] relative overflow-hidden group hover:border-emerald-500/50 transition-all">
+              
+              {/* Phone Top Notch & Camera */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 h-4 bg-zinc-900 rounded-b-xl z-20 flex items-center justify-center">
+                <div className="w-2.5 h-2.5 rounded-full bg-zinc-800" />
+              </div>
+
+              {/* Phone Header */}
+              <div className="pt-5 pb-3 flex items-center justify-between border-b border-zinc-900 px-1">
+                <div className="flex items-center gap-1.5 text-emerald-400">
+                  <Crown className="h-4 w-4 text-emerald-400 fill-emerald-400/40" />
+                  <span className="font-black text-sm text-white tracking-wider">MENWO</span>
+                </div>
+                <div className="flex items-center gap-1 bg-zinc-900 border border-emerald-500/30 px-2.5 py-1 rounded-full text-[11px] font-black text-emerald-400">
+                  <span>10,250.00 EGP</span>
+                  <span className="bg-emerald-500 text-zinc-950 rounded-full w-3.5 h-3.5 flex items-center justify-center text-[10px]">+</span>
+                </div>
+              </div>
+
+              {/* Phone Categories Grid (6 Cards) */}
+              <div className="grid grid-cols-3 gap-2 py-3">
+                <button onClick={() => setSelectedSportFilter('football')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">⚽</span>
+                  <span className="text-[10px] font-extrabold text-zinc-200">كرة القدم</span>
+                </button>
+                <button onClick={() => setSelectedSportFilter('basketball')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">🏀</span>
+                  <span className="text-[10px] font-extrabold text-zinc-200">كرة السلة</span>
+                </button>
+                <button onClick={() => setSelectedSportFilter('tennis')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">🎾</span>
+                  <span className="text-[10px] font-extrabold text-zinc-200">التنس</span>
+                </button>
+                <button onClick={() => setSelectedSportFilter('volleyball')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">🏐</span>
+                  <span className="text-[10px] font-extrabold text-zinc-200">كرة الطائرة</span>
+                </button>
+                <button onClick={() => setSelectedSportFilter('esports')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">🎮</span>
+                  <span className="text-[10px] font-extrabold text-zinc-200">الألعاب الإلكترونية</span>
+                </button>
+                <button onClick={() => setSelectedSportFilter('casino')} className="bg-zinc-900/90 border border-zinc-800 hover:border-emerald-500/50 rounded-xl p-2 text-center flex flex-col items-center gap-1 transition-all cursor-pointer">
+                  <span className="text-xl">🎲</span>
+                  <span className="text-[10px] font-extrabold text-emerald-400">الكازينو</span>
+                </button>
+              </div>
+
+              {/* Phone "مباريات اليوم" Preview */}
+              <div className="bg-zinc-900/80 border border-zinc-800 rounded-2xl p-2.5 space-y-2">
+                <div className="text-[10px] font-extrabold text-zinc-400 text-start">مباريات اليوم</div>
+                <div className="flex items-center justify-between text-center px-1">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg">👑</span>
+                    <span className="text-[9px] font-bold text-white">ريال مدريد</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[9px] font-black text-zinc-500 bg-zinc-950 px-1 rounded">VS</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400">22:00</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg">⚽</span>
+                    <span className="text-[9px] font-bold text-white">برشلونة</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => {
+                    const match = matches.find(m => m.teamHome.includes('ريال') || m.teamAway.includes('برشلونة')) || matches[0];
+                    if (match) onSelectMatch(match);
+                  }}
+                  className="w-full py-1.5 bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-[11px] rounded-xl transition-all shadow-md flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  راهن الآن 🟢
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+
+        {/* 4 Feature Badges Bar (Matching bottom of image) */}
+        <div className="mt-8 pt-6 border-t border-zinc-900 grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:border-emerald-500/40 transition-colors">
+            <Smartphone className="h-6 w-6 text-emerald-400" />
+            <span className="text-xs font-bold text-zinc-200">متوافق مع جميع الأجهزة</span>
+          </div>
+          <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:border-emerald-500/40 transition-colors">
+            <CreditCard className="h-6 w-6 text-emerald-400" />
+            <span className="text-xs font-bold text-zinc-200">إيداع وسحب سريع</span>
+          </div>
+          <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:border-emerald-500/40 transition-colors">
+            <Headphones className="h-6 w-6 text-emerald-400" />
+            <span className="text-xs font-bold text-zinc-200">دعم فني 24/7</span>
+          </div>
+          <div className="bg-zinc-900/70 border border-zinc-800/80 rounded-2xl p-3 flex flex-col items-center justify-center gap-1 hover:border-emerald-500/40 transition-colors">
+            <ShieldCheck className="h-6 w-6 text-emerald-400" />
+            <span className="text-xs font-bold text-zinc-200">أمان 100%</span>
+          </div>
+        </div>
+
+        {/* Giant Registration / Play Action Banner Button */}
+        <div className="mt-6 flex justify-center">
+          <a
+            href="#categories-section"
+            className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 via-green-400 to-emerald-500 hover:from-emerald-400 hover:to-emerald-300 text-zinc-950 font-black text-base sm:text-xl px-8 py-4 rounded-2xl shadow-[0_0_35px_rgba(34,197,94,0.5)] transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-105 active:scale-95"
+          >
+            <ChevronRight className="h-6 w-6 text-zinc-950 animate-pulse stroke-[3]" />
+            <span>سجل الآن وابدأ رحلتك نحو الربح</span>
+            <ChevronLeft className="h-6 w-6 text-zinc-950 animate-pulse stroke-[3]" />
+          </a>
         </div>
       </section>
 
@@ -464,59 +598,61 @@ export default function MainPage({
           </div>
         )}
 
-        {/* Sport Filters */}
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-zinc-900 overflow-x-auto">
-          {/* 'All' button */}
-          <button
-            onClick={() => setSelectedSportFilter('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-              selectedSportFilter === 'all' 
-                ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20 scale-105 font-black' 
-                : 'bg-zinc-900/80 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800/60'
-            }`}
-            id="filter-sport-all"
-          >
-            <span>🏟️</span>
-            <span>الكل</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
-              selectedSportFilter === 'all' ? 'bg-zinc-950/20 text-zinc-950' : 'bg-zinc-800 text-zinc-400'
-            }`}>
-              {matches.filter(m => m.status !== 'finished').length}
-            </span>
-          </button>
-
-          {/* Dynamic Sports Categories */}
-          {(sportsCategories && sportsCategories.length > 0 ? sportsCategories : [
-            { id: 'football', name: 'كرة القدم', icon: '⚽' },
-            { id: 'basketball', name: 'كرة السلة', icon: '🏀' },
-            { id: 'tennis', name: 'التنس', icon: '🎾' },
-            { id: 'volleyball', name: 'كرة الطائرة', icon: '🏐' },
-            { id: 'esports', name: 'الألعاب الإلكترونية', icon: '🎮' },
-          ]).map(category => {
-            const matchCount = matches.filter(m => m.sport === category.id && m.status !== 'finished').length;
-            const isSelected = selectedSportFilter === category.id;
-
-            return (
+        {/* Prominent 6 Categories Grid (Exact Match to Image) */}
+        <div id="categories-section" className="space-y-3 pt-2 border-t border-zinc-900">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm sm:text-base font-extrabold text-white flex items-center gap-2">
+              <Trophy className="h-4 w-4 text-emerald-400" />
+              <span>الأقسام الرئيسية والرياضات الكبرى</span>
+            </h3>
+            {selectedSportFilter !== 'all' && (
               <button
-                key={category.id}
-                onClick={() => setSelectedSportFilter(category.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                  isSelected 
-                    ? 'bg-emerald-500 text-zinc-950 shadow-md shadow-emerald-500/20 scale-105 font-black' 
-                    : 'bg-zinc-900/80 text-zinc-400 hover:text-white hover:bg-zinc-800 border border-zinc-800/60'
-                }`}
-                id={`filter-sport-${category.id}`}
+                onClick={() => setSelectedSportFilter('all')}
+                className="text-xs text-emerald-400 hover:underline font-bold"
               >
-                <span>{category.icon || '🏆'}</span>
-                <span>{category.name}</span>
-                <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
-                  isSelected ? 'bg-zinc-950/20 text-zinc-950' : 'bg-zinc-800 text-zinc-400'
-                }`}>
-                  {matchCount}
-                </span>
+                عرض كل الرياضات (الكل)
               </button>
-            );
-          })}
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+            {[
+              { id: 'football', name: 'كرة القدم', icon: '⚽', color: 'emerald' },
+              { id: 'basketball', name: 'كرة السلة', icon: '🏀', color: 'amber' },
+              { id: 'tennis', name: 'التنس', icon: '🎾', color: 'green' },
+              { id: 'volleyball', name: 'كرة الطائرة', icon: '🏐', color: 'blue' },
+              { id: 'esports', name: 'الألعاب الإلكترونية', icon: '🎮', color: 'purple' },
+              { id: 'casino', name: 'الكازينو', icon: '🎲', color: 'red' },
+            ].map(cat => {
+              const isSelected = selectedSportFilter === cat.id;
+              const count = cat.id === 'casino' 
+                ? 'مباشر 🔥' 
+                : matches.filter(m => m.sport === cat.id && m.status !== 'finished').length;
+
+              return (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedSportFilter(isSelected ? 'all' : cat.id)}
+                  className={`p-3.5 rounded-2xl border transition-all flex flex-col items-center justify-center gap-2 text-center cursor-pointer active:scale-95 ${
+                    isSelected
+                      ? 'bg-gradient-to-b from-emerald-500/20 to-emerald-600/30 border-emerald-500 text-white shadow-[0_0_20px_rgba(34,197,94,0.3)] ring-2 ring-emerald-500/40'
+                      : 'bg-zinc-900/90 border-zinc-800 text-zinc-300 hover:border-emerald-500/40 hover:text-white hover:bg-zinc-800/90'
+                  }`}
+                  id={`cat-card-${cat.id}`}
+                >
+                  <span className="text-3xl drop-shadow-md">{cat.icon}</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs font-black tracking-tight">{cat.name}</span>
+                    <span className={`text-[10px] font-bold mt-0.5 px-1.5 py-0.2 rounded-full ${
+                      isSelected ? 'bg-emerald-500 text-zinc-950 font-black' : 'text-zinc-400 bg-zinc-950/60'
+                    }`}>
+                      {count}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </section>
 
@@ -849,7 +985,15 @@ function MatchCard({ match, onSelect, onPlaceBet, currentUser, hasReminder, onTo
           </button>
         </div>
 
-        {match.isBettingClosed || match.bettingStatus === 'closed' || match.bettingStatus === 'suspended' ? (
+        {userBet ? (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 text-center space-y-1">
+            <div className="text-xs font-black text-amber-400 flex items-center justify-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" />
+              <span>تم الرهان مسبقاً ({userBet.amount} 🪙 على {userBet.selectedOutcome === 'home' ? `فوز ${userBet.teamHome}` : userBet.selectedOutcome === 'away' ? `فوز ${userBet.teamAway}` : 'التعادل'})</span>
+            </div>
+            <p className="text-[10px] text-amber-300 font-bold">ممنوع المراهنة مرتين لنفس المباراة ⛔</p>
+          </div>
+        ) : match.isBettingClosed || match.bettingStatus === 'closed' || match.bettingStatus === 'suspended' ? (
           <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-3 text-center space-y-1">
             <div className="text-xs font-black text-red-400 flex items-center justify-center gap-1.5">
               <Lock className="h-3.5 w-3.5" />

@@ -27,7 +27,8 @@ import {
   BrainCircuit,
   ChevronRight,
   ChevronLeft,
-  Lock
+  Lock,
+  X
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -128,6 +129,7 @@ export default function EventsPage({
   const [betSuccessMsg, setBetSuccessMsg] = useState('');
   const [betErrorMsg, setBetErrorMsg] = useState('');
   const [statsViewTab, setStatsViewTab] = useState<'charts' | 'traditional'>('charts');
+  const [isBetSlipClosed, setIsBetSlipClosed] = useState(false);
 
   // Quick On-Card Betting States
   const [quickBetMatchId, setQuickBetMatchId] = useState<string | null>(null);
@@ -190,6 +192,7 @@ export default function EventsPage({
     setTipsError('');
     setBetSuccessMsg('');
     setBetErrorMsg('');
+    setIsBetSlipClosed(false);
 
     if (selectedMatch?.fixedStakeAmount && selectedMatch.fixedStakeAmount > 0) {
       setBetAmount(selectedMatch.fixedStakeAmount);
@@ -624,16 +627,48 @@ export default function EventsPage({
       {/* Column 2 & 3: Match Details, Compact Scoreboard & Betting Slip */}
       <div className="lg:col-span-2 space-y-3">
         {selectedMatch ? (
+          isBetSlipClosed ? (
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-3 animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{selectedMatch.logoHome}</span>
+                <span className="text-xs sm:text-sm font-bold text-white">{selectedMatch.teamHome} <span className="text-emerald-400 font-extrabold">×</span> {selectedMatch.teamAway}</span>
+                <span className="text-2xl">{selectedMatch.logoAway}</span>
+                <span className="text-[10px] text-zinc-400 font-bold bg-zinc-900 px-2 py-0.5 rounded-lg border border-zinc-800">بطاقة مصغرة</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBetSlipClosed(false)}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-black text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/10 active:scale-95"
+                id="reopen-betting-slip-btn"
+              >
+                <Coins className="h-4 w-4" />
+                <span>إظهار بطاقة الرهان 🪙</span>
+              </button>
+            </div>
+          ) : (
           <>
-
-
             {/* A. Compact Scoreboard */}
-            <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-3 sm:p-4 shadow-lg relative overflow-hidden">
+            <div className="rounded-2xl border border-emerald-500/30 bg-zinc-950 p-3 sm:p-4 shadow-xl relative overflow-hidden">
               <div className="absolute top-0 right-0 h-1 w-full bg-emerald-500" />
               
-              <div className="flex justify-between items-center text-[10px] text-zinc-400 mb-2">
-                <span className="font-bold text-zinc-300">{selectedMatch.league}</span>
-                <span>{getSportBadge(selectedMatch.sport)}</span>
+              <div className="flex justify-between items-center text-[11px] text-zinc-400 mb-2 border-b border-zinc-900 pb-2">
+                <span className="font-bold text-zinc-300 flex items-center gap-1.5">
+                  <span>{selectedMatch.league}</span>
+                  <span className="text-zinc-600">•</span>
+                  <span>{getSportBadge(selectedMatch.sport)}</span>
+                </span>
+                
+                {/* Prominent Close X Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsBetSlipClosed(true)}
+                  className="p-1.5 rounded-xl bg-zinc-900 hover:bg-red-500/20 text-zinc-400 hover:text-red-400 border border-zinc-800 transition-all cursor-pointer flex items-center gap-1 text-xs font-bold shrink-0"
+                  title="تصغير / إغلاق بطاقة الرهان"
+                  id="close-selected-match-btn"
+                >
+                  <span className="text-[11px] hidden sm:inline">تصغير / إغلاق</span>
+                  <X className="h-4 w-4" />
+                </button>
               </div>
 
               {/* Score display */}
@@ -671,16 +706,28 @@ export default function EventsPage({
               </div>
             </div>
 
-            {/* B. Betting slip */}
+            {/* B. Compact Betting slip */}
             <div className="w-full">
               
-              {/* Betting Slip */}
-              <div className="rounded-xl border border-zinc-900 bg-zinc-950 p-3.5 sm:p-4 flex flex-col justify-between shadow-lg space-y-3">
+              {/* Betting Slip Card */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-zinc-950 p-3 sm:p-4 flex flex-col justify-between shadow-xl space-y-3 relative">
                 <form onSubmit={handlePlaceBetSubmit} className="space-y-3">
-                  <h3 className="text-xs font-extrabold text-white flex items-center gap-1.5 border-b border-zinc-900 pb-2">
-                    <Coins className="h-4 w-4 text-emerald-400" />
-                    <span>بطاقة الرهان (Betting Slip)</span>
-                  </h3>
+                  <div className="flex items-center justify-between border-b border-zinc-900 pb-2">
+                    <h3 className="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5">
+                      <Coins className="h-4 w-4 text-emerald-400" />
+                      <span>بطاقة الرهان القسيمة (Betting Slip)</span>
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => setIsBetSlipClosed(true)}
+                      className="p-1.5 rounded-lg bg-zinc-900 text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors border border-zinc-800 cursor-pointer flex items-center gap-1"
+                      title="تصغير بطاقة الرهان"
+                      id="close-betting-slip-btn"
+                    >
+                      <span className="text-[10px] text-zinc-400 font-bold hidden sm:inline">تصغير</span>
+                      <X className="h-4 w-4 text-zinc-300" />
+                    </button>
+                  </div>
 
                   {betSuccessMsg && (
                     <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-2 text-xs text-emerald-400">
@@ -966,6 +1013,7 @@ export default function EventsPage({
               </div>
             </div>
           </>
+          )
         ) : (
           <div className="rounded-2xl border border-zinc-900 bg-zinc-950 p-10 text-center space-y-4">
             <div className="mx-auto w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">

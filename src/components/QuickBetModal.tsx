@@ -147,26 +147,27 @@ export default function QuickBetModal({
       : 'التعادل بين الفريقين';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200" dir="rtl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3.5 bg-black/85 backdrop-blur-md animate-in fade-in duration-200" dir="rtl">
       <div 
-        className="relative w-full max-w-lg bg-zinc-950 border border-emerald-500/30 rounded-3xl p-5 sm:p-7 shadow-2xl shadow-emerald-500/10 space-y-5 overflow-hidden"
+        className="relative w-full max-w-md bg-zinc-950 border border-emerald-500/30 rounded-2xl p-4 sm:p-5 shadow-2xl shadow-emerald-500/10 space-y-3.5 overflow-hidden max-h-[92vh] overflow-y-auto scrollbar-none"
         id="quick-bet-modal"
       >
         {/* Glow Effects */}
-        <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 blur-3xl rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
+        <div className="absolute top-0 right-0 w-36 h-36 bg-emerald-500/10 blur-2xl rounded-full pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-36 h-36 bg-amber-500/10 blur-2xl rounded-full pointer-events-none" />
 
-        {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-3.5 relative z-10">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              <Coins className="h-5 w-5" />
+        {/* Modal Header with Close X Button */}
+        <div className="flex items-center justify-between border-b border-zinc-800/80 pb-2.5 relative z-10">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+              <Coins className="h-4 w-4" />
             </div>
             <div>
-              <h3 className="text-base sm:text-lg font-black text-white">
-                قسيمة الرهان 🪙
+              <h3 className="text-sm sm:text-base font-black text-white flex items-center gap-1">
+                <span>قسيمة الرهان</span>
+                <span className="text-xs text-amber-400">🪙</span>
               </h3>
-              <p className="text-xs text-zinc-400">
+              <p className="text-[10px] sm:text-xs text-zinc-400">
                 {currentMatch.league} • {currentMatch.time}
               </p>
             </div>
@@ -174,10 +175,11 @@ export default function QuickBetModal({
 
           <button
             onClick={onClose}
-            className="p-2 rounded-xl bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors border border-zinc-800 cursor-pointer"
+            className="p-1.5 rounded-full bg-zinc-900 text-zinc-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40 transition-all border border-zinc-800 cursor-pointer shadow-md flex items-center justify-center"
             id="quick-bet-close-btn"
+            title="إغلاق وإزالة القسيمة (X)"
           >
-            <X className="h-5 w-5" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 

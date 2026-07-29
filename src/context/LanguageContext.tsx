@@ -81,7 +81,7 @@ export interface Translations {
 
 const translations: Record<Language, Translations> = {
   ar: {
-    appName: 'مينوو AI',
+    appName: 'MENWO',
     home: 'الرئيسية',
     eventsAndMatches: 'الأحداث والمباريات',
     userDashboard: 'لوحة المستخدم',
